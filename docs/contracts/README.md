@@ -16,11 +16,11 @@
 | [registry-service.yaml](registry-service.yaml) | 1.0.0 | A2 registry + health | **8101** | pending (P2, backend) |
 | [deployments-service.yaml](deployments-service.yaml) | 1.0.0 | DI-1 deploy tracker | **8701** | pending (P2, backend) |
 | [catalog-service.yaml](catalog-service.yaml) | 1.0.0 | catalog | 9001 | **LIVE** (slice) |
-| [cart-service.yaml](cart-service.yaml) | 1.0.0 | cart | 9002* | pending (P2, backend) |
-| [order-service.yaml](order-service.yaml) | 1.0.0 | order | 9003* | pending (P2, backend) |
-| [payment-service.yaml](payment-service.yaml) | 1.0.0 | payment | 9004* | pending (P2, backend) |
+| [cart-service.yaml](cart-service.yaml) | 1.0.0 | cart | 9002 | pending (P2, backend) |
+| [order-service.yaml](order-service.yaml) | 1.0.0 | order | 9003 | pending (P2, backend) |
+| [payment-service.yaml](payment-service.yaml) | 1.0.0 | payment | 9004 | pending (P2, backend) |
 
-\* cart/order/payment ports are **proposed** — confirmed at the kickoff sync.
+Ports locked 2026-09-01 (D1 pre-approval) — recorded at the kickoff sync.
 [manifest.json](manifest.json) maps each service to its contract file for the
 drift check — **add a row there when a service lands** (PR template).
 
