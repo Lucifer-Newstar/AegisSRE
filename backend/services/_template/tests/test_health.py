@@ -1,6 +1,6 @@
 """Health/metrics tests for the reference service template.
 
-Verifies the endpoints every AegisDeploy service must expose: /health,
+Verifies the endpoints every AegisSRE service must expose: /health,
 /ready, /metrics, and the metadata root. Uses FastAPI's TestClient (httpx).
 """
 

@@ -1,4 +1,4 @@
-# AegisDeploy Kubernetes base (Kustomize)
+# AegisSRE Kubernetes base (Kustomize)
 # ADR-0005: every Compose service has a 1:1 Kustomize base here, using the same
 # image tags, env names, and config mounts.
 apiVersion: kustomize.config.k8s.io/v1beta1

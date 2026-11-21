@@ -15,7 +15,7 @@ flowchart TB
     %% ═══════════════════════════════════════════════════════
     DEV["«device» Developer Workstation<br/>kubectl · docker · git<br/>«artifact» Kustomize overlays"]
     GH["«node» GitHub Actions<br/>«artifact» CI/CD workflows · CD pipeline (DI-1 webhook)"]
-    REG["«node» Container Registry<br/>«artifact» images: aegisdeploy/* , aegisshop/*"]
+    REG["«node» Container Registry<br/>«artifact» images: aegissre/* , aegisshop/*"]
     CHAOS["chaoslab (workstation / CI)<br/>«artifact» chaos manifests · canary experiments (DI-6)"]
 
     %% ═══════════════════════════════════════════════════════
@@ -26,8 +26,8 @@ flowchart TB
 
         subgraph NS_PLAT["namespace: platform"]
             direction LR
-            FE["frontend<br/>«artifact» aegisdeploy/frontend:0.1"]
-            GW["gateway<br/>«artifact» aegisdeploy/gateway:0.1"]
+            FE["frontend<br/>«artifact» aegissre/frontend:0.1"]
+            GW["gateway<br/>«artifact» aegissre/gateway:0.1"]
             REGSVC["registry"]
             INC["incidents"]
             EV["evidence"]
@@ -35,9 +35,9 @@ flowchart TB
             POL["policy"]
             AUD["audit"]
             AUT["autonomy"]
-            ML["ml-service<br/>«artifact» aegisdeploy/ml:0.1"]
-            AI["ai-service<br/>«artifact» aegisdeploy/ai:0.1"]
-            DPL["deployments (DI-1 tracker)<br/>«artifact» aegisdeploy/deployments:0.1"]
+            ML["ml-service<br/>«artifact» aegissre/ml:0.1"]
+            AI["ai-service<br/>«artifact» aegissre/ai:0.1"]
+            DPL["deployments (DI-1 tracker)<br/>«artifact» aegissre/deployments:0.1"]
         end
 
         subgraph NS_SHOP["namespace: aegisshop"]
@@ -152,14 +152,14 @@ flowchart TB
 |---|---|---|
 | Developer Workstation | device | kubectl, docker, git, Kustomize overlays |
 | GitHub Actions | node | CI/CD workflows (D5) |
-| Container Registry | node | `aegisdeploy/*`, `aegisshop/*` images |
+| Container Registry | node | `aegissre/*`, `aegisshop/*` images |
 | kind cluster | node (Kubernetes) | everything else, 4 namespaces |
 
 ## 2. Namespaces & Artifacts
 
 | Namespace | Components | Artifacts (images) |
 |---|---|---|
-| `platform` | frontend, gateway, registry, incidents, evidence, remediation, policy, audit, autonomy, ml-service, ai-service, **deployments** | `aegisdeploy/*:0.1` (P7 pins real versions) |
+| `platform` | frontend, gateway, registry, incidents, evidence, remediation, policy, audit, autonomy, ml-service, ai-service, **deployments** | `aegissre/*:0.1` (P7 pins real versions) |
 | `aegisshop` | shop-gateway, catalog, cart, order, payment | `aegisshop/*:0.1` |
 | `observability` | otel-collector, prometheus, grafana, loki, tempo | pinned images (M1 versions) |
 | `data` | postgres (StatefulSet + pgvector), redis (StatefulSet) | postgres:16-alpine, redis:7-alpine |

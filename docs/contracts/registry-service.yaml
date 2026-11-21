@@ -1,4 +1,4 @@
-# AegisDeploy — registry-service contract (A2)
+# AegisSRE — registry-service contract (A2)
 # Port: 8101 · Version: 1.0.0 · Owner: Navin Jairam · Freeze: 2026-09-08
 #
 # Service registry & live health: every platform + AegisShop service
@@ -10,7 +10,7 @@
 #  1.0.0  initial contract (P2 start)
 openapi: 3.1.0
 info:
-  title: AegisDeploy Registry Service (A2)
+  title: AegisSRE Registry Service (A2)
   version: 1.0.0
   description: Service registry and live health aggregation.
 servers:

@@ -84,8 +84,8 @@ class RegistryStore:
             ("cart-service", "AegisShop Cart", "http://cart-service:9002"),
             ("order-service", "AegisShop Order", "http://order-service:9003"),
             ("payment-service", "AegisShop Payment", "http://payment-service:9004"),
-            ("registry-service", "AegisDeploy Registry", "http://registry-service:8101"),
-            ("deployments-service", "AegisDeploy Deployments", "http://deployments-service:8701"),
+            ("registry-service", "AegisSRE Registry", "http://registry-service:8101"),
+            ("deployments-service", "AegisSRE Deployments", "http://deployments-service:8701"),
         )
         for sid, name, url in seeds:
             rec = ServiceRecord(id=sid, name=name, url=url, last_heartbeat_at=_now())

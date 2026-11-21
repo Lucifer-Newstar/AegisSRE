@@ -104,7 +104,7 @@ cp .env.example .env    # then edit passwords if you want non-defaults
 |---|---|---|---|---|
 | `POSTGRES_USER` | `aegis` | optional | postgres container | superuser for the dev DB |
 | `POSTGRES_PASSWORD` | `aegis` | optional | postgres container | dev-only credential |
-| `POSTGRES_DB` | `aegisdeploy` | optional | postgres container | main platform DB |
+| `POSTGRES_DB` | `aegissre` | optional | postgres container | main platform DB |
 | `GRAFANA_ADMIN_USER` | `admin` | optional | grafana container | login user |
 | `GRAFANA_ADMIN_PASSWORD` | `aegis` | optional | grafana container | login password (login: `admin`/`aegis`) |
 

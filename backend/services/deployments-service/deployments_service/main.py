@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 from deployments_service.runtime import build_app, health_routes, instrument_middleware, logger
 from deployments_service.store import DeploymentRecord, store
 
-app = build_app("AegisDeploy Deployments Service")
+app = build_app("AegisSRE Deployments Service")
 health_routes(app)
 
 

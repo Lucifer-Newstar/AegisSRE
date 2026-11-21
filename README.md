@@ -253,9 +253,10 @@ infrastructure. Autonomy is constrained by:
 
 ## 9. Naming Note
 
-Python packages, container names, and some infra identifiers use the `aegisdeploy`
-prefix — a holdover from an earlier working title. The project name is **AegisSRE**;
-the identifiers are internal only.
+Python packages, container names, and infra identifiers use the `aegissre`
+prefix. They were renamed from an earlier `aegisdeploy` working title on
+2026-11-22; checkouts from before that date should reinstall editable packages
+and rebuild local images.
 
 ## 10. Conventions & License
 

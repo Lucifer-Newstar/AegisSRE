@@ -4,7 +4,7 @@ metadata:
   name: console
   labels:
     app.kubernetes.io/name: console
-    app.kubernetes.io/part-of: aegisdeploy
+    app.kubernetes.io/part-of: aegissre
 spec:
   selector:
     app.kubernetes.io/name: console

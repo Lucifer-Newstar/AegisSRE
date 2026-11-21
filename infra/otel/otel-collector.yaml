@@ -1,4 +1,4 @@
-# AegisDeploy OpenTelemetry Collector (contrib) — single ingestion point.
+# AegisSRE OpenTelemetry Collector (contrib) — single ingestion point.
 # Receives OTLP (grpc/http) and fans out:
 #   metrics → Prometheus (remote write)  |  logs → Loki  |  traces → Tempo
 # Shared by Docker Compose and Kubernetes runtimes.
@@ -25,7 +25,7 @@ processors:
   resource:
     attributes:
       - key: service.namespace
-        value: aegisdeploy
+        value: aegissre
         action: upsert
 
 exporters:

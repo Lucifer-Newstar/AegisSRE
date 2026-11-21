@@ -4,7 +4,7 @@ metadata:
   name: registry-service
   labels:
     app.kubernetes.io/name: registry-service
-    app.kubernetes.io/part-of: aegisdeploy
+    app.kubernetes.io/part-of: aegissre
 spec:
   selector:
     app.kubernetes.io/name: registry-service

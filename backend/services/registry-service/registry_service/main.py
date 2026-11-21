@@ -15,7 +15,7 @@ from registry_service.runtime import (
 )
 from registry_service.store import store
 
-app = build_app("AegisDeploy Registry Service")
+app = build_app("AegisSRE Registry Service")
 health_routes(app)
 
 

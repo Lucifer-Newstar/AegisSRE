@@ -1,4 +1,4 @@
-"""AegisDeploy event layer (Redis Streams — ADR-0004).
+"""AegisSRE event layer (Redis Streams — ADR-0004).
 
 One stream per event type (``st:<type>``), consumer groups per logical
 consumer, at-least-once delivery with explicit acks. Semantics are defined

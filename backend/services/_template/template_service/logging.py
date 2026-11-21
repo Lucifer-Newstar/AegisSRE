@@ -1,4 +1,4 @@
-"""Structured logging setup for AegisDeploy services.
+"""Structured logging setup for AegisSRE services.
 
 Emits key=value lines to stdout so containers collect them naturally
 (docker logs → Loki in P2). Kept dependency-free on purpose.

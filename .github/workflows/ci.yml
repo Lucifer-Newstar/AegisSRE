@@ -184,7 +184,7 @@ jobs:
         with:
           context: ./backend/services/registry-service
           file: ./backend/services/registry-service/Dockerfile
-          tags: aegisdeploy/registry-service:ci-${{ github.sha }}
+          tags: aegissre/registry-service:ci-${{ github.sha }}
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max

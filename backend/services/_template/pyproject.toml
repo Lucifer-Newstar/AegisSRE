@@ -3,9 +3,9 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "aegisdeploy-service-template"
+name = "aegissre-service-template"
 version = "0.1.0"
-description = "AegisDeploy reference FastAPI service template (copy for new services)"
+description = "AegisSRE reference FastAPI service template (copy for new services)"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",

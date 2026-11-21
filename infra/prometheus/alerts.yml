@@ -1,11 +1,11 @@
-# AegisDeploy alerting rules — P2 baseline set.
+# AegisSRE alerting rules — P2 baseline set.
 # These rules become the ground-truth signals that the anomaly pipeline and
 # incident manager consume; keep them minimal and deterministic for now.
 groups:
-  - name: aegisdeploy-baseline
+  - name: aegissre-baseline
     interval: 30s
     rules:
-      - alert: AegisDeployPrometheusTargetDown
+      - alert: AegisSREPrometheusTargetDown
         expr: up == 0
         for: 2m
         labels:

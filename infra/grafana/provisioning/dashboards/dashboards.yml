@@ -1,9 +1,9 @@
-# AegisDeploy Grafana — file-provider dashboards (P2).
+# AegisSRE Grafana — file-provider dashboards (P2).
 apiVersion: 1
 providers:
   - name: default
     orgId: 1
-    folder: AegisDeploy
+    folder: AegisSRE
     type: file
     disableDeletion: false
     updateIntervalSeconds: 60

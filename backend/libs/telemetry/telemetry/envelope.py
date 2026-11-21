@@ -1,4 +1,4 @@
-"""Event envelope models — the AegisDeploy telemetry contract (v0.2).
+"""Event envelope models — the AegisSRE telemetry contract (v0.2).
 
 Design notes
 ------------

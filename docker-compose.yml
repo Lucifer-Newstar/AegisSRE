@@ -13,7 +13,7 @@
 #   make infra-down     → docker compose down -v
 # =============================================================================
 
-name: aegisdeploy
+name: aegissre
 
 x-logging: &default-logging
   driver: json-file
@@ -25,11 +25,11 @@ services:
   # ── Data layer ────────────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
-    container_name: aegisdeploy-postgres
+    container_name: aegissre-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-aegis}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aegis}
-      POSTGRES_DB: ${POSTGRES_DB:-aegisdeploy}
+      POSTGRES_DB: ${POSTGRES_DB:-aegissre}
     ports:
       - "5432:5432"
     volumes:
@@ -39,12 +39,12 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
-    networks: [aegisdeploy]
+    networks: [aegissre]
     logging: *default-logging
 
   redis:
     image: redis:7-alpine
-    container_name: aegisdeploy-redis
+    container_name: aegissre-redis
     command: ["redis-server", "--appendonly", "yes"]
     ports:
       - "6379:6379"
@@ -55,13 +55,13 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
-    networks: [aegisdeploy]
+    networks: [aegissre]
     logging: *default-logging
 
   # ── Observability layer ───────────────────────────────────────────────────
   prometheus:
     image: prom/prometheus:v2.53.0
-    container_name: aegisdeploy-prometheus
+    container_name: aegissre-prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
@@ -77,12 +77,12 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    networks: [aegisdeploy]
+    networks: [aegissre]
     logging: *default-logging
 
   grafana:
     image: grafana/grafana:11.3.0
-    container_name: aegisdeploy-grafana
+    container_name: aegissre-grafana
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-aegis}
@@ -100,12 +100,12 @@ services:
       retries: 5
     depends_on:
       prometheus: { condition: service_healthy }
-    networks: [aegisdeploy]
+    networks: [aegissre]
     logging: *default-logging
 
   loki:
     image: grafana/loki:3.3.2
-    container_name: aegisdeploy-loki
+    container_name: aegissre-loki
     command: ["-config.file=/etc/loki/loki-config.yaml"]
     ports:
       - "3100:3100"
@@ -117,12 +117,12 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    networks: [aegisdeploy]
+    networks: [aegissre]
     logging: *default-logging
 
   tempo:
     image: grafana/tempo:2.6.1
-    container_name: aegisdeploy-tempo
+    container_name: aegissre-tempo
     command: ["-config.file=/etc/tempo/tempo.yaml"]
     ports:
       - "3200:3200"   # Tempo HTTP API (OTLP receivers are internal to the Compose network)
@@ -134,12 +134,12 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    networks: [aegisdeploy]
+    networks: [aegissre]
     logging: *default-logging
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.109.0
-    container_name: aegisdeploy-otel-collector
+    container_name: aegissre-otel-collector
     command: ["--config=/etc/otel/config.yaml"]
     ports:
       - "4317:4317"   # OTLP gRPC
@@ -153,7 +153,7 @@ services:
     depends_on:
       tempo: { condition: service_started }
       loki: { condition: service_healthy }
-    networks: [aegisdeploy]
+    networks: [aegissre]
     logging: *default-logging
 
   # ── Demo workload (AegisShop) ─────────────────────────────────────────────
@@ -173,7 +173,7 @@ services:
       - "9001:9001"
     depends_on:
       otel-collector: { condition: service_started }
-    networks: [aegisdeploy]
+    networks: [aegissre]
     logging: *default-logging
 
   cart-service:
@@ -189,7 +189,7 @@ services:
       - "9002:9002"
     depends_on:
       otel-collector: { condition: service_started }
-    networks: [aegisdeploy]
+    networks: [aegissre]
     logging: *default-logging
 
   order-service:
@@ -207,7 +207,7 @@ services:
     depends_on:
       cart-service: { condition: service_started }
       otel-collector: { condition: service_started }
-    networks: [aegisdeploy]
+    networks: [aegissre]
     logging: *default-logging
 
   payment-service:
@@ -223,13 +223,13 @@ services:
       - "9004:9004"
     depends_on:
       otel-collector: { condition: service_started }
-    networks: [aegisdeploy]
+    networks: [aegissre]
     logging: *default-logging
 
   registry-service:
     build: ./backend/services/registry-service
-    image: aegisdeploy/registry-service:0.1.0
-    container_name: aegisdeploy-registry
+    image: aegissre/registry-service:0.1.0
+    container_name: aegissre-registry
     environment:
       SERVICE_NAME: registry-service
       SERVICE_PORT: "8101"
@@ -240,13 +240,13 @@ services:
       - "8101:8101"
     depends_on:
       otel-collector: { condition: service_started }
-    networks: [aegisdeploy]
+    networks: [aegissre]
     logging: *default-logging
 
   deployments-service:
     build: ./backend/services/deployments-service
-    image: aegisdeploy/deployments-service:0.1.0
-    container_name: aegisdeploy-deployments
+    image: aegissre/deployments-service:0.1.0
+    container_name: aegissre-deployments
     environment:
       SERVICE_NAME: deployments-service
       SERVICE_PORT: "8701"
@@ -256,13 +256,13 @@ services:
       - "8701:8701"
     depends_on:
       otel-collector: { condition: service_started }
-    networks: [aegisdeploy]
+    networks: [aegissre]
     logging: *default-logging
 
   console:
     build: ./frontend
-    image: aegisdeploy/console:0.1.0
-    container_name: aegisdeploy-console
+    image: aegissre/console:0.1.0
+    container_name: aegissre-console
     environment:
       PORT: "3030"
       REGISTRY_URL: http://registry-service:8101
@@ -272,11 +272,11 @@ services:
     depends_on:
       registry-service: { condition: service_started }
       deployments-service: { condition: service_started }
-    networks: [aegisdeploy]
+    networks: [aegissre]
     logging: *default-logging
 
 networks:
-  aegisdeploy:
+  aegissre:
     driver: bridge
 
 volumes:

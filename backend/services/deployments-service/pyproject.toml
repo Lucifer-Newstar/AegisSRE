@@ -3,9 +3,9 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "aegisdeploy-deployments-service"
+name = "aegissre-deployments-service"
 version = "0.1.0"
-description = "AegisDeploy DI-1 deployment history API"
+description = "AegisSRE DI-1 deployment history API"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",

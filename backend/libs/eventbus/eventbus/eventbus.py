@@ -27,7 +27,7 @@ def stream_name(event_type: str) -> str:
 
 
 class EventBus:
-    """Thin, typed wrapper over Redis Streams for AegisDeploy events.
+    """Thin, typed wrapper over Redis Streams for AegisSRE events.
 
     Args:
         redis_url: redis://[user]:[pass]@host:port/db connection URL.

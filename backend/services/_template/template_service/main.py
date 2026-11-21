@@ -1,4 +1,4 @@
-"""FastAPI app factory for AegisDeploy services (reference template).
+"""FastAPI app factory for AegisSRE services (reference template).
 
 Endpoints every service must expose (used by Compose/K8s probes and the
 prometheus scrape job):
@@ -36,7 +36,7 @@ logger = setup_logging(settings.service_name, settings.environment)
 
 # ── Prometheus metrics ────────────────────────────────────────────────────────
 # Names follow the platform metric conventions (see telemetry-model.md).
-# Each service uses its OWN CollectorRegistry: several AegisDeploy services
+# Each service uses its OWN CollectorRegistry: several AegisSRE services
 # share identical metric names by convention, so a shared/global registry
 # would collide when modules are imported in one process (e.g. CI test runs).
 METRIC_REGISTRY = CollectorRegistry()
@@ -90,7 +90,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     logger.info("service stopped")
 
 
-app = FastAPI(title=f"AegisDeploy {settings.service_name}", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title=f"AegisSRE {settings.service_name}", version="0.1.0", lifespan=lifespan)
 
 
 @app.get("/")

@@ -1,6 +1,6 @@
 # Reference Service Template (`_template`)
 
-> **Copy this folder to create a new AegisDeploy platform service.** It is the
+> **Copy this folder to create a new AegisSRE platform service.** It is the
 > canonical pattern every backend service follows (commented,
 > consistent, easy to read). It is intentionally *not* a real service — the real
 > services (gateway, registry, incidents, …) are built by copying this skeleton
@@ -20,7 +20,7 @@
 
 ```bash
 cp -r backend/services/_template backend/services/<name>
-# 1. rename the dist in pyproject.toml ("aegisdeploy-service-<name>")
+# 1. rename the dist in pyproject.toml ("aegissre-service-<name>")
 # 2. set SERVICE_NAME + SERVICE_PORT in app/config.py defaults (or env)
 # 3. add your routes to app/main.py (keep /health, /ready, /metrics)
 # 4. write tests; run: pytest backend/services/<name>
@@ -38,7 +38,7 @@ cp -r backend/services/_template backend/services/<name>
    (services must run identically in Compose and K8s — ADR-0005).
 5. **Comments + types** — every module documents its purpose; functions have
    docstrings and type hints (ruff + mypy pass in CI).
-6. **Envelope** — any emitted event uses `aegisdeploy-telemetry`
+6. **Envelope** — any emitted event uses `aegissre-telemetry`
    (`backend/libs/telemetry`) — never a bespoke shape.
 
 ## Ports

@@ -1,6 +1,6 @@
-# AegisDeploy Console (P2 scaffold)
+# AegisSRE Console (P2 scaffold)
 
-Dark observability console for AegisDeploy. P2 ships the shell, design tokens,
+Dark observability console for AegisSRE. P2 ships the shell, design tokens,
 and Command Center / services / incidents / deployments pages on **mock data**.
 Live API wiring starts when A2/DI-1 are consumed in a later increment.
 

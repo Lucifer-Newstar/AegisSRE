@@ -1,4 +1,4 @@
-"""AegisDeploy telemetry envelope contract (v0.2).
+"""AegisSRE telemetry envelope contract (v0.2).
 
 The single source of truth for every event that flows through the platform
 (see docs/architecture/telemetry-model.md). Everything — metrics, logs, traces,

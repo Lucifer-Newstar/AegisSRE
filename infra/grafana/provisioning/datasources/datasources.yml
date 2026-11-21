@@ -1,4 +1,4 @@
-# AegisDeploy Grafana provisioning — automatic datasource setup.
+# AegisSRE Grafana provisioning — automatic datasource setup.
 # Mounted read-only into the Grafana container.
 apiVersion: 1
 

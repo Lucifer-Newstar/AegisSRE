@@ -5,7 +5,7 @@ metadata:
   name: registry-service
   labels:
     app.kubernetes.io/name: registry-service
-    app.kubernetes.io/part-of: aegisdeploy
+    app.kubernetes.io/part-of: aegissre
 spec:
   replicas: 1
   selector:
@@ -15,11 +15,11 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: registry-service
-        app.kubernetes.io/part-of: aegisdeploy
+        app.kubernetes.io/part-of: aegissre
     spec:
       containers:
         - name: registry-service
-          image: aegisdeploy/registry-service:0.1.0
+          image: aegissre/registry-service:0.1.0
           ports:
             - containerPort: 8101
               name: http

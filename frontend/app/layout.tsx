@@ -4,7 +4,7 @@ import "./globals.css";
 import { Nav } from "./nav";
 
 export const metadata: Metadata = {
-  title: "AegisDeploy Console",
+  title: "AegisSRE Console",
   description: "AI-powered SRE control plane — P2 scaffold",
 };
 
