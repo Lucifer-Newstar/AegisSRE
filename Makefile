@@ -1,5 +1,5 @@
 # =============================================================================
-# AegisDeploy — developer task runner
+# AegisSRE — developer task runner
 #   make help       list targets
 #   make infra-up   start the local stack (Postgres, Redis, observability)
 #   make infra-down stop and remove the local stack (volumes included)

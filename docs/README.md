@@ -1,10 +1,9 @@
-# AegisDeploy — Documentation
+# AegisSRE — Documentation
 
 > **The navigation hub for all project documentation.**
-> If you are looking for *anything* about AegisDeploy, start here.
+> If you are looking for *anything* about AegisSRE, start here.
 >
-> Maintainer: Navin Jairam M (Team Lead). Updated whenever the structure changes
-> (rule 2: the docs folder stays clean).
+> Maintainer: Navin Jairam. Updated whenever the structure changes.
 
 ---
 
@@ -18,36 +17,23 @@ docs/
 │   ├── proposal.md              ← the original project proposal (full text)
 │   └── roadmap.md               ← milestone-level roadmap
 │
-├── contracts/                   ← P2 API contracts (OpenAPI, freeze 2026-09-08)
+├── contracts/                   ← API contracts (OpenAPI, freeze 2026-09-08)
 │   ├── README.md                ← conventions + mock-server + CORS + drift guard
 │   ├── manifest.json            ← service → contract mapping (drift check)
 │   ├── registry-service.yaml    ← A2 registry + health (:8101)
 │   ├── deployments-service.yaml ← DI-1 deploy tracker (:8701)
 │   ├── catalog-service.yaml     ← catalog (:9001, LIVE slice)
-│   ├── cart-service.yaml        ← cart (:9002*, P2)
-│   ├── order-service.yaml       ← order (:9003*, P2)
-│   └── payment-service.yaml     ← payment (:9004*, P2)
+│   ├── cart-service.yaml        ← cart (:9002)
+│   ├── order-service.yaml       ← order (:9003)
+│   └── payment-service.yaml     ← payment (:9004)
 │
-├── planning/                    ← HOW WE DECIDE (development-phase planning)
+├── planning/                    ← SCOPE & SEQUENCE (development-phase planning)
 │   ├── README.md                ← planning index + decision log
-│   ├── features.md              ← locked feature scope (A1–A12, B, C, D, E)
+│   ├── features.md              ← locked feature scope (A1–A12, B, C, D, E, DI)
 │   ├── product-vision.md        ← how the final product looks & behaves
-│   ├── phases.md                ← phase plan: gates, non-disruption, integration
-│   ├── timeline.md              ← 8–10 month calendar, member assignments
-│   ├── p2-kickoff.md            ← P2 kickoff: tracks, contracts-first, gate
-│   ├── p2-tracker.md            ← 24-item status board through the P2 gate
-│   └── integration-edge-cases.md← cross-member risk register (Team Lead)
-│
-├── team/                        ← WHO & HOW WE WORK
-│   ├── team-structure.md        ← members, roles, ownership matrix
-│   └── working-rules.md         ← project rules + git conventions
-│
-├── members/                     ← PER-MEMBER PLANNING (each member's folder)
-│   ├── README.md                ← member index + cross-member dependencies
-│   ├── frontend-frontend/        ← Member 1 — frontend (+ work-log)
-│   ├── backend-backend/     ← Member 2 — backend (+ work-log)
-│   ├── devops-devops/            ← Member 3 — DevOps / cloud (+ work-log)
-│   └── navin-lead/              ← Member 4 — team lead / SRE / AI-SRE (+ work-log)
+│   ├── phases.md                ← phase plan: gates, non-disruption and integration
+│   ├── timeline.md              ← 8–10 month calendar
+│   └── integration-edge-cases.md← cross-boundary risk register
 │
 ├── architecture/                ← SYSTEM DESIGN (how the platform works)
 │   ├── system-architecture.md   ← components, responsibilities, data flows
@@ -59,8 +45,8 @@ docs/
 │   └── adr/                     ← Architecture Decision Records (ADRs)
 │
 ├── development/                 ← HOW TO BUILD (engineering conventions)
-│   ├── contributing.md          ← contribution workflow + conventions
-│   ├── local-setup.md           ← one-time machine setup + env variables
+│   ├── contributing.md          ← workflow + conventions + Definition of Done
+│   ├── local-setup.md           ← one-time machine setup + env variable reference
 │   └── tech-stack.md            ← selected technology stack & rationale
 │
 └── operations/                  ← HOW TO RUN & MEASURE
@@ -72,34 +58,32 @@ docs/
 | Topic | Go to |
 |---|---|
 | What is this project? | [project/proposal.md](project/proposal.md) |
-| What are we building? (locked scope) | [planning/features.md](planning/features.md) |
+| What is being built? (locked scope) | [planning/features.md](planning/features.md) |
 | What does the final product look like? | [planning/product-vision.md](planning/product-vision.md) |
 | What are the phases & gates? | [planning/phases.md](planning/phases.md) |
 | What is the schedule? | [planning/timeline.md](planning/timeline.md) |
-| Who is on the team & who owns what? | [team/team-structure.md](team/team-structure.md) |
-| My role's phase plan | [members/](members/) — your folder |
 | How the platform works | [architecture/system-architecture.md](architecture/system-architecture.md) |
 | How autonomy/remediation works | [architecture/autonomy-model.md](architecture/autonomy-model.md) |
 | The telemetry/event contract | [architecture/telemetry-model.md](architecture/telemetry-model.md) |
-| P2 API contracts (OpenAPI) | [contracts/](contracts/) |
-| Why we chose the stack | [development/tech-stack.md](development/tech-stack.md) |
-| How to contribute | [development/contributing.md](development/contributing.md) |
+| Deployment Intelligence design | [architecture/deployment-intelligence.md](architecture/deployment-intelligence.md) |
+| API contracts (OpenAPI) | [contracts/](contracts/) |
+| Why this stack | [development/tech-stack.md](development/tech-stack.md) |
+| Conventions & Definition of Done | [development/contributing.md](development/contributing.md) |
 | Machine setup + env vars | [development/local-setup.md](development/local-setup.md) |
-| How we evaluate success | [operations/evaluation.md](operations/evaluation.md) |
+| How success is evaluated | [operations/evaluation.md](operations/evaluation.md) |
 | Decision history | [planning/README.md](planning/README.md) §2 · [architecture/adr/](architecture/adr/) |
 
-## 3. Reading Order for a New Member
+## 3. Reading Order
 
 1. **Start here** — get the map.
-2. **team/** — who we are and how we work (rules first!).
-3. **planning/features.md** — what we are building (scope is locked — read before writing code).
-4. **planning/phases.md + timeline.md** — when things happen and what "done" means per phase.
-5. **members/<your-folder>/** — your personal phase plan.
-6. **architecture/** — how the system is designed (read before touching interfaces).
-7. **development/** — stack + conventions before your first commit.
-8. **operations/** — how the whole thing will be judged.
+2. **planning/features.md** — the locked scope (read before writing code).
+3. **planning/phases.md + timeline.md** — when things happen and what "done" means per phase.
+4. **architecture/** — how the system is designed (read before touching interfaces).
+5. **contracts/** — the API contracts every service obeys.
+6. **development/** — stack + conventions before the first commit.
+7. **operations/** — how the whole thing will be judged.
 
-## 4. Housekeeping Rules (rule 2 in practice)
+## 4. Housekeeping Rules
 
 - **One purpose per file** — every document answers one question; new topics get a new
   file in the right folder.
@@ -109,5 +93,7 @@ docs/
   (planning/README.md §2), never silently.
 - **ADRs for architecture** — interface/stack changes require an ADR
   (see [development/contributing.md](development/contributing.md)).
+- **Honest status** — docs that describe unbuilt design say so; only the phase plan
+  and roadmap claim what is proven.
 - **Path discipline** — links inside docs use relative paths; repo-root paths are
   written as `docs/<folder>/...` in code comments/README.

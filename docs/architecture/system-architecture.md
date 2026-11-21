@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the component architecture of AegisDeploy, the responsibilities of
+This document describes the component architecture of AegisSRE, the responsibilities of
 each component, and the data flows between them. It is the source of truth that
 implementation must conform to; deviations should be recorded as ADRs
 (see [adr/](adr/)).

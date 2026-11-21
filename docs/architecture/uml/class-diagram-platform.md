@@ -1,6 +1,6 @@
-# Class Diagram — AegisDeploy Platform
+# Class Diagram — AegisSRE Platform
 
-> **Diagram 2a (UML 2.5 — Structural).** Static structure of the AegisDeploy platform:
+> **Diagram 2a (UML 2.5 — Structural).** Static structure of the AegisSRE platform:
 > all layers — telemetry envelope, event layer, core domain (services, incidents,
 > remediation, policy, audit), **deployment intelligence (DI)**, ML detection, and AI
 > reasoning/RAG/tools. Full detail: attributes with types, methods, multiplicity,
@@ -530,19 +530,19 @@ classDiagram
 
 Static model of the platform's classes, organized in **six layers** (telemetry, event
 layer, core domain, **deployment intelligence**, ML, AI). This is the implementation
-blueprint for the backend (backend), ML (Navin), AI (Navin), and event layer
-(devops/Navin) — every class maps to a feature in `features.md`.
+blueprint for the backend, ML, AI, and event layer
+— every class maps to a feature in `features.md`.
 
 ## 2. Layer Legend
 
-| Color | Layer | Package (planned) | Owned by |
-|---|---|---|---|
-| 🔵 Blue | Telemetry & Envelope | `backend/libs/telemetry` | Navin (design) |
-| 🟣 Purple | Event Layer | `backend/libs/eventbus` | Navin + devops |
-| 🟢 Green | Core Domain | `backend/services/*` | backend (impl), Navin (design) |
-| 🩵 Teal | **Deployment Intelligence** | `backend/services/deployments` + `ml/detection` + `ai/reasoning` | Navin (design), backend/devops (impl) |
-| 🟠 Orange | ML Detection | `ml/` | Navin |
-| 🩷 Pink | AI Reasoning / RAG / Tools | `ai/` | Navin |
+| Color | Layer | Package (planned) |
+|---|---|---|
+| 🔵 Blue | Telemetry & Envelope | `backend/libs/telemetry` |
+| 🟣 Purple | Event Layer | `backend/libs/eventbus` |
+| 🟢 Green | Core Domain | `backend/services/*` |
+| 🩵 Teal | **Deployment Intelligence** | `backend/services/deployments` + `ml/detection` + `ai/reasoning` |
+| 🟠 Orange | ML Detection | `ml/` |
+| 🩷 Pink | AI Reasoning / RAG / Tools | `ai/` |
 
 ## 3. Key Relationship Semantics
 

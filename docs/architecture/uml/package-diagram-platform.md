@@ -1,4 +1,4 @@
-# Package Diagram — AegisDeploy Platform
+# Package Diagram — AegisSRE Platform
 
 > **Diagram 4a (UML 2.5 — Structural).** Module (package) organization of the
 > platform: `backend/`, `ml/`, `ai/` with their sub-packages, shown with **labeled
@@ -7,7 +7,7 @@
 
 ```mermaid
 ---
-title: "Package Diagram — AegisDeploy Platform"
+title: "Package Diagram — AegisSRE Platform"
 ---
 flowchart TB
     %% ═══════════════════════════════════════════════════════

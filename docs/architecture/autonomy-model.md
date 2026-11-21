@@ -1,6 +1,6 @@
 # Autonomous Remediation Model
 
-AegisDeploy implements five levels of autonomy. Every level above detection is gated by
+AegisSRE implements five levels of autonomy. Every level above detection is gated by
 policies; nothing executes outside the boundaries defined here.
 
 ## 1. The Five Levels

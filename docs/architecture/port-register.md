@@ -3,7 +3,7 @@
 > **Single source of truth** for service identities: ids, DNS names, ports,
 > metric/label conventions, and env-var names. Every P2+ service must get a
 > row here **in the same PR that creates it** (PR template checklist).
-> Owner: Navin (Team Lead) — reviewed at weekly syncs.
+> Owner: Navin Jairam.
 
 ## 1. Naming rules (binding)
 
@@ -41,7 +41,7 @@
 | payment | 9004 | payment-service | [payment-service.yaml](../contracts/payment-service.yaml) | **LIVE** (P2) |
 
 Ports **locked 2026-09-01** (lead pre-approval, decision D1) — recorded at
-the kickoff sync; team confirmation is a formality.
+the P2 contracts freeze (2026-09-08).
 
 ## 4. Infrastructure (compose, fixed)
 
@@ -51,7 +51,7 @@ the kickoff sync; team confirmation is a formality.
 | Redis | 6379 | eventbus streams (ADR-0004) |
 | Prometheus | 9090 | scrape + remote-write |
 | Grafana | 3000 | dashboards (console-in-a-pinch) |
-| AegisDeploy console | 3030 | Next.js SRE console (P2 scaffold; Grafana keeps 3000) |
+| AegisSRE console | 3030 | Next.js SRE console (P2 scaffold; Grafana keeps 3000) |
 | Loki | 3100 | logs |
 | Tempo | 3200 | traces API; OTLP receivers are internal to the Compose network |
 | OTel collector | 4317 (gRPC) / 4318 (HTTP) | host-published OTLP ingress for apps; forwards traces to Tempo internally |

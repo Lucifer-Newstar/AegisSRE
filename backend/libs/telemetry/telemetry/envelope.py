@@ -7,7 +7,7 @@ Design notes
   ids, an optional deployment context, and a type-specific ``payload`` dict.
 * The payload helpers below construct the canonical payload shapes for the
   core event types (metric, log, anomaly, deployment) so producers do not
-  invent ad-hoc shapes (working-rules: no bespoke event shapes).
+  invent ad-hoc shapes (project rule: no bespoke event shapes).
 * v0.2 additions (Deployment Intelligence tier, ADR-0006): the deployment
   payload gains ``risk_score``, ``risk_factors`` (DI-2), ``canary`` (DI-6) and
   ``rollout`` (DI-4) blocks — all optional, so older producers stay valid.

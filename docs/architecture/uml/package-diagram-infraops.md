@@ -96,17 +96,17 @@ flowchart TB
 
 ## 1. Package Map
 
-| Package | Contents | Owned by |
-|---|---|---|
-| `infra.observability.*` | OTel collector, Prometheus, Loki, Tempo, Grafana configs | devops (design: Navin) |
-| `infra.orchestration.compose` | Local dev stack (docker-compose.yml) | devops |
-| `infra.orchestration.k8s` | Kustomize bases (ADR-0005: 1:1 with Compose) | devops |
-| `infra.ci.github-actions` | CI/CD workflows | devops |
-| `infra.ci.deploy` | CD pipeline — deploys apps and **records deployment events (DI-1)** | devops |
-| `iac.terraform` | Cloud IaC (reserved, M7/M8) | devops |
-| `chaoslab.*` | Fault manifests + runner (ground truth) | devops + Navin |
-| `chaoslab.canary` | Canary/progressive-delivery experiments (DI-6) | devops + Navin |
-| `ops.policies` | Declarative remediation policies (A6) | Navin |
+| Package | Contents |
+|---|
+| `infra.observability.*` | OTel collector, Prometheus, Loki, Tempo, Grafana configs |
+| `infra.orchestration.compose` | Local dev stack (docker-compose.yml) |
+| `infra.orchestration.k8s` | Kustomize bases (ADR-0005: 1:1 with Compose) |
+| `infra.ci.github-actions` | CI/CD workflows |
+| `infra.ci.deploy` | CD pipeline — deploys apps and **records deployment events (DI-1)** |
+| `iac.terraform` | Cloud IaC (reserved, M7/M8) |
+| `chaoslab.*` | Fault manifests + runner (ground truth) |
+| `chaoslab.canary` | Canary/progressive-delivery experiments (DI-6) |
+| `ops.policies` | Declarative remediation policies (A6) |
 
 ## 2. Key Dependency Rules
 
@@ -124,7 +124,7 @@ flowchart TB
 ## 3. Cross-Diagram Integration
 
 | This package | Connects to (Diagram 4a) | How |
-|---|---|---|
+|---|
 | `infra.observability` | `ai.tools` | read-only queries (metrics/logs/traces) |
 | `infra.observability` | `ml.detection.feature-pipeline` | metric streams via event bus |
 | `chaoslab` | `demoapp.libs.fault-hooks` (4b) | fault injection |

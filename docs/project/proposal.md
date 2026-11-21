@@ -564,12 +564,12 @@ The objective is not to replace the SRE. It is to build a system that allows the
 # Addendum 1 — Project Upgrade: Software Deployment Incident Intelligence
 
 - **Date:** 2026-09-01
-- **Decision:** Navin Jairam (Team Lead), on agent recommendation
+- **Decision:** Navin Jairam
 - **Scope:** full capability set (DI-1…DI-7), integrated into existing phases P2–P8
 
 ## 1. What Changed
 
-The project (renamed **AegisSRE → AegisDeploy**) is upgraded with a first-class
+The project (renamed **AegisSRE → AegisSRE**) is upgraded with a first-class
 **Deployment Intelligence (DI) tier** on top of the autonomous SRE platform described
 above. Every software deployment becomes a monitored, scored, and learnable event:
 

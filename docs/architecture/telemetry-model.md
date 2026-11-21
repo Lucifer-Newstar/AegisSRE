@@ -1,6 +1,6 @@
 # Telemetry & Event Model
 
-Every signal entering or flowing through AegisDeploy — metric samples, logs, traces,
+Every signal entering or flowing through AegisSRE — metric samples, logs, traces,
 Kubernetes events, deployments, anomalies, incidents, remediations — is wrapped in a
 **single event envelope**. This contract is what lets the Event Layer, anomaly pipeline,
 AI reasoning layer, and audit store interoperate without bespoke adapters.
@@ -209,7 +209,7 @@ any new event type updates this table in the same PR.
 | Type | Stream | Payload builder | Producers | Consumers | Retention | Phase |
 |---|---|---|---|---|---|---|
 | `metric` | `st:metric` | `metric_payload` | all services (Prometheus scrape) | dashboards, detectors (P3) | Prometheus 15d | P2 ✓ |
-| `log` | `st:log` | `log_payload` | services → stdout → Loki | Loki, Tempo↔Loki jump (via `trace_id`) | Loki 7d | P2 (devops) |
+| `log` | `st:log` | `log_payload` | services → stdout → Loki | Loki, Tempo↔Loki jump (via `trace_id`) | Loki 7d | P2 |
 | `trace` | `st:trace` | — (OTLP native) | services via OTLP | Tempo, trace→log jump | Tempo 7d | P2 ✓ |
 | `deployment` | `st:deployment` | `deployment_payload` | DI-1 pipeline hook, deployments-service API | deployments-service (P2), DI-4 window eval (P3), DI-2/DI-3 (P4) | Postgres (long) | **P2** |
 | `health` | `st:health` | — | registry heartbeats (P2), recovery verifier (P5) | registry, dashboards | short TTL | P2 |

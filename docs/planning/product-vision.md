@@ -1,15 +1,15 @@
 # Product Vision
 
-> How the final AegisDeploy product should look and behave. This is the target for the
-> frontend (frontend) and the contract for what the backend/AI must expose. Decided
-> 2026-08-31; visual details are refined with Member 1 during design, but the
+> How the final AegisSRE product should look and behave. This is the target for the
+> console and the contract for what the backend/AI must expose. Decided
+> 2026-08-31; visual details are refined during design, but the
 > concepts below are locked.
 
 ---
 
 ## 1. One-Liner
 
-> **AegisDeploy Console** — the AI-powered SRE control plane: *observe everything,
+> **AegisSRE Console** — the AI-powered SRE control plane: *observe everything,
 > trust evidence, reason over context, act within boundaries, verify the result.*
 
 ## 2. Who It Is For
@@ -66,7 +66,7 @@ act.
 ### 4.7 Ask Aegis
 - Chat panel; assistant answers with **read-only tools**, showing each tool call
   ("get_metrics('api-gateway', 'p95', 15m) → 1.42 s") and cited evidence
-- Disclaimer bar: "AegisDeploy can only read — it cannot change anything without your approval"
+- Disclaimer bar: "AegisSRE can only read — it cannot change anything without your approval"
 
 ### 4.8 Deployments (Deployment Intelligence)
 - **Deploy timeline** per service: every deploy/rollback/scale as a visual event on the

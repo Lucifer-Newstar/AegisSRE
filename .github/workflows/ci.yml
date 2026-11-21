@@ -1,4 +1,4 @@
-# AegisDeploy — CI: what runs on every push/PR to main
+# AegisSRE — CI: what runs on every push/PR to main
 #
 # Six jobs, each one = ONE kind of check. All must pass before merge.
 #

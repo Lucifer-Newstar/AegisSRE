@@ -1,9 +1,9 @@
-# Local Development Setup (AegisDeploy)
+# Local Development Setup (AegisSRE)
 
-> **For every member:** one-time machine setup to run the repo, the local
-> stack, and the Python packages. Written from the P2 kickoff; extend as new
+> One-time machine setup to run the repo, the local
+> stack, and the Python packages. Written at P2 start; extend as new
 > components land.
-> Last verified against: walking-skeleton commits (2026-09-01) + P2 kickoff.
+> Last verified against: walking-skeleton commits (2026-09-01) + P2 start.
 
 ---
 
@@ -16,14 +16,14 @@
 | uv (recommended) | latest | fast venv + editable installs | `pip install uv` or [astral.sh/uv](https://docs.astral.sh/uv/) |
 | Docker Desktop | latest (Compose v2) | `make infra-up` local stack | [docker.com](https://www.docker.com/products/docker-desktop/) |
 | Make | — | task runner (`make infra-up`, `make lint`) | built into macOS/Linux; WSL/choco on Windows |
-| Node.js | **22 LTS** | frontend toolchain (frontend's track; optional for others) | [nodejs.org](https://nodejs.org) |
+| Node.js | **22 LTS** | frontend toolchain (needed for console work) | [nodejs.org](https://nodejs.org) |
 
 > Windows note: use **WSL2 + Ubuntu** — Docker Desktop integrates with WSL2 and
 > `make` works natively. Everything below assumes a POSIX shell.
 
 ---
 
-## 2. GitHub prep (Team Lead / Navin only)
+## 2. GitHub prep (maintainer)
 
 ```bash
 # 1. One-time identity (matches your GitHub account)
@@ -35,25 +35,25 @@ git config --global user.email "navin.jairam@gmail.com"
 #          github.com/settings/ssh/new
 
 # 3. Rename the GitHub repo: Settings → General → Repository name
-#        AegisSRE  →  AegisDeploy   (do this BEFORE pushing the rename commits)
+#        AegisSRE  →  AegisSRE   (do this BEFORE pushing the rename commits)
 
 # 4. Clone (or pull if you already have the old clone)
-git clone git@github.com:Lucifer-Newstar/AegisDeploy.git
-cd AegisDeploy
+git clone git@github.com:Lucifer-Newstar/AegisSRE.git
+cd AegisSRE
 git push origin main          # after rename — pushes all local commits
 ```
 
-> Team members: fork-and-PR or branch-per-feature against this repo (see
+> Branch-per-feature against this repo (see
 > [contributing.md](contributing.md) for the full workflow).
 
 ---
 
-## 3. Python environment (all members)
+## 3. Python environment
 
 The repo is a **monorepo of editable packages** — no global installs, one venv.
 
 ```bash
-cd AegisDeploy
+cd AegisSRE
 
 # Option A — uv (fast, recommended)
 uv venv .venv --python 3.12
@@ -165,14 +165,14 @@ docker compose ps       # all services healthy
 ## 6. Day-to-day loop
 
 ```bash
-git checkout -b feat/<member>-<area>-<topic>   # e.g. feat/navin-contracts-openapi
+git checkout -b feat/<area>-<topic>   # e.g. feat/contracts-openapi
 # …work…
 ruff check backend demoapp && pytest           # quick pre-commit loop
 git add -A && git commit -m "feat(...): ..."   # Conventional Commits
 git push -u origin feat/…                      # then open a PR into main
 ```
 
-Full rules: [contributing.md](contributing.md) · [working-rules.md](../team/working-rules.md)
+Full conventions: [contributing.md](contributing.md)
 
 ---
 

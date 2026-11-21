@@ -1,5 +1,5 @@
 # AegisDeploy — deployments-service contract (DI-1 deploy tracker)
-# Port: 8701 · Version: 1.0.0 · Owner: backend (schema w/ devops) · Freeze: 2026-09-08
+# Port: 8701 · Version: 1.0.0 · Owner: Navin Jairam · Freeze: 2026-09-08
 #
 # DI-1: records every deployment as an event and serves deployment history.
 # The quality of this data decides DI-3 (change-incident correlation, P4)
@@ -7,7 +7,7 @@
 # (telemetry-model.md §3.5) for the deployment state machine.
 #
 # Changelog:
-#  1.0.0  initial contract (P2 kickoff)
+#  1.0.0  initial contract (P2 start)
 openapi: 3.1.0
 info:
   title: AegisDeploy Deployments Service (DI-1)

@@ -1,6 +1,6 @@
-# Use Case Diagram — AegisDeploy Platform
+# Use Case Diagram — AegisSRE Platform
 
-> **Diagram 1a (UML 2.5 — Behavioral).** Shows what the AegisDeploy platform does *for
+> **Diagram 1a (UML 2.5 — Behavioral).** Shows what the AegisSRE platform does *for
 > whom*. The AegisShop demo application is an **external system** (the monitored
 > subject), not part of the platform. Medium detail (~22 use cases) with
 > include/extend relationships, extended for the **Deployment Intelligence tier**
@@ -8,19 +8,19 @@
 
 ```mermaid
 ---
-title: "Use Case Diagram — AegisDeploy Platform"
+title: "Use Case Diagram — AegisSRE Platform"
 ---
 flowchart LR
     %% ═══ ACTORS ═══════════════════════════════════════════
     SRE["🧑‍💻 SRE Engineer"]            %% primary actor
-    ADMIN["🛡️ Admin / Team Lead"]       %% governance actor
+    ADMIN["🛡️ Admin"]       %% governance actor
     DEVOPS["🔧 DevOps Engineer"]        %% platform operations actor
     SHOP["🏪 AegisShop (monitored app)"] %% external system under monitoring
     K8S["☸️ Kubernetes Cluster"]        %% external system that executes actions
     NOTIF["🔔 Notification Service"]    %% external system receiving alerts
 
     %% ═══ SYSTEM BOUNDARY ══════════════════════════════════
-    subgraph AEGIS["AegisDeploy Platform"]
+    subgraph AEGIS["AegisSRE Platform"]
         direction TB
 
         %% ── SRE-facing use cases ─────────────────────────
@@ -97,7 +97,7 @@ flowchart LR
 
 ## 1. Purpose
 
-Documents the **functional requirements** of the AegisDeploy platform from the user's
+Documents the **functional requirements** of the AegisSRE platform from the user's
 perspective: who interacts with the system and which capabilities each actor uses.
 This is the requirements-level contract that the class diagram (Diagram 2) and the
 phase plan (P2–P8) refine.
@@ -107,7 +107,7 @@ phase plan (P2–P8) refine.
 | Actor | Type | Description |
 |---|---|---|
 | **SRE Engineer** | Primary | Day-to-day user: monitors services, investigates incidents, reviews AI analysis, approves/rejects remediations, uses Ask Aegis, manages runbooks |
-| **Admin / Team Lead** | Primary | Governance: user/role management, autonomy mode, remediation policies, audit visibility |
+| **Admin** | Primary | Governance: user/role management, autonomy mode, remediation policies, audit visibility |
 | **DevOps Engineer** | Primary | Platform operations: service registration, SLO configuration, chaos experiments |
 | **AegisShop** | External system | The monitored application (demo subject) — source of telemetry |
 | **Kubernetes Cluster** | External system | Executes chaos experiments and remediation actions (restart/rollback/scale) |

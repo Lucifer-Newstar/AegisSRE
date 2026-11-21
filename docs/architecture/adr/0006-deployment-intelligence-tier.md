@@ -2,14 +2,14 @@
 
 - **Status:** Accepted
 - **Date:** 2026-09-01
-- **Deciders:** Navin Jairam (Team Lead), Arena Agent
+- **Deciders:** Navin Jairam, Arena Agent
 
 ## Context
 
-The project (renamed AegisDeploy) already collects deployment events and treats
+The project (renamed AegisSRE) already collects deployment events and treats
 deployments as first-class signals, but deployments are only *evidence* — the platform
 does not actively manage them. In cloud-native systems, most production incidents are
-**change-caused**: a bad deployment is the single most common root cause. The team
+**change-caused**: a bad deployment is the single most common root cause. The project
 decided (2026-09-01) to upgrade the platform with a first-class **Deployment
 Intelligence (DI) tier** that turns every software deployment into a monitored, scored,
 and learnable event — without weakening the SRE platform's scope or safety boundaries.
@@ -61,8 +61,8 @@ Phase integration: `docs/planning/phases.md`, `docs/planning/timeline.md`.
 
 ### Negative / Trade-offs
 
-- More scope: 7 new capabilities must be woven into member plans (done — see
-  `docs/members/`).
+- More scope: 7 new capabilities woven into the phase plan (see
+  `docs/planning/`).
 - Risk of auto-rollback mistakes — mitigated by the policy gate, reversibility
   requirement, recent-revision-only rule, recovery verification, and audit trail.
 - Extra dependency: DI-3/DI-5 require the deployment tracker to be reliable — it is

@@ -6,7 +6,7 @@
 # generated OpenAPI on every PR.
 #
 # Changelog:
-#  1.0.0  initial contract (P2 kickoff)
+#  1.0.0  initial contract (P2 start)
 openapi: 3.1.0
 info:
   title: AegisShop Catalog Service

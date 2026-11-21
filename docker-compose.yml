@@ -1,5 +1,5 @@
 # =============================================================================
-# AegisDeploy — Local development stack (P2: observability + AegisShop v1)
+# AegisSRE — Local development stack (P2: observability + AegisShop v1)
 #
 # Runs the platform's data + observability dependencies. Application services
 # (backend, frontend, ml, ai) are added as they are implemented — see

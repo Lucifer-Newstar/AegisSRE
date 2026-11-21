@@ -1,20 +1,17 @@
-# AegisDeploy
+# AegisSRE
 
-**AI-Powered Autonomous Site Reliability & Software Deployment Incident Intelligence Platform**
+**AI-Powered Autonomous Site Reliability & Deployment Intelligence Platform**
 
 *Intelligent monitoring · Deployment risk intelligence · Incident detection · Root-cause analysis · Controlled autonomous remediation*
 
-> ⚠️ **Renamed:** formerly **AegisSRE** (decision 2026-09-01 — the project was upgraded
-> with a first-class **Deployment Intelligence** tier; see
-> [docs/architecture/deployment-intelligence.md](docs/architecture/deployment-intelligence.md)).
-> The GitHub repository may keep its old name until renamed in repository settings.
+A personal project by **Navin Jairam** ([@Lucifer-Newstar](https://github.com/Lucifer-Newstar)).
 
 ![Status](https://img.shields.io/badge/status-foundation--phase-0f766e) ![CI](https://img.shields.io/badge/CI-github--actions-blue)
 
-AegisDeploy is a full-stack platform that continuously observes a deployed cloud-native
-application, analyzes its telemetry, detects abnormal behavior, identifies and correlates
-incidents, determines probable root causes, recommends evidence-backed remediation actions,
-and verifies system recovery — while keeping **humans in control** of higher-risk operations.
+AegisSRE observes a deployed cloud-native application, analyzes its telemetry, detects
+abnormal behavior, identifies and correlates incidents, determines probable root causes,
+recommends evidence-backed remediation actions, and verifies system recovery — while
+keeping humans in control of higher-risk operations.
 
 > **Observe everything. Trust evidence. Reason over context. Act within boundaries. Verify the result.**
 >
@@ -24,23 +21,61 @@ and verifies system recovery — while keeping **humans in control** of higher-r
 
 ---
 
-## 1. What the Platform Does
+## 1. Project Status (honest: built vs designed)
+
+This repo is in the **foundation / P2 phase**. The design documents cover the full
+vision; the code implements the first slice of it.
+
+**Built and working today:**
+
+- Full local observability stack: OpenTelemetry Collector, Prometheus, Grafana, Loki,
+  Tempo, Postgres, Redis (one `make infra-up`, 15 containers).
+- Shared backend libraries: telemetry envelope contract (`backend/libs/telemetry`) and a
+  Redis Streams event bus (`backend/libs/eventbus`), both tested.
+- FastAPI service template (`backend/services/_template`) used as the copy-paste pattern
+  for every service.
+- **registry-service** — service catalogue + health aggregation API (:8101, live).
+- **deployments-service** — DI-1 deployment history API (:8701, live).
+- **AegisShop** demo app: catalog (:9001), cart (:9002), order (:9003), payment (:9004)
+  services with tests.
+- **Console** (Next.js 14 on :3030): overview, services, deployments, and incidents
+  pages — live data where APIs exist, clearly-marked mock fallback elsewhere.
+- K8s manifests (Kustomize base, 1:1 with Compose), Terraform skeleton (`iac/`).
+- CI: YAML/Compose validation, kubeconform + kustomize checks, docs link check, ruff,
+  mypy (strict), pytest (54 tests), contract-drift guard, image builds.
+- OpenAPI contract set with a CI drift guard, 14-diagram UML set, ADRs.
+
+**Designed but not yet built** (see [docs/planning/](docs/planning/) and
+[docs/architecture/](docs/architecture/)):
+
+- ML anomaly detection (Isolation Forest + baselines), incident manager, AI
+  reasoning/RCA, RAG knowledge base, Ask Aegis assistant (`ml/`, `ai/` — planned).
+- Remediation planner, policy engine, approval workflow, safe autonomous execution,
+  recovery verification.
+- Chaos lab (`chaoslab/` — planned), DI-2…DI-7 deployment-intelligence capabilities
+  beyond DI-1 tracking.
+- Full eight-page console scope, kind-cluster deployment, evaluation harness.
+
+Nothing in this repo claims otherwise: design docs describe the target; the phase plan
+tracks what is proven.
+
+## 2. What the Platform Does (target design)
 
 | Capability | Description |
 |---|---|
 | **Continuous Observability** | Collects metrics, logs, distributed traces, Kubernetes events, deployment history, and service health via OpenTelemetry, Prometheus, Loki, and Tempo. |
 | **Anomaly Detection** | ML/statistical models (Isolation Forest + statistical baselines) detect latency spikes, error-rate increases, resource anomalies, and traffic shifts. |
 | **Incident Management** | Correlates anomalies into incidents with severity, affected services, timestamps, telemetry evidence, deployment context, and status. |
-| **Root-Cause Analysis** | An AI reasoning layer combines logs, metrics, traces, deployments, and runbooks to produce evidence-backed root-cause explanations — not just "latency is high." |
+| **Root-Cause Analysis** | An AI reasoning layer combines logs, metrics, traces, deployments, and runbooks to produce evidence-backed root-cause explanations. |
 | **AI-Assisted Remediation** | Recommends actions: restart unhealthy workload, rollback deployment, scale service, replace instance, adjust configuration, or escalate. |
-| **Deployment Intelligence** | Tracks every deployment; ML risk scoring, bad-rollout detection, change-incident correlation ("caused by deploy `abc1234`"), policy-gated safe rollback, canary analysis, and change-failure analytics (DI-1…DI-7). |
+| **Deployment Intelligence** | Tracks every deployment; ML risk scoring, bad-rollout detection, change-incident correlation, policy-gated safe rollback, canary analysis, and change-failure analytics (DI-1…DI-7). |
 | **Controlled Autonomy** | Low-risk, predefined, reversible actions execute automatically; high-risk operations require human approval. |
 | **Recovery Verification** | Confirms health, error rates, latency, and SLOs recovered before closing the incident. |
 | **Postmortems** | AI-generated incident postmortems with timeline, evidence, and measured MTTD/MTTR. |
 
 Autonomy pipeline: **Detect → Investigate → Explain → Recommend → Approve/Execute → Verify**
 
-## 2. High-Level Architecture
+## 3. High-Level Architecture
 
 ```text
                          USER
@@ -48,7 +83,7 @@ Autonomy pipeline: **Detect → Investigate → Explain → Recommend → Approv
                           ▼
                 ┌───────────────────┐
                 │   Web Dashboard   │
-                │ React / Next.js   │
+                │   Next.js console │
                 └─────────┬─────────┘
                           │
                      API Gateway
@@ -107,40 +142,43 @@ Autonomy pipeline: **Detect → Investigate → Explain → Recommend → Approv
                          Incident Closed
 ```
 
-## 3. Repository Layout
+## 4. Repository Layout
 
 ```
-AegisDeploy/
-├── .github/workflows/    CI/CD pipelines (GitHub Actions)
-├── ai/                   AI reasoning layer (LLM, RAG, tool-calling, runbooks)
-├── backend/              Platform & incident services (Python / FastAPI)
-├── chaoslab/             Controlled failure laboratory (chaos experiments)
+AegisSRE/
+├── .github/workflows/    CI pipeline (GitHub Actions)
+├── backend/              Platform services + shared libs (Python / FastAPI)
+│   ├── libs/             telemetry envelope, Redis Streams eventbus
+│   └── services/         _template, registry-service, deployments-service
+├── demoapp/aegisshop/    AegisShop demo app (catalog, cart, order, payment)
 ├── docs/                 Documentation hub (index: docs/README.md)
 │   ├── project/          Proposal & roadmap
-│   ├── planning/         Features, product vision, phases, timeline
-│   ├── team/             Team structure & working rules
-│   ├── members/          Per-member role & phase plans
-│   ├── architecture/     System design + ADRs
-│   ├── development/      Contributing & tech stack
+│   ├── planning/         Features, product vision, phases, timeline, decision log
+│   ├── contracts/        OpenAPI contracts + drift-guard manifest
+│   ├── architecture/     System design, autonomy/telemetry models, UML set, ADRs
+│   ├── development/      Conventions, local setup, tech stack
 │   └── operations/       Evaluation methodology
-├── frontend/             SRE console / web dashboard (Next.js / TypeScript)
-├── iac/                  Infrastructure as Code (Terraform, future)
-├── infra/                Docker, Compose, Kubernetes, Prometheus/Grafana/Loki/Tempo configs
-│   ├── docker/           Dockerfiles (per service)
-│   ├── k8s/              Kubernetes manifests (Kustomize base)
-│   └── ...
-├── ml/                   Anomaly detection pipeline & models
-├── scripts/              Dev/test utility scripts
+├── frontend/             SRE console (Next.js / TypeScript)
+├── iac/                  Infrastructure as Code (Terraform, skeleton)
+├── infra/                Observability configs + Kubernetes manifests
+│   ├── grafana/          Dashboards + provisioning
+│   ├── k8s/              Kustomize base (1:1 with Compose, ADR-0005)
+│   ├── loki/  otel/  prometheus/  tempo/
+├── scripts/              Dev/CI utility scripts (YAML validation, contract drift)
 ├── docker-compose.yml    Local development stack (Compose now, K8s-ready)
 └── Makefile              Common developer tasks
 ```
 
-## 4. Quickstart (Local Development)
+Planned top-level dirs in the design docs (`ml/`, `ai/`, `chaoslab/`) do not exist yet;
+they land in phases P3–P7.
 
-Prerequisites: Docker + Docker Compose v2.
+## 5. Quickstart (Local Development)
+
+Prerequisites: Docker + Docker Compose v2. For running tests outside containers:
+Python **3.12+** and Node.js 22.
 
 ```bash
-# 1. Bring up the platform dependencies (Postgres, Redis, Prometheus, Grafana, Loki, Tempo, OTel Collector)
+# 1. Bring up the whole stack (infra + all services, 15 containers)
 make infra-up
 
 # 2. Verify the stack
@@ -148,11 +186,12 @@ docker compose ps
 
 # 3. Open the dashboards
 #    Grafana       → http://localhost:3000   (admin / aegis)
-#    Console       → http://localhost:3030   (P2 scaffold, mock data)
+#    Console       → http://localhost:3030
 #    Prometheus    → http://localhost:9090
 #    Loki          → http://localhost:3100
 #    Tempo         → http://localhost:3200
 #    Registry      → http://localhost:8101/services
+#    Deployments   → http://localhost:8701/deployments
 #    Catalog API   → http://localhost:9001/products
 #    OTLP endpoint → localhost:4317 (gRPC) / 4318 (HTTP)
 
@@ -160,34 +199,39 @@ docker compose ps
 make infra-down
 ```
 
-P2 services (registry, deployments, AegisShop cart/order/payment, console) start
-with the same `make infra-up` command.
+Run the test suite (mirrors CI):
 
-## 5. Documentation
+```bash
+python3.12 -m venv .venv && source .venv/bin/activate
+pip install -e backend/libs/telemetry[dev] -e backend/libs/eventbus[dev] \
+            -e backend/services/_template[dev] \
+            -e backend/services/registry-service[dev] \
+            -e backend/services/deployments-service[dev] \
+            -e demoapp/aegisshop/catalog-service[dev] \
+            -e demoapp/aegisshop/cart-service[dev] \
+            -e demoapp/aegisshop/order-service[dev] \
+            -e demoapp/aegisshop/payment-service[dev]
+pytest            # 54 tests
+ruff check backend demoapp
+```
+
+Frontend console:
+
+```bash
+cd frontend && npm install && npm run dev   # http://localhost:3030
+```
+
+## 6. Documentation
 
 | Document | Purpose |
 |---|---|
-| [docs/README.md](docs/README.md) | **Documentation index** — navigation hub & reading order. |
+| [docs/README.md](docs/README.md) | **Documentation index** — navigation hub. |
 | [docs/project/](docs/project/) | **Project** — proposal & roadmap. |
-| [docs/planning/](docs/planning/) | **Planning** — locked feature scope, product vision, phases & gates, timeline, decision log. |
-| [docs/team/](docs/team/) | **Team** — structure, ownership, working rules. |
-| [docs/members/](docs/members/) | **Member folders** — each member's role & phase plan. |
-| [docs/architecture/](docs/architecture/) | **Architecture** — system architecture, autonomy model, telemetry model, ADRs. |
-| [docs/development/](docs/development/) | **Development** — contributing guide & tech stack. |
+| [docs/planning/](docs/planning/) | **Planning** — feature scope, product vision, phases & gates, timeline, decision log. |
+| [docs/architecture/](docs/architecture/) | **Architecture** — system design, autonomy model, telemetry model, deployment intelligence, UML set, ADRs. |
+| [docs/contracts/](docs/contracts/) | **API contracts** — OpenAPI set + contract-drift guard. |
+| [docs/development/](docs/development/) | **Development** — conventions, local setup & tech stack. |
 | [docs/operations/](docs/operations/) | **Operations** — evaluation metrics & protocol. |
-
-## 6. Roadmap
-
-| Milestone | Scope |
-|---|---|
-| **M1 — Foundation** *(current)* | Repo layout, architecture docs, ADRs, CI, Docker Compose observability stack, K8s-ready structure. |
-| **M2 — Observability & Backend** | FastAPI services, telemetry ingestion, event layer, service registry. |
-| **M3 — Anomaly Detection** | ML pipeline: feature engineering, Isolation Forest baselines, anomaly scores. |
-| **M4 — Incidents & RCA** | Incident correlation, evidence collection, root-cause analysis framework. |
-| **M5 — Remediation & Policy** | Remediation planner, policy engine, approval workflow, recovery verification. |
-| **M6 — Dashboard** | Next.js SRE console: timelines, telemetry, AI reasoning, approvals, MTTD/MTTR. |
-| **M7 — Chaos Lab** | Controlled failure injection and objective evaluation. |
-| **M8 — Evaluation & Demo** | End-to-end failure demonstration, metrics report, postmortem generation. |
 
 ## 7. Core Research Question
 
@@ -197,7 +241,7 @@ with the same `make infra-up` command.
 
 ## 8. Scope Boundary
 
-AegisDeploy is **not** a general-purpose autonomous agent administering arbitrary production
+AegisSRE is **not** a general-purpose autonomous agent administering arbitrary production
 infrastructure. Autonomy is constrained by:
 
 - predefined tools (read-only telemetry access; scoped execution actions);
@@ -207,7 +251,14 @@ infrastructure. Autonomy is constrained by:
 - complete audit logging;
 - post-remediation verification.
 
-## 9. Contributing & License
+## 9. Naming Note
 
-See [CONTRIBUTING](docs/development/contributing.md) for development conventions.
-Licensed under the [MIT License](LICENSE). Copyright © 2026 Navin Jairam (Lucifer-Newstar).
+Python packages, container names, and some infra identifiers use the `aegisdeploy`
+prefix — a holdover from an earlier working title. The project name is **AegisSRE**;
+the identifiers are internal only.
+
+## 10. Conventions & License
+
+See [docs/development/contributing.md](docs/development/contributing.md) for development
+conventions. Licensed under the [MIT License](LICENSE). Copyright © 2026 Navin Jairam
+(Lucifer-Newstar).

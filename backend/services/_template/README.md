@@ -1,7 +1,7 @@
 # Reference Service Template (`_template`)
 
 > **Copy this folder to create a new AegisDeploy platform service.** It is the
-> canonical pattern every backend service follows (working-rules rule 3: commented,
+> canonical pattern every backend service follows (commented,
 > consistent, easy to read). It is intentionally *not* a real service — the real
 > services (gateway, registry, incidents, …) are built by copying this skeleton
 > during P2/P3.

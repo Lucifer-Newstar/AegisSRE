@@ -1,4 +1,4 @@
-# AegisDeploy Roadmap
+# AegisSRE Roadmap
 
 > Short milestone view. Feature meaning and acceptance criteria: [feature scope](../planning/features.md). Phase gates and integration proof: [phase plan](../planning/phases.md). Calendar targets: [timeline](../planning/timeline.md).
 >
@@ -40,4 +40,4 @@
 
 ## Report, demo, and buffer — Apr–Jun 2027
 - Final report, demo video, and documentation pass.
-- Viva preparation. B3 fine-tuning is optional and only proceeds if the core is on schedule and the Team Lead approves it.
+- Final hardening. B3 fine-tuning is optional and only proceeds if the core is on schedule.

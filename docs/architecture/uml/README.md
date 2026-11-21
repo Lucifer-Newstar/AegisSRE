@@ -1,13 +1,13 @@
 # UML Diagrams — Index
 
-> The complete **14-diagram UML documentation set** for AegisDeploy (UML 2.5).
+> The complete **14-diagram UML documentation set** for AegisSRE (UML 2.5).
 > All diagrams are authored in **Mermaid** and render natively on GitHub — edit the
 > text, view the diagram, review via PR.
 >
 > **Updated 2026-09-01:** the full set was extended for the **Deployment Intelligence
 > tier** (DI-1…DI-7). Each diagram now carries DI elements — see §4 for the coverage map.
 >
-> Maintainer: Navin Jairam M (Team Lead).
+> Maintainer: Navin Jairam.
 
 ---
 
@@ -30,7 +30,7 @@
 | 13 | Timing | Behavioral | [timing-diagram.md](timing-diagram.md) | ✅ |
 | 14 | Interaction Overview | Behavioral | [interaction-overview-diagram.md](interaction-overview-diagram.md) | ✅ |
 
-> Note: diagram #1 (Use Case) is split into two files — one for the AegisDeploy platform
+> Note: diagram #1 (Use Case) is split into two files — one for the AegisSRE platform
 > and one for the AegisShop demo application (decision 2026-08-31).
 > Planned files are shown as plain text and become links when each diagram lands
 > (keeps the docs link check green at every commit).

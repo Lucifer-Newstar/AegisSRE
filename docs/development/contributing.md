@@ -1,34 +1,41 @@
 # Contributing
 
-> **Read first:** [docs/team/team-structure.md](../team/team-structure.md) — who owns what.
-> [docs/team/working-rules.md](../team/working-rules.md) — the project rules and the git
-> conventions (Conventional Commits, branch + PR workflow, Definition of Done).
-> New here? Start with the [docs reading order](../README.md#3-reading-order-for-a-new-member).
+> Conventions for building AegisSRE. New here? Follow the
+> [docs reading order](../README.md#3-reading-order) first.
 
 ## Workflow Summary
 
-1. **Branches** — work on `feat/<member>-<area>-<topic>`; merge to `main` via pull
-   request. `main` is always deployable.
+1. **Branches** — work on `feat/<area>-<topic>`; merge to `main`.
+   `main` is always deployable.
 2. **Commits** — Conventional Commits with scopes
-   (`feat(backend): ...`, `docs(architecture): ...`). See `working-rules.md` §2.
-3. **PRs** — small, reviewable; CI must pass; architecture changes need an ADR reviewed
-   by the Team Lead.
+   (`feat(backend): ...`, `docs(architecture): ...`).
+3. **Quality** — small, reviewable changes; CI must pass; architecture changes
+   need an ADR.
 4. **ADRs** — any architectural or tech-stack decision requires an ADR in
    `docs/architecture/adr/` (copy `adr-template.md`).
 
 ## Conventions
 
-- **Python (backend, ml, ai):** 3.12, `ruff` + `mypy`, type hints required, Pydantic
-  models for all schemas, comments per working-rules rule 3.
+- **Python (backend, ml, ai):** 3.12, `ruff` + `mypy --strict`, type hints required,
+  Pydantic models for all schemas.
 - **TypeScript (frontend):** strict mode, `prettier` + `eslint`.
 - **YAML (infra, ci):** 2-space indent, explicit image tags/versions in Compose and K8s
   manifests; every Compose service has a healthcheck.
-- **Secrets:** never commit; use `.env` locally, secrets managers in K8s.
+- **Secrets:** never commit; use `.env` locally (see `.env.example`), secrets managers in K8s.
 - **Telemetry:** all events conform to the envelope in
   `docs/architecture/telemetry-model.md` — no bespoke event shapes.
+- **Contracts:** any cross-service call appears in `docs/contracts/` first
+  (contract-first rule).
 - **Docs:** every change that affects docs updates the right sub-folder and the
-  [docs index](../README.md) if the structure changed (rule 2).
+  [docs index](../README.md) if the structure changed.
 
 ## Definition of Done
 
-See `docs/team/working-rules.md` §4.
+- Behavior demonstrated against the feature's acceptance criteria
+  ([planning/features.md](../planning/features.md)).
+- Tests added/updated; `pytest`, `ruff`, and `mypy --strict` pass; CI green.
+- Contracts, envelope catalogue, port register, and K8s/Compose parity updated
+  in the same change when affected (see
+  [integration-edge-cases.md](../planning/integration-edge-cases.md)).
+- Decisions that change scope or interfaces recorded in the
+  [decision log](../planning/README.md).

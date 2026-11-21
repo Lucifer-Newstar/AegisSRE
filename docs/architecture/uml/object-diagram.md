@@ -17,7 +17,7 @@ classDiagram
     class orderSvc["orderSvc : Service"]
     orderSvc : +str id = svc-order-01
     orderSvc : +str name = order-service
-    orderSvc : +str owner = backend-team
+    orderSvc : +str owner = platform
     orderSvc : +str environment = dev
     orderSvc : +str health = degraded
 

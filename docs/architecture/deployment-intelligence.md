@@ -1,21 +1,20 @@
 # Deployment Intelligence — Design
 
 > **The Deployment Intelligence (DI) tier** — the project upgrade decided 2026-09-01.
-> A first-class module on top of the AegisDeploy SRE platform that turns **every
+> A first-class module on top of the AegisSRE SRE platform that turns **every
 > software deployment** into a monitored, scored, and learnable event: predict risk
 > before deploy, detect bad rollouts fast, correlate incidents to changes, decide
 > rollback safely, and report change-failure analytics.
 >
 > Scope decision: full set of 7 capabilities (DI-1 … DI-7), integrated into the
-> existing phases P2–P8 (no timeline change). Owner: Navin (design/AI-ML), with
-> devops (pipeline/execution), backend (APIs), frontend (UI).
+> existing phases P2–P8 (no timeline change). Design: Navin Jairam.
 
 ---
 
 ## 1. Positioning
 
 ```text
-AegisDeploy = Autonomous SRE Platform (A1–A12, B, C, D, E)
+AegisSRE = Autonomous SRE Platform (A1–A12, B, C, D, E)
             + Deployment Intelligence tier (DI-1 … DI-7)   ← this document
 ```
 
@@ -33,15 +32,15 @@ system:
 
 ## 2. Capabilities (DI-1 … DI-7)
 
-| ID | Capability | Description | Owner | Phase |
-|---|---|---|---|---|
-| **DI-1** | Deployment tracking & registry | Every deploy/rollback/scale recorded with revision, version, trigger, status; deploy history API; **deploy timeline** per service | backend (API) · devops (pipeline hook) | P2 |
-| **DI-2** | Deployment risk scoring (ML) | Pre-deploy + post-deploy risk score from deploy attributes (size, blast radius, time, owner), service state, and historical outcome — *predict* risky deployments | Navin | P4 |
-| **DI-3** | Change-incident correlation | RCA layer auto-attributes incidents to deployments: *"incident caused by deploy `abc1234`"* with evidence (timing overlap, metric shift after deploy, rollback history) | Navin | P4 |
-| **DI-4** | Bad-rollout detection | Deploy-window anomaly evaluation: after each deploy, monitor error rate/latency/SLO-burn in the window; flag `rollout.bad` quickly (target < 3 min) | Navin + devops | P3 (base) → P4 |
-| **DI-5** | Rollback intelligence | Recommend rollback (how far, to which revision) with impact summary; policy-gated: low-risk reversible rollbacks may auto-execute (L5), others require approval (L4); kill switch applies | Navin (design) · devops (executor) | P5 |
-| **DI-6** | Canary / progressive delivery analysis | Compare canary vs stable metrics (traffic-split health comparison); used with a canary deployment in the demo | devops | P7 |
-| **DI-7** | Change-failure analytics | Change failure rate (CFR) dashboards, deployment postmortems, and CFR as an evaluation metric (SRE metric, per proposal §9) | Navin + devops (dashboards) · backend (backend) · frontend (UI) | P6 (dashboards) → P8 (evaluation) |
+| ID | Capability | Description | Phase |
+|---|---|---|---|
+| **DI-1** | Deployment tracking & registry | Every deploy/rollback/scale recorded with revision, version, trigger, status; deploy history API; **deploy timeline** per service | P2  |
+| **DI-2** | Deployment risk scoring (ML) | Pre-deploy + post-deploy risk score from deploy attributes (size, blast radius, time, owner), service state, and historical outcome — *predict* risky deployments | P4  |
+| **DI-3** | Change-incident correlation | RCA layer auto-attributes incidents to deployments: *"incident caused by deploy `abc1234`"* with evidence (timing overlap, metric shift after deploy, rollback history) | P4  |
+| **DI-4** | Bad-rollout detection | Deploy-window anomaly evaluation: after each deploy, monitor error rate/latency/SLO-burn in the window; flag `rollout.bad` quickly (target < 3 min) | P3 (base) → P4  |
+| **DI-5** | Rollback intelligence | Recommend rollback (how far, to which revision) with impact summary; policy-gated: low-risk reversible rollbacks may auto-execute (L5), others require approval (L4); kill switch applies | P5  |
+| **DI-6** | Canary / progressive delivery analysis | Compare canary vs stable metrics (traffic-split health comparison); used with a canary deployment in the demo | P7  |
+| **DI-7** | Change-failure analytics | Change failure rate (CFR) dashboards, deployment postmortems, and CFR as an evaluation metric (SRE metric, per proposal §9) | P6 (dashboards) → P8 (evaluation)  |
 
 ## 3. Data Model (additive to the envelope)
 

@@ -1,13 +1,12 @@
-# API Contracts (P2) — `docs/contracts/`
+# API Contracts — `docs/contracts/`
 
-> **Source of truth for every P2 API.** Contracts-first protocol (p2-kickoff.md
-> §4): frontend's console builds against mock servers generated from these
-> files; backend implements against them; devops reads ports/DNS names from the
-> same documents. **Freeze: 2026-09-08** — after that, changes go through a
-> contract PR.
+> **Source of truth for every service API.** Contracts-first protocol: the
+> console builds against mock servers generated from these files; services
+> implement against them; infra reads ports/DNS names from the same documents.
+> **Freeze: 2026-09-08** — after that, changes go through a contract change
+> recorded in the decision log.
 >
-> Draft v1 by Navin (Team Lead) — final naming/tech confirmed with backend at the
-> P2 kickoff sync ([P2 phase plan](../planning/phases.md)).
+> Draft v1 by Navin Jairam ([P2 phase plan](../planning/phases.md)).
 
 ## Files
 
@@ -20,7 +19,7 @@
 | [order-service.yaml](order-service.yaml) | 1.0.0 | order | 9003 | **LIVE** |
 | [payment-service.yaml](payment-service.yaml) | 1.0.0 | payment | 9004 | **LIVE** |
 
-Ports locked 2026-09-01 (D1 pre-approval) — recorded at the kickoff sync.
+Ports locked 2026-09-01 (D1 decision).
 [manifest.json](manifest.json) maps each service to its contract file for the
 drift check — **add a row there when a service lands** (PR template).
 
@@ -39,19 +38,19 @@ drift check — **add a row there when a service lands** (PR template).
    envelope v0.2 (`backend/libs/telemetry`), never a bespoke shape. The
    deployments-service validates incoming envelopes with the shared lib
    (schema enforced at ingestion — P2 gate).
-5. **CORS (dev policy)** — P2 services allow origins `http://localhost:3000`
+5. **CORS (dev policy)** — services allow origins `http://localhost:3000`
    (legacy Next default) and `http://localhost:3030` (console; Grafana keeps
    3000) in `dev` only. Production goes same-origin through the gateway (P6).
 6. **Versioning** — contracts are additive-only; breaking changes require a
-   contract PR even after freeze (the freeze is about *stability*, not
+   contract change even after freeze (the freeze is about *stability*, not
    immutability). Each file carries a `version` field + changelog comment.
 
-## Mock server (frontend)
+## Mock server (console)
 
-frontend generates client types + a mock server from these files (tool choice
-is his; `openapi-typescript` + MSW/prism are the defaults). Mock server must
-be regenerated on contract changes — a contract PR mentions the regeneration
-in its description.
+Client types + a mock server are generated from these files
+(`openapi-typescript` + MSW/prism are the default tools). The mock server must
+be regenerated on contract changes — a contract change mentions the
+regeneration in its commit message.
 
 ## Contract-drift guard (implemented — edge case #8)
 
@@ -65,4 +64,4 @@ demands something the live API lacks fails the build.
 Convention it enforces implicitly: **declare error responses in the route
 decorator** (`responses={404: {...}}`) — FastAPI does not introspect handler
 bodies, so undocumented errors silently vanish from the generated spec and
-from the frontend mock server.
+from the console mock server.

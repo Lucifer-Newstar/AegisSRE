@@ -1,7 +1,7 @@
 # Use Case Diagram — AegisShop (Demo Application)
 
 > **Diagram 1b (UML 2.5 — Behavioral).** Use cases of the **AegisShop** demo
-> microservices application — the monitored subject of the platform. The AegisDeploy
+> microservices application — the monitored subject of the platform. The AegisSRE
 > platform appears as an **external system** (it observes the app; it does not
 > participate in shop functionality). Medium detail (~11 use cases).
 
@@ -14,7 +14,7 @@ flowchart LR
     CUST["🛒 Customer"]                %% primary actor — end user
     STAFF["🧑‍💼 Shop Staff / Admin"]    %% manages catalog & orders
     PG["💳 Payment Gateway"]           %% external payment processor
-    AEGIS["🛰️ AegisDeploy Platform"]   %% external system — observes the app
+    AEGIS["🛰️ AegisSRE Platform"]   %% external system — observes the app
     REL["🚀 Release Engineer (CI/CD)"] %% deploys & rolls back the app
 
     %% ═══ SYSTEM BOUNDARY ══════════════════════════════════
@@ -80,7 +80,7 @@ monitors and protects. AegisShop exists to be the *test subject* — its fault h
 | **Customer** | Primary | End user of the shop: browses, carts, orders, pays |
 | **Shop Staff / Admin** | Secondary | Manages the product catalog and orders |
 | **Payment Gateway** | External system | Simulated payment processing (no real money) |
-| **AegisDeploy Platform** | External system | Consumes the shop's telemetry/health for monitoring (A1) |
+| **AegisSRE Platform** | External system | Consumes the shop's telemetry/health for monitoring (A1) |
 | **Release Engineer (CI/CD)** | Secondary | Deploys, rolls back, and canary-releases the app (the DI-1…DI-6 trigger) |
 
 ## 3. Use Cases (summary)
@@ -97,7 +97,7 @@ monitors and protects. AegisShop exists to be the *test subject* — its fault h
 | 8 | Track order status | Customer | `order-service` | — |
 | 9 | Manage product catalog | Staff | `catalog-service` | — |
 | 10 | Manage orders | Staff | `order-service` | — |
-| 11 | Serve telemetry & health | AegisDeploy | all services | the monitoring contract |
+| 11 | Serve telemetry & health | AegisSRE | all services | the monitoring contract |
 | 12 | Deploy new version | Release Engineer (CI/CD) | order-service | DI-1 trigger (faulty-deploy target) |
 | 13 | Rollback to previous version | Release Engineer (CI/CD) | order-service | DI-5 rollback target |
 | 14 | Run canary release | Release Engineer (CI/CD) | order-service | DI-6 canary analysis target |

@@ -175,7 +175,7 @@ chaos-ready (A11).
 ## 4. Notes for Implementers
 
 - Services are **OTel-instrumented** — `expose_metrics()` emits the envelope-compliant
-  telemetry consumed by A1 (devops's pipeline).
+  telemetry consumed by the A1 pipeline.
 - `FaultHook.inject()` is called by the chaos lab only; it is a **demo-only** interface
   and must never be reachable from the public API in a real deployment.
 - DI relevance: `OrderService` is the **faulty-deployment** target (DI-4/DI-5) and the
