@@ -11,6 +11,7 @@ from prometheus_client import (
     CollectorRegistry,
     Counter,
     Histogram,
+    ProcessCollector,
     generate_latest,
 )
 from starlette.responses import Response
@@ -21,6 +22,7 @@ from order_service.logging import setup_logging
 logger = setup_logging(settings.service_name, settings.environment)
 
 METRIC_REGISTRY = CollectorRegistry()
+ProcessCollector(registry=METRIC_REGISTRY)
 
 REQUESTS = Counter(
     "http_server_requests_total",

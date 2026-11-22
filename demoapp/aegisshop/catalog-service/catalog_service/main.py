@@ -23,6 +23,7 @@ from prometheus_client import (
     CollectorRegistry,
     Counter,
     Histogram,
+    ProcessCollector,
     generate_latest,
 )
 from starlette.responses import Response
@@ -37,6 +38,7 @@ logger = setup_logging(settings.service_name, settings.environment)
 # Own CollectorRegistry per service — several services share metric names by
 # convention, so a global registry would collide in combined test runs.
 METRIC_REGISTRY = CollectorRegistry()
+ProcessCollector(registry=METRIC_REGISTRY)
 
 REQUESTS = Counter(
     "http_server_requests_total",
