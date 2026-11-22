@@ -206,6 +206,7 @@ def test_collection_staggers_targets_and_reports_backend_failures() -> None:
         assert "loki:catalog-service" in collector.failures
         collector.collect()
         assert "loki:cart-service" in collector.failures
+        assert "loki:catalog-service" in collector.failures
     assert len(services) == 2
     assert 'service_name="catalog-service"' in services[0]
     assert 'service_name="cart-service"' in services[1]

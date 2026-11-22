@@ -16,6 +16,7 @@ observability = [
     "opentelemetry-sdk>=1.45.2",
     "opentelemetry-exporter-otlp-proto-grpc>=1.45.2",
     "opentelemetry-instrumentation-fastapi>=0.66b2",
+    "opentelemetry-instrumentation-logging>=0.66b2",
 ]
 dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.11"]
 

@@ -29,12 +29,19 @@ def trace_id(value: str) -> str:
     return result
 
 
+def _object(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise ValueError("Expected a telemetry object")
+    return value
+
+
 def attributes(items: list[dict[str, Any]]) -> dict[str, Any]:
-    if len(items) > 100:
+    if not isinstance(items, list) or len(items) > 100:
         raise ValueError("Excessive trace attribute cardinality")
     result: dict[str, Any] = {}
     for item in items:
-        value = item["value"]
+        item = _object(item)
+        value = _object(item["value"])
         for kind in ("stringValue", "intValue", "doubleValue", "boolValue"):
             if kind in value:
                 result[str(item["key"])] = value[kind]
@@ -79,7 +86,7 @@ class SignalEvidence:
             raise ValueError("Excessive Loki result cardinality")
         result: list[EventEnvelope] = []
         for row in rows:
-            labels = row["stream"]
+            labels = _object(row["stream"])
             if (
                 labels.get("service_name") != service
                 or labels.get("deployment_environment") != self.config.environment
@@ -94,7 +101,7 @@ class SignalEvidence:
                 except ValueError:
                     parsed = {}
                 parsed = parsed if isinstance(parsed, dict) else {}
-                message = str(parsed.get("message", line))[:4000]
+                message = str(parsed.get("message", line)).encode("utf-8")[:3000].decode("utf-8", errors="ignore")
                 level = str(parsed.get("level", "INFO")).upper()
                 if level not in {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}:
                     level = "INFO"
@@ -131,7 +138,7 @@ class SignalEvidence:
             raise ValueError("Excessive Tempo search results")
         if not candidates:
             return []
-        identity = trace_id(str(candidates[0]["traceID"]))
+        identity = trace_id(str(_object(candidates[0])["traceID"]))
         return self.trace(service, identity, at)
 
     def trace(self, service: str, identity: str, at: datetime) -> list[EventEnvelope]:
@@ -150,14 +157,16 @@ class SignalEvidence:
         result: list[EventEnvelope] = []
         count = 0
         for batch in batches:
-            resource = attributes(batch["resource"].get("attributes", []))
+            batch = _object(batch)
+            resource = attributes(_object(batch["resource"]).get("attributes", []))
             if (
                 resource.get("service.name") != service
                 or resource.get("deployment.environment") != self.config.environment
             ):
                 continue  # A distributed trace legitimately contains other services.
             for scope in batch.get("scopeSpans", batch.get("instrumentationLibrarySpans", [])):
-                for span in scope.get("spans", []):
+                for span in _object(scope).get("spans", []):
+                    span = _object(span)
                     count += 1
                     if count > 1000:
                         raise ValueError("Excessive trace spans")
