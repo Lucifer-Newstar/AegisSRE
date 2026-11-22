@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -73,7 +74,12 @@ class Executor:
         return {"current_replicas": replicas, "target_uid": str(meta["uid"])}
 
     def run(
-        self, plan: Plan, *, automatic: bool = False, expected_uid: str | None = None
+        self,
+        plan: Plan,
+        *,
+        automatic: bool = False,
+        expected_uid: str | None = None,
+        dispatch_allowed: Callable[[], bool] | None = None,
     ) -> ExecutionResult:
         if plan.target not in self.settings.allowed_targets:
             raise ExecutionError("Target not allowlisted")
@@ -140,6 +146,8 @@ class Executor:
             if replicas < 2:
                 raise ExecutionError("Real rolling restart requires at least two replicas")
             args = ["rollout", "restart", f"deployment/{plan.target}"]
+        if automatic and (dispatch_allowed is None or not dispatch_allowed()):
+            raise ExecutionError("Automatic dispatch blocked by the current kill switch")
         output = self._kubectl(args)
         return ExecutionResult(output.strip()[:2000], undo)
 

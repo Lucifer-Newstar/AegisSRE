@@ -371,8 +371,24 @@ class ReliabilityLoop:
                     verdict.automatic and dispatch_mode != "auto-safe"
                 ):
                     raise DomainError("Kill switch enabled before execution")
+
+            def dispatch_allowed() -> bool:
+                with self.repo.transaction() as tx:
+                    current = tx.incident(incident_id)
+                    return bool(
+                        tx.get_state("autonomy", {"mode": "recommend"})["mode"] == "auto-safe"
+                        and current is not None
+                        and current.status == "remediating"
+                        and current.plan == incident.plan
+                    )
+
             result = (
-                self.executor.run(incident.plan, automatic=True, expected_uid=target_uid)
+                self.executor.run(
+                    incident.plan,
+                    automatic=True,
+                    expected_uid=target_uid,
+                    dispatch_allowed=dispatch_allowed,
+                )
                 if verdict.automatic
                 else self.executor.run(incident.plan)
             )
