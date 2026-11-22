@@ -29,3 +29,8 @@ The packaged image includes checksum-pinned kubectl. Actual Kubernetes execution
 still requires an explicit mounted kubeconfig/context and separate scoped executor
 credentials. The evidence reader is read-only and never receives deployment patch
 permission. No default manifests enable execution or auto-safe mode.
+
+CPU/load hypotheses can propose a bounded scale-up. Plan replicas are filled only
+from a live managed Deployment read. Missing live context changes the plan to
+operator escalation, not a guessed replica count. The versioned policy remains
+the authority for risk/approval, and dispatch rechecks current replicas again.

@@ -184,3 +184,63 @@ def test_executor_rechecks_scale_direction_at_dispatch(monkeypatch: pytest.Monke
     with pytest.raises(ExecutionError):
         executor.run(item.plan, automatic=True)
     assert len(calls) == 1 and calls[0][0] == "get"
+
+
+def test_capacity_anomaly_plans_from_live_replicas_not_guessed_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from incidents_service.models import Event
+
+    loop, key = configured()
+    with loop.repo.transaction() as tx:
+        seeded = tx.incident(key)
+        assert seeded
+        seeded.approval = "deferred"
+        tx.save_incident(seeded)
+    # Separate service so the explicitly seeded incident does not mask creation.
+    monkeypatch.setattr(loop.executor, "policy_context", lambda _: {"current_replicas": 2})
+    for index in range(13):
+        result = loop.ingest(
+            Event(
+                id="cpu-" + str(index),
+                source="prometheus",
+                type="metric",
+                service="cart-service",
+                timestamp=now() - timedelta(seconds=20 - index),
+                payload={
+                    "name": "cpu_usage_percent",
+                    "value": 100 if index == 12 else 5,
+                    "unit": "percent_of_one_core",
+                },
+            )
+        )
+    with loop.repo.transaction() as tx:
+        item = tx.incident(str(result["incident_id"]))
+        assert item and item.plan.action == "scale" and item.plan.replicas == 3
+        assert item.plan.risk == "low" and item.plan.reversible
+    assert loop.run_automatic() == 1
+
+
+def test_capacity_anomaly_without_live_context_escalates() -> None:
+    from incidents_service.models import Event
+
+    loop, _ = configured()
+    for index in range(13):
+        result = loop.ingest(
+            Event(
+                id="cpu-missing-" + str(index),
+                source="prometheus",
+                type="metric",
+                service="cart-service",
+                timestamp=now() - timedelta(seconds=20 - index),
+                payload={
+                    "name": "cpu_usage_percent",
+                    "value": 100 if index == 12 else 5,
+                    "unit": "percent_of_one_core",
+                },
+            )
+        )
+    with loop.repo.transaction() as tx:
+        item = tx.incident(str(result["incident_id"]))
+        assert item and item.plan.action == "escalate" and item.plan.replicas is None
+        assert item.plan.risk == "high" and not item.plan.reversible

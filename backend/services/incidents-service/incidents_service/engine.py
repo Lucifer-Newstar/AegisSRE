@@ -165,6 +165,19 @@ class ReliabilityLoop:
         evidence = tx.recent_events(event.service, event.environment, limit=200)
         signals = active.signals if active else [signal]
         analysis, plan, correlation = analyze(event, signals, evidence)
+        if plan.action == "scale":
+            try:
+                live = self.executor.policy_context(plan)
+                if isinstance(live.get("current_replicas"), int):
+                    plan.replicas = int(live["current_replicas"]) + 1
+                else:
+                    plan.action, plan.risk, plan.reversible = "escalate", "high", False
+                    plan.reason = "Capacity evidence without live managed replica preconditions"
+            except Exception:
+                plan.action, plan.risk, plan.reversible = "escalate", "high", False
+                plan.reason = (
+                    "Live capacity preconditions unavailable; operator investigation required"
+                )
         rule = self.policy.rules.get(plan.action)
         if rule:
             plan.risk, plan.requires_approval, plan.policy_version = (
