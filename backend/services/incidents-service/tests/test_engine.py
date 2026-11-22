@@ -70,6 +70,22 @@ def test_baseline_incident_correlation_and_persistence(loop: ReliabilityLoop) ->
         assert all(event["service"] == "catalog-service" for event in audit_events)
         assert all(event["payload"]["target"] == incident_id for event in audit_events)
         assert len(tx.audits(incident_id)) == 2
+    loop.settings.environment = "prod"
+    loop.execute(incident_id, "tester")
+    loop.set_mode("recommend", "tester")
+    with loop.repo.transaction() as tx:
+        outputs = [event for _, event in tx.pending() if event["type"] == "audit"]
+        denied = next(
+            event for event in outputs if event["payload"]["action"] == "remediation.denied"
+        )
+        global_change = next(
+            event for event in outputs if event["payload"]["action"] == "autonomy.mode.set"
+        )
+        assert denied["service"] == "catalog-service" and denied["environment"] == "dev"
+        assert (
+            global_change["service"] == "incidents-service"
+            and global_change["environment"] == "prod"
+        )
     sample(loop, "fault-2", 800.0, 0)
     with loop.repo.transaction() as tx:
         assert len(tx.list_incidents()) == 1

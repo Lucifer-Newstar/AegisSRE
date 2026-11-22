@@ -283,6 +283,8 @@ class ReliabilityLoop:
                     Audit(
                         action="remediation.denied", actor=actor, detail=verdict.reason
                     ).model_dump(mode="json"),
+                    service=incident.service,
+                    environment=incident.environment,
                 )
                 # A denial is a recorded result, not an exception that rolls the audit back.
                 return incident.model_copy(update={"execution_output": f"DENIED: {verdict.reason}"})
@@ -402,6 +404,7 @@ class ReliabilityLoop:
             tx.append_audit(
                 None,
                 Audit(action="autonomy.mode.set", actor=actor, detail=mode).model_dump(mode="json"),
+                environment=self.settings.environment,
             )
 
     def postmortem(self, incident_id: str) -> dict[str, Any]:
