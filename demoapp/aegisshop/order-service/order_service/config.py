@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     environment: str = "dev"
     otel_exporter_otlp_endpoint: str = ""
     cart_service_url: str = ""
+    shop_database_url: str = "sqlite:///:memory:"
 
 
 settings = Settings()

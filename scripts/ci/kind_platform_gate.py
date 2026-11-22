@@ -166,6 +166,12 @@ def create() -> None:
     )
     kubectl("create", "namespace", NS)
     secrets = {
+        "aegisshop-postgres": {
+            "username": "shop", "password": "ci-disposable-shop", "database": "aegisshop"
+        },
+        "aegisshop-database": {
+            "url": "postgresql+psycopg://shop:ci-disposable-shop@shop-postgres:5432/aegisshop"
+        },
         "aegissre-postgres": {
             "username": "aegis",
             "password": "ci-disposable-database",
@@ -196,6 +202,7 @@ def create() -> None:
     kubectl("apply", "-k", str(ROOT / "infra"))
     for kind, name in [
         ("statefulset", "postgres"),
+        ("statefulset", "shop-postgres"),
         ("statefulset", "redis"),
         *[
             ("deployment", name)
@@ -205,7 +212,7 @@ def create() -> None:
         kubectl(
             "rollout", "status", kind + "/" + name, "--namespace", NS, "--timeout=300s", timeout=320
         )
-    print("All sixteen actual platform/workload Pods rolled out in the fixture-owned cluster")
+    print("All seventeen actual platform/workload Pods rolled out in the fixture-owned cluster")
 
 
 class Forwards:
@@ -271,6 +278,8 @@ def verify() -> None:
             ("redis", 6379, 6379),
             ("catalog-service", 9001, 9001),
             ("console", 3030, 3030),
+            ("order-service", 9003, 9003),
+            ("cart-service", 9002, 9002),
         ]:
             forwards.start(name, local, remote)
         wait_for(
@@ -364,6 +373,29 @@ def verify() -> None:
             "platform reconnection after Postgres replacement",
             seconds=120,
         )
+        # Real shop data and dependency failure, isolated from platform storage.
+        from scripts.check_shop_stack import request as shop_request
+        from scripts.check_shop_stack import retained, seed, unavailable
+
+        wait_for(lambda: shop_request(9003, "/ready")[0] == 200, "shop DB readiness", 120)
+        order = seed()
+        kubectl("rollout", "restart", "deployment/order-service", "--namespace", NS)
+        kubectl("rollout", "status", "deployment/order-service", "--namespace", NS,
+                "--timeout=180s", timeout=200)
+        forwards.start("order-service", 9003, 9003)
+        wait_for(lambda: retained(order), "order retained across actual application restart", 120)
+        try:
+            kubectl("scale", "statefulset/shop-postgres", "--replicas=0", "--namespace", NS)
+            kubectl("wait", "--for=delete", "pod/shop-postgres-0", "--namespace", NS,
+                    "--timeout=90s", timeout=100)
+            wait_for(unavailable, "actual shop DB outage gives readiness/domain 503", 90)
+            assert request("/api/v1/ready")["status"] == "ready"
+            assert api("/deployments/ci-runtime-deploy", port=8701)["revision"] == "ci-observed-revision"
+        finally:
+            kubectl("scale", "statefulset/shop-postgres", "--replicas=1", "--namespace", NS)
+        wait_for(lambda: shop_request(9003, "/ready")[0] == 200 and retained(order),
+                 "same persisted order after actual shop database restoration", 180)
+        print("Actual shop order survived app restart and isolated database outage/restoration; platform stayed ready")
         with urllib.request.urlopen("http://127.0.0.1:3030/", timeout=15) as response:
             assert response.status == 200
         print(
@@ -371,7 +403,8 @@ def verify() -> None:
                 {
                     "result": "passed",
                     "actual_kind_platform": True,
-                    "services": 16,
+                    "services": 17,
+                    "actual_shop_postgres_outage_restored": True,
                     "actual_postgres_pvc_replacement": True,
                     "actual_projected_sa_tls": True,
                     "evidence_mutations_denied": True,

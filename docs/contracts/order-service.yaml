@@ -53,6 +53,8 @@ paths:
                 $ref: "#/components/schemas/Order"
         "400":
           description: empty cart or unknown user
+        "503":
+          description: order database or cart dependency unavailable
 
   /orders/{order_id}:
     get:
@@ -72,6 +74,8 @@ paths:
                 $ref: "#/components/schemas/Order"
         "404":
           description: unknown order
+        "503":
+          description: order database unavailable
 
 components:
   schemas:

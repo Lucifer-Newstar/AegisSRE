@@ -1,6 +1,6 @@
 # Complete local-demo kind platform
 
-`infra/kustomization.yaml` assembles all sixteen current Compose services in a
+`infra/kustomization.yaml` assembles all seventeen current Compose services in a
 dedicated `aegissre-demo` namespace. The seven existing app bases remain usable
 independently. The added platform resources include PostgreSQL/pgvector, Redis,
 Prometheus, Grafana, Loki, Tempo, OpenTelemetry Collector, the reliability runtime
@@ -34,6 +34,8 @@ contents in chat. The database URL must match the Postgres values and address
 
 | Secret | Required keys |
 |---|---|
+| `aegisshop-postgres` | `username`, `password`, `database`, separate from platform credentials |
+| `aegisshop-database` | `url`, a `postgresql+psycopg` URL pointing to `shop-postgres:5432` |
 | `aegissre-postgres` | `username`, `password`, `database` |
 | `aegissre-database` | `url`, a `postgresql+psycopg` URL |
 | `aegissre-metadata` | `api-token`, `read-token`, distinct from each other |
@@ -52,7 +54,7 @@ files, create the namespace, create each named Secret with `kubectl --context
 
 ```sh
 kubectl --context "$CONTEXT" create namespace aegissre-demo
-# Create the five required Secrets in that namespace before applying workloads.
+# Create the seven required Secrets in that namespace before applying workloads.
 kubectl --context "$CONTEXT" apply -k infra
 kubectl --context "$CONTEXT" -n aegissre-demo get pods,pvc
 kubectl --context "$CONTEXT" -n aegissre-demo rollout status deployment/api-gateway
@@ -94,7 +96,7 @@ every kubectl call, and deletes a cluster only with this run/attempt/job's owner
 marker. It builds all application images, loads them into kind, creates only
 fixture credentials and applies the complete Kustomization.
 
-The gate requires all sixteen workloads to roll out, then reuses the running
+The gate requires all seventeen workloads to roll out, then reuses the running
 HTTP/SQL/Redis proofs for real Prometheus collection, OTLP log/trace joins,
 pgvector retrieval, read-only Ask, deployment-window results and restart recovery.
 Synthetic source history stays labelled as synthetic. It checks actual
@@ -113,3 +115,26 @@ This repository uses standard `ubuntu-latest` runners in a public repository.
 states standard public-repository runner usage is free. This fixture creates no
 paid cloud resources or model calls and publishes no container images. Recheck
 costs before using private repositories, paid runners or cloud infrastructure.
+
+## Isolated shop order database
+
+The seventeenth workload, `shop-postgres`, has its own StatefulSet, service,
+credentials and `shop-postgres-data` PVC. Order-service uses `SHOP_DATABASE_URL`
+from `aegisshop-database`, never the platform evidence database. No host port is
+published for this shop database in Compose. Do not reuse platform credentials
+when creating the two shop Secrets.
+
+`/health` reports process liveness; `/ready` checks the order database. Order
+reads/writes and readiness return 503 during a database outage. Cart transport
+failure also returns 503 rather than pretending the cart is empty. Schema
+creation is lazy so an unavailable dependency does not prevent the process from
+starting. After reconnection, the same committed order is readable. There is no
+automatic clearing/reseeding or transient in-memory write fallback.
+
+The full-platform CI gate must also prove a real order survives an application
+restart, scale only its newly owned `shop-postgres` to zero, observe domain and
+readiness 503 while liveness/platform APIs remain up, restore the StatefulSet in
+a `finally` block, and read the unchanged order. This is one integration proof,
+not the A11 CLI, ten-fault coverage, recovery acceptance or an evaluation result.
+The cart still uses the prior in-memory implementation; Redis-backed carts are
+remaining work, not implied by the order database change.

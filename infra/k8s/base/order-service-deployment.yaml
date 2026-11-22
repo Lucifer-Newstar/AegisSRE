@@ -25,6 +25,11 @@ spec:
             - containerPort: 9003
               name: http
           env:
+            - name: SHOP_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: aegisshop-database
+                  key: url
             - name: SERVICE_NAME
               value: order-service
             - name: SERVICE_PORT
