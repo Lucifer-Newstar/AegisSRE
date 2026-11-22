@@ -59,6 +59,20 @@ services:
     networks: [aegissre]
     logging: *default-logging
 
+  # Shop carts do not share the platform Redis stream server or volume.
+  shop-redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "always"]
+    volumes:
+      - shop-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [aegissre]
+    logging: *default-logging
+
   redis:
     image: redis:7-alpine
     container_name: aegissre-redis
@@ -206,10 +220,12 @@ services:
       SERVICE_NAME: cart-service
       SERVICE_PORT: "9002"
       ENVIRONMENT: dev
+      SHOP_REDIS_URL: redis://shop-redis:6379/0
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
     ports:
       - "127.0.0.1:9002:9002"
     depends_on:
+      shop-redis: { condition: service_healthy }
       otel-collector: { condition: service_started }
     networks: [aegissre]
     logging: *default-logging
@@ -390,6 +406,7 @@ networks:
     driver: bridge
 
 volumes:
+  shop-redis-data:
   shop-postgres-data:
   postgres-data:
   redis-data:

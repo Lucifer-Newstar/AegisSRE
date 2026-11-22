@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: shop-redis
+  labels: &id001
+    app.kubernetes.io/name: shop-redis
+    app.kubernetes.io/part-of: aegisshop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: shop-redis
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - name: shop-redis
+        image: redis:7-alpine
+        ports:
+        - name: tcp
+          containerPort: 6379
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+        args:
+        - redis-server
+        - --appendonly
+        - 'yes'
+        - --appendfsync
+        - always
+        readinessProbe:
+          tcpSocket: &id002
+            port: 6379
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 30
+        startupProbe:
+          tcpSocket: *id002
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 60
+        volumeMounts:
+        - name: shop-redis-data
+          mountPath: /data
+      volumes:
+      - name: shop-redis-data
+        persistentVolumeClaim:
+          claimName: shop-redis-data
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+  serviceName: shop-redis
