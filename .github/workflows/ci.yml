@@ -245,7 +245,7 @@ jobs:
           pip install -r backend/services/incidents-service/requirements.lock
           pip install --no-deps -e backend/services/incidents-service -e backend/libs/storage -e backend/libs/telemetry -e backend/libs/eventbus
       - name: Exercise real PostgreSQL and Redis delivery guarantees
-        run: pytest backend/services/incidents-service/tests/test_knowledge_postgres.py backend/services/incidents-service/tests/test_postgres.py backend/libs/storage/tests/test_postgres_storage.py backend/libs/eventbus/tests/test_redis_integration.py
+        run: pytest backend/services/incidents-service/tests/test_intelligence_postgres.py backend/services/incidents-service/tests/test_knowledge_postgres.py backend/services/incidents-service/tests/test_postgres.py backend/libs/storage/tests/test_postgres_storage.py backend/libs/eventbus/tests/test_redis_integration.py
 
   metadata-compose:
     name: Metadata APIs (Compose restart persistence)
@@ -304,6 +304,8 @@ jobs:
         run: python3 scripts/check_observability_stack.py
       - name: Prove actual pgvector retrieval and packaged runbook citations
         run: python3 scripts/check_knowledge_stack.py
+      - name: Prove read-only Ask and citations against actually collected metrics
+        run: python3 scripts/check_intelligence_stack.py
       - name: Collect runtime diagnostics
         if: always()
         run: |
