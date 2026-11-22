@@ -161,7 +161,7 @@ def test_incomplete_or_unsafe_cluster_reads_report_unknown_not_success(
             assert source.snapshot()["health_verdict"] == "unknown"
 
     asyncio.run(exercise())
-    assert calls == 4
+    assert calls == (8 if scenario == "pagination" else 4)
 
 
 def test_unowned_or_recreated_object_is_not_attributed_by_name(tmp_path: Path) -> None:
@@ -298,3 +298,80 @@ def test_throttle_is_not_hidden_by_another_concurrent_failure(tmp_path: Path) ->
             assert source.error == "cluster_throttled"
 
     asyncio.run(exercise())
+
+
+def test_paginated_events_are_complete_before_ownership_attribution(tmp_path: Path) -> None:
+    settings = config(tmp_path)
+    fixtures = responses()
+    observed = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        observed.append(request)
+        kind = request.url.path.rsplit("/", 1)[-1]
+        if kind == "events" and "continue" not in request.url.params:
+            return httpx.Response(200, json={"metadata": {"continue": "opaque-next"}, "items": []})
+        if kind == "events":
+            assert request.url.params["continue"] == "opaque-next"
+        return httpx.Response(200, json={"metadata": {}, "items": fixtures[kind]})
+
+    async def exercise() -> None:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+            source = KubernetesEvidence(settings, client)
+            result = await source.collect()
+            assert source.error is None and len(result) == 1
+            assert result[0].payload["object_uid"] == "pod-uid"
+
+    asyncio.run(exercise())
+    assert len(observed) == 5
+
+
+@pytest.mark.parametrize("unfinished", [False, True])
+def test_cluster_pagination_has_a_total_five_page_bound(tmp_path: Path, unfinished: bool) -> None:
+    settings = config(tmp_path)
+    calls = 0
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        index = int(request.url.params.get("continue", "0"))
+        continuation = str(index + 1) if index < 4 or unfinished else ""
+        return httpx.Response(
+            200,
+            json={
+                "metadata": {"continue": continuation},
+                "items": [resource(str(index * 100 + i)) for i in range(100)],
+            },
+        )
+
+    async def exercise() -> None:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+            source = KubernetesEvidence(settings, client)
+            if unfinished:
+                with pytest.raises(RuntimeError, match="cluster_list_truncated"):
+                    await source._get("/api/v1/namespaces/" + NS + "/pods")
+            else:
+                assert len(await source._get("/api/v1/namespaces/" + NS + "/pods")) == 500
+
+    asyncio.run(exercise())
+    assert calls == 5
+
+
+def test_cluster_page_bytes_share_one_response_budget(tmp_path: Path) -> None:
+    settings = config(tmp_path)
+    calls = 0
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        item = resource(str(calls))
+        item["padding"] = "x" * 600000
+        return httpx.Response(200, json={"metadata": {"continue": str(calls)}, "items": [item]})
+
+    async def exercise() -> None:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+            source = KubernetesEvidence(settings, client)
+            with pytest.raises(RuntimeError, match="cluster_response_exceeds_bound"):
+                await source._get("/api/v1/namespaces/" + NS + "/pods")
+
+    asyncio.run(exercise())
+    assert calls == 2

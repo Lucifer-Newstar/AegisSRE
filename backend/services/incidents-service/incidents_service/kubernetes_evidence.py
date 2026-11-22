@@ -53,43 +53,60 @@ class KubernetesEvidence:
 
     async def _get(self, path: str, *, selected: bool = True) -> list[dict[str, Any]]:
         assert self.client is not None
-        token = await asyncio.to_thread(self._token)
         params = {"limit": "100"}
         if selected:
             params["labelSelector"] = self.selector
-        async with self.client.stream(
-            "GET",
-            self.config.kube_api_url.rstrip("/") + path,
-            params=params,
-            headers={
-                "Authorization": "Bearer " + token,
-                "Accept": "application/json",
-                "Accept-Encoding": "identity",
-            },
-            follow_redirects=False,
-            timeout=3,
-        ) as response:
-            response.raise_for_status()
-            if response.headers.get("content-encoding", "identity").lower() != "identity":
-                raise KubernetesEvidenceError("unsupported_cluster_encoding")
-            data = bytearray()
-            async for chunk in response.aiter_bytes():
-                data.extend(chunk)
-                if len(data) > 1_000_000:
-                    raise KubernetesEvidenceError("cluster_response_exceeds_bound")
-        document = json.loads(data)
-        if not isinstance(document, dict) or not isinstance(document.get("items"), list):
-            raise KubernetesEvidenceError("invalid_cluster_list")
-        if document.get("metadata", {}).get("continue") or len(document["items"]) > 100:
-            raise KubernetesEvidenceError("cluster_list_truncated")
-        rows = document["items"]
-        for row in rows:
+        rows: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        consumed = 0
+        for _ in range(5):
+            token = await asyncio.to_thread(self._token)
+            async with self.client.stream(
+                "GET",
+                self.config.kube_api_url.rstrip("/") + path,
+                params=params,
+                headers={
+                    "Authorization": "Bearer " + token,
+                    "Accept": "application/json",
+                    "Accept-Encoding": "identity",
+                },
+                follow_redirects=False,
+                timeout=3,
+            ) as response:
+                response.raise_for_status()
+                if response.headers.get("content-encoding", "identity").lower() != "identity":
+                    raise KubernetesEvidenceError("unsupported_cluster_encoding")
+                data = bytearray()
+                async for chunk in response.aiter_bytes():
+                    consumed += len(chunk)
+                    if consumed > 1_000_000:
+                        raise KubernetesEvidenceError("cluster_response_exceeds_bound")
+                    data.extend(chunk)
+            document = json.loads(data)
+            if not isinstance(document, dict) or not isinstance(document.get("items"), list):
+                raise KubernetesEvidenceError("invalid_cluster_list")
+            page = document["items"]
+            if len(page) > 100 or len(rows) + len(page) > 500:
+                raise KubernetesEvidenceError("cluster_list_truncated")
+            for row in page:
+                if (
+                    not isinstance(row, dict)
+                    or row.get("metadata", {}).get("namespace") != self.config.kube_namespace
+                ):
+                    raise KubernetesEvidenceError("unexpected_cluster_namespace")
+            rows.extend(page)
+            continuation = document.get("metadata", {}).get("continue")
+            if not continuation:
+                return rows
             if (
-                not isinstance(row, dict)
-                or row.get("metadata", {}).get("namespace") != self.config.kube_namespace
+                not isinstance(continuation, str)
+                or len(continuation) > 4096
+                or continuation in seen
             ):
-                raise KubernetesEvidenceError("unexpected_cluster_namespace")
-        return list(rows)
+                raise KubernetesEvidenceError("invalid_cluster_pagination")
+            seen.add(continuation)
+            params["continue"] = continuation
+        raise KubernetesEvidenceError("cluster_list_truncated")
 
     def _identity(self, item: dict[str, Any]) -> tuple[str, str] | None:
         metadata = item.get("metadata", {})
