@@ -210,3 +210,23 @@ def test_collection_staggers_targets_and_reports_backend_failures() -> None:
     assert len(services) == 2
     assert 'service_name="catalog-service"' in services[0]
     assert 'service_name="cart-service"' in services[1]
+
+
+def test_tempo_search_zero_trimmed_hex_normalizes_without_weakening_otlp_ids() -> None:
+    point = now().replace(microsecond=0)
+    expected = "00" + IDENTITY[2:]
+    requests = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.path == "/api/search":
+            return httpx.Response(200, json={"traces":[{"traceID":expected.lstrip("0")}]})
+        return httpx.Response(200,json=fixture(point, identity=expected))
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        evidence=SignalEvidence(configured(),ReadClient(client))
+        result=evidence.traces("catalog-service",point)
+        assert result and result[0].trace_id==expected
+        assert requests[-1].url.path=="/api/traces/"+expected
+    with pytest.raises(ValueError):
+        trace_id("abc")
