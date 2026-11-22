@@ -20,6 +20,9 @@ from check_runtime_stack import api, wait_for
 from redis import Redis
 
 STATE = Path("/tmp/aegis-deploy-window-fixture.json")
+# Earlier gates intentionally deploy catalog-service. Keep this cohort separate
+# so real overlap uncertainty is not mistaken for a failed positive-CFR check.
+SERVICE = "payment-service"
 
 
 def query(path: str, **params: str) -> dict:
@@ -30,7 +33,7 @@ def record(identity: str) -> dict | None:
     return next(
         (
             row
-            for row in query("rollouts", service="catalog-service")["rollouts"]
+            for row in query("rollouts", service=SERVICE)["rollouts"]
             if row["deployment_id"] == identity
         ),
         None,
@@ -40,6 +43,7 @@ def record(identity: str) -> dict | None:
 def seed() -> None:
     if STATE.exists():
         raise RuntimeError("Refusing to replace a prior fixture checkpoint")
+    assert not query("rollouts", service=SERVICE)["rollouts"], "CI cohort already occupied"
     identity = "ci-window-" + uuid4().hex
     start = datetime.now(UTC) - timedelta(seconds=5)
     for index in range(12):
@@ -49,7 +53,7 @@ def seed() -> None:
                 "id": identity + "-warm-" + str(index),
                 "source": "chaoslab",
                 "type": "metric",
-                "service": "catalog-service",
+                "service": SERVICE,
                 "environment": "dev",
                 "timestamp": (start - timedelta(seconds=70 - index * 5)).isoformat(),
                 "payload": {
@@ -68,7 +72,7 @@ def seed() -> None:
             "id": event_id,
             "source": "deployment",
             "type": "deployment",
-            "service": "catalog-service",
+            "service": SERVICE,
             "environment": "dev",
             "timestamp": start.isoformat(),
             "payload": {
@@ -89,7 +93,7 @@ def seed() -> None:
             "id": identity + "-bad",
             "source": "chaoslab",
             "type": "metric",
-            "service": "catalog-service",
+            "service": SERVICE,
             "environment": "dev",
             "timestamp": (start + timedelta(seconds=1)).isoformat(),
             "payload": {
@@ -125,8 +129,9 @@ def verify() -> None:
     row = wait_for(lambda: record(saved["identity"]), "persisted rollout after application restart")
     assert row["id"] == saved["rollout_id"] and row["outcome"] == "bad"
     assert row["flagged_at"] == saved["flagged_at"]
-    report = query("summary", service="catalog-service", since=saved["since"])
-    assert report["identified_deployments"] == report["confirmed_bad"] == 1
+    assert row["ambiguous"] is False, "CI cohort overlapped another rollout"
+    report = query("summary", service=SERVICE, since=saved["since"])
+    assert report["identified_deployments"] == report["confirmed_bad"] == 1, report
     assert report["change_failure_rate"] == 1 and report["unknown_outcomes"] == 0
     redis = Redis.from_url("redis://127.0.0.1:6379/0", decode_responses=True)
     try:
