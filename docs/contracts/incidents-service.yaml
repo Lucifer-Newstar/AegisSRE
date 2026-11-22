@@ -697,6 +697,82 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       security:
       - HTTPBearer: []
+  /deployment-intelligence/rollouts:
+    get:
+      summary: Deployment Rollouts
+      operationId: deployment_rollouts_deployment_intelligence_rollouts_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: service
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Service
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 500
+          minimum: 1
+          default: 100
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Deployment Rollouts Deployment Intelligence Rollouts
+                  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /deployment-intelligence/summary:
+    get:
+      summary: Deployment Summary
+      operationId: deployment_summary_deployment_intelligence_summary_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: service
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Service
+      - name: since
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Since
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Deployment Summary Deployment Intelligence Summary
+                  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AskRequest:

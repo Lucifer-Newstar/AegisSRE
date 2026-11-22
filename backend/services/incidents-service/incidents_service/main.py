@@ -7,6 +7,7 @@ import hmac
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any, Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
@@ -17,6 +18,7 @@ from prometheus_client import CollectorRegistry, Counter, generate_latest
 from pydantic import Field
 from starlette.responses import Response
 
+from incidents_service import deployment_intelligence as deploy_intel
 from incidents_service.config import Settings
 from incidents_service.engine import DomainError, ReliabilityLoop
 from incidents_service.intelligence import AskRequest, AskResult, Intelligence, IntelligenceError
@@ -264,6 +266,39 @@ def create_app(
         return Response(
             generate_latest(metrics), media_type="text/plain; version=0.0.4; charset=utf-8"
         )
+
+    @application.get("/deployment-intelligence/rollouts", dependencies=[Depends(authorized)])
+    def deployment_rollouts(
+        service: str, limit: int = Query(default=100, ge=1, le=500)
+    ) -> dict[str, Any]:
+        if service not in config.allowed_targets:
+            raise HTTPException(422, "Select an allowed service")
+        with repo.transaction() as tx:
+            deploy_intel.finalize(tx)
+            rows = tx.list_rollouts(
+                service=service, environment=config.environment, limit=limit + 1
+            )
+        return {
+            "service": service,
+            "environment": config.environment,
+            "rollouts": rows[:limit],
+            "truncated": len(rows) > limit,
+            "authorizes_execution": False,
+        }
+
+    @application.get("/deployment-intelligence/summary", dependencies=[Depends(authorized)])
+    def deployment_summary(service: str, since: datetime | None = None) -> dict[str, Any]:
+        if service not in config.allowed_targets:
+            raise HTTPException(422, "Select an allowed service")
+        point = now()
+        start = since or point - timedelta(days=30)
+        if start.tzinfo is None or not point - timedelta(days=90) <= start <= point:
+            raise HTTPException(422, "Select an aware start within the preceding 90 days")
+        with repo.transaction() as tx:
+            deploy_intel.finalize(tx)
+            return deploy_intel.summary(
+                tx, service=service, environment=config.environment, since=start.astimezone(UTC)
+            )
 
     @application.get("/knowledge/status", dependencies=[Depends(authorized)])
     def knowledge_status() -> dict[str, Any]:

@@ -32,6 +32,10 @@ class Metric(StrictModel):
 
 
 class Deployment(StrictModel):
+    deployment_id: str | None = Field(
+        default=None, min_length=1, max_length=160, pattern=r"^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    )
+    started_at: AwareDatetime | None = None
     action: Literal["deploy", "rollback", "scale", "restart"]
     revision: str = Field(min_length=1, max_length=200)
     previous_revision: str | None = Field(default=None, max_length=200)

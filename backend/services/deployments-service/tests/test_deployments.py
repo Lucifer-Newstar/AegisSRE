@@ -74,3 +74,36 @@ def test_invalid_envelope_422() -> None:
     bad = dict(ENVELOPE)
     bad["type"] = "metric"
     assert client.post("/deployments", json=bad).status_code == 422
+
+
+def test_old_stored_envelope_replays_without_new_null_fields() -> None:
+    from deployments_service.main import DeploymentEnvelopeIn
+    from deployments_service.store import DeploymentRecord
+
+    old = DeploymentEnvelopeIn.model_validate(ENVELOPE).model_dump(mode="json")
+    old["payload"].pop("deployment_id")
+    old["payload"].pop("started_at")
+    store.put(
+        DeploymentRecord(
+            event_id=old["id"],
+            service=old["service"],
+            revision=old["payload"]["revision"],
+            status=old["payload"]["status"],
+            envelope=old,
+        )
+    )
+    response = client.post("/deployments", json=ENVELOPE)
+    assert response.status_code == 200
+    assert response.json()["envelope"] == old
+    assert "deployment_id" not in response.json()["envelope"]["payload"]
+
+
+def test_explicit_lifecycle_identity_and_aware_start_are_preserved() -> None:
+    body = deepcopy(ENVELOPE)
+    body["payload"].update(deployment_id="release-a", started_at="2026-09-08T10:00:00Z")
+    result = client.post("/deployments", json=body)
+    assert result.status_code == 201
+    assert result.json()["envelope"]["payload"]["deployment_id"] == "release-a"
+    body["id"] = "naive-start"
+    body["payload"]["started_at"] = "2026-09-08T10:00:00"
+    assert client.post("/deployments", json=body).status_code == 422

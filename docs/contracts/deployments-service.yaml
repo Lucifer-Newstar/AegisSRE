@@ -27,9 +27,10 @@ paths:
   /deployments:
     post:
       summary: Record a deployment event (envelope v0.2, type=deployment)
-      description: "Body is the standard telemetry envelope with type `deployment` and the canonical deployment_payload\
-        \ (schema enforced at ingestion \u2014 P2 gate criterion). Idempotent on envelope `id`: replaying\
-        \ the same event returns the stored record (200) instead of duplicating it.\n"
+      description: "Body is the standard telemetry envelope with type `deployment`\
+        \ and the canonical deployment_payload (schema enforced at ingestion \u2014\
+        \ P2 gate criterion). Idempotent on envelope `id`: replaying the same event\
+        \ returns the stored record (200) instead of duplicating it.\n"
       requestBody:
         required: true
         content:
@@ -254,6 +255,20 @@ components:
               type: integer
               nullable: true
               description: seconds after deploy start when flagged bad
+        deployment_id:
+          type: string
+          nullable: true
+          minLength: 1
+          maxLength: 160
+          pattern: ^[A-Za-z0-9][A-Za-z0-9_.:-]*$
+          description: Stable logical rollout identity across lifecycle events; never
+            infer from revision.
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timezone-aware producer rollout start, consistent across lifecycle
+            events. Missing start cannot prove flag latency or a healthy outcome.
     DeploymentRecord:
       type: object
       required:
@@ -282,11 +297,13 @@ components:
         stored_at:
           type: string
           format: date-time
-          description: "consumer-side receive time (for audit only \u2014 never for DI timing math)"
+          description: "consumer-side receive time (for audit only \u2014 never for\
+            \ DI timing math)"
   securitySchemes:
     HTTPBearer:
       type: http
       scheme: bearer
-      description: Distinct internal write and read-only credentials. Readers can only GET/HEAD.
+      description: Distinct internal write and read-only credentials. Readers can
+        only GET/HEAD.
 security:
 - HTTPBearer: []

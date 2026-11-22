@@ -2,6 +2,15 @@
 
 **AI-Powered Autonomous Site Reliability & Deployment Intelligence Platform**
 
+**SRE + DevSecOps + a small planned MLOps layer**
+
+The DevSecOps work includes distinct read/write service credentials, bounded
+API boundaries, hardened non-root containers, RBAC checks, audit and CI tests.
+The small MLOps scope is the planned deployment risk/canary scoring, not a full
+training platform. Model training pipelines, registries and drift pipelines are
+v2 roadmap work. [Resume and portfolio wording](docs/implementation/positioning.md)
+separates implemented features from planned scoring and unmeasured acceptance.
+
 *Intelligent monitoring · Deployment risk intelligence · Incident detection · Root-cause analysis · Controlled autonomous remediation*
 
 A personal project by **Navin Jairam** ([@Lucifer-Newstar](https://github.com/Lucifer-Newstar)).
@@ -48,6 +57,9 @@ measured checks and remaining work. Code presence is not an acceptance result.
   incident/audit outbox delivery, statistical + Isolation Forest detection, cited
   deterministic RCA, approvals, policy and recovery gates. The default executor
   is explicitly simulation; no real-cluster success is claimed.
+- Observed 180-second deployment windows, lifecycle identity, durable
+  `rollout.bad`, conservative healthy/unknown outcomes and SQL-backed CFR with
+  explicit missing-evidence handling. See [deployment windows](docs/operations/deployment-windows.md).
 - **API gateway** (`backend/services/api-gateway`, host :8080): fixed routes,
   bearer auth, Redis-backed rate limits and principal-bound audit writes. Console
   session/login and migration to this entrypoint remain in progress.
@@ -70,8 +82,9 @@ measured checks and remaining work. Code presence is not an acceptance result.
   proof; the configurable model adapter has not yet had a real-model run.
 - Console approvals, scheduled safe autonomy, live executor verification and
   complete evaluation of the implemented policy/recovery core.
-- Chaos lab (`chaoslab/` — planned), DI-2…DI-7 deployment-intelligence capabilities
-  beyond DI-1 tracking.
+- Chaos lab (`chaoslab/` planned), DI-2 risk scoring, DI-6 canary analysis and the
+  remaining DI-3/DI-5/evaluation work. DI-4 observed windows and the DI-7 counting
+  foundation exist, but real-fault detection and predictive acceptance are open.
 - Full eight-page console scope, kind-cluster deployment, evaluation harness.
 
 Nothing in this repo claims otherwise: design docs describe the target; the phase plan

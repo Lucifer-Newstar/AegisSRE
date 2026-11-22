@@ -273,3 +273,17 @@ startup.
 - Consumer groups per logical consumer (anomaly pipeline, incident manager, AI reasoner).
 - Events are retained per-stream with TTLs (metrics/health short, incident/remediation/audit long).
 - At-least-once delivery; consumers must be idempotent on `id`.
+
+## Observed rollout extension
+
+Deployment payloads may carry `deployment_id` and an aware `started_at` to group
+lifecycle events without guessing from revisions. Missing fields remain valid
+for old producers and do not establish a reliable deployment denominator.
+
+`rollout.bad` is a derived reliability-runtime output on `st:rollout.bad`, with
+30-day stream retention and PostgreSQL business-state durability. It is not an
+accepted input type on the reliability ingestion API. Its payload includes
+`rollout_id`, `deployment_id`, revision, observed/flag clocks, nullable measured
+flag latency, evidence IDs and explicit false values for `causation_proven` and
+`authorizes_execution`. It grants no rollback permission. See
+[observed deployment windows](../operations/deployment-windows.md).
