@@ -462,6 +462,32 @@ def verify() -> None:
         assert stages == ["prepared", "injection_requested", "injection_applied",
                           "restoration_requested", "restored_control_state"]
         print("Actual opt-in HTTP fault CLI injected/restored with durable ground truth; not ten-fault acceptance")
+        def catalog_container() -> dict[str, Any]:
+            pods = json.loads(kubectl("get", "pods", "--namespace", NS, "-l",
+                "app.kubernetes.io/name=catalog-service", "-o", "json", capture=True))["items"]
+            assert len(pods) == 1
+            pod = pods[0]
+            statuses = pod["status"].get("containerStatuses", [])
+            assert len(statuses) == 1
+            return {"uid":pod["metadata"]["uid"], **statuses[0]}
+
+        before_crash = catalog_container()
+        crash_dir = experiment_dir / "container-crash"
+        run([sys.executable, "-m", "chaoslab", "container-crash", "--seconds", "5",
+             "--output", str(crash_dir)], timeout=240)
+        after_crash = catalog_container()
+        assert after_crash["uid"] == before_crash["uid"]
+        assert after_crash["restartCount"] > before_crash["restartCount"]
+        terminated = after_crash["lastState"]["terminated"]
+        assert terminated["exitCode"] == 137 and terminated.get("finishedAt")
+        forwards.start("catalog-service", 9001, 9001)
+        wait_for(lambda: shop_request(9001, "/products")[0] == 200,
+                 "catalog domain recovery after actual process crash", 120)
+        proof = {"pod_uid":after_crash["uid"], "restart_count_before":before_crash["restartCount"],
+                 "restart_count_after":after_crash["restartCount"], "terminated":terminated,
+                 "domain_recovery_observed":True, "not_evaluation_accuracy":True}
+        (crash_dir / "independent-proof.json").write_text(json.dumps(proof, indent=2))
+        print("Actual SIGKILL container crash, same-Pod restart/137 and domain recovery verified independently of runner journal")
         run([sys.executable, str(ROOT / "scripts/check_console_stack.py")], timeout=240)
         with urllib.request.urlopen("http://127.0.0.1:3030/login", timeout=15) as response:
             assert response.status == 200
