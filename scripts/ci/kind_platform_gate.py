@@ -282,6 +282,8 @@ def verify() -> None:
             ("console", 3030, 3030),
             ("order-service", 9003, 9003),
             ("cart-service", 9002, 9002),
+            ("prometheus", 19090, 9090),
+            ("grafana", 13000, 3000),
         ]:
             forwards.start(name, local, remote)
         wait_for(
@@ -316,10 +318,14 @@ def verify() -> None:
             ("check_observability_stack.py",),
             ("check_knowledge_stack.py",),
             ("check_intelligence_stack.py",),
+            ("check_slo_stack.py",),
             ("check_deployment_windows_stack.py", "seed"),
         ]
         for command in scripts:
             run([sys.executable, str(ROOT / "scripts" / command[0]), *command[1:]], timeout=240)
+        visual = directory() / "diagnostics" / "visual"
+        run(["env", "AEGIS_VISUAL_OUTPUT=" + str(visual), "node",
+             str(ROOT / "scripts/visual/grafana.mjs")], timeout=90)
         status = api("/runtime")["kubernetes"]
         assert status["enabled"] and status["succeeded_at"] and status["error"] is None, status
         assert status["health_verdict"] == "unknown"
