@@ -46,7 +46,17 @@ class ServiceRecord:
 
         try:
             opener = urllib.request.build_opener(NoRedirect)
-            with opener.open(url, timeout=timeout) as response:
+            from registry_service.config import settings
+
+            # Never send credentials to a caller-registered endpoint. Only
+            # exact built-in metadata-service origins may receive the reader.
+            fixed_origins = {"registry-service": "http://registry-service:8101",
+                             "deployments-service": "http://deployments-service:8701"}
+            headers = {}
+            if fixed_origins.get(self.id) == self.url.rstrip("/") and settings.read_token:
+                headers["Authorization"] = "Bearer " + settings.read_token
+            request = urllib.request.Request(url, headers=headers)
+            with opener.open(request, timeout=timeout) as response:
                 if 200 <= int(response.status) < 300:
                     self.status, self.last_heartbeat_at = "healthy", _now()
                     return
