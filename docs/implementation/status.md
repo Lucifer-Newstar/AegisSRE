@@ -161,8 +161,33 @@ Local checks: 164 passing tests, four external-server tests deliberately skipped
 locally, Ruff, strict mypy, YAML and eight API contracts. The authored ten-query
 retrieval regression passes its recall@5 threshold, but is not the real chaos
 benchmark. Hosted actual pgvector/vector-distance/persistence and Compose
-retrieval/citation checks must pass before merge. The LLM, Ask Aegis, console
-viewer and real-fault retrieval evaluation are still open.
+retrieval/citation checks passed on PR7 before its ordinary all-green merge.
+Live model acceptance, the console viewer and real-fault retrieval evaluation
+remain open.
+
+## Milestone 2g: read-only Ask and guarded investigation
+
+Seven fixed read-only tools now return scoped event/knowledge snapshots with
+visible calls, source references, observed/index times and missing/stale status.
+Authenticated Ask and incident-investigation APIs use those snapshots. Optional
+bounded Ollama/OpenAI-compatible adapters require explicit model configuration;
+remote evidence egress is off by default. Disabled inference produces a clearly
+labelled evidence-only readout, not fake model output.
+
+Durable shared request reservations precede inference, including failed attempts.
+Calls run outside SQL transactions and the telemetry worker. Structured answers
+must cite supplied IDs; a cause hypothesis needs a non-stale observation. The
+model cannot change a plan, approval, policy or execution state. Incident sidecar
+writes reject changed revisions and expired snapshots. Investigations currently
+read current service evidence, not an arbitrary historical incident window.
+
+Local checks: 197 passing tests, five external-server tests skipped locally,
+Ruff, strict mypy, YAML and eight API contracts. New hosted gates exercise actual
+PostgreSQL concurrent quota reservations and real gateway Ask citations against
+persisted collected metrics. Model transport tests use explicit mocks, and the
+Compose gate deliberately disables inference. None are live model/accuracy proof.
+See [Read-only intelligence](../operations/intelligence.md) for egress, request
+limits, redaction limits, failure states and configuration.
 
 ## Feature-by-feature status
 
@@ -172,7 +197,7 @@ viewer and real-fault retrieval evaluation are still open.
 | A2 Registry | Durable CRUD, owner/SLO metadata and timed allowlisted probes implemented; hosted restart proof passed | Live console integration and full-stack timing |
 | A3 Detection | Statistical + Isolation Forest code and unit tests | Held-out ten-fault precision/recall/F1 and measured detection latency |
 | A4 Incidents | Lifecycle, Redis consumption/outbox, append-only audit and API implemented | Measured live timing and timeline UI |
-| A5 Evidence/RCA | Persisted evidence and cited deterministic hypotheses | Full read-only tool suite, LLM adapter, ranked evaluation, postmortem UI |
+| A5 Evidence/RCA | Fixed read-only tool suite, cited deterministic hypotheses, optional structured inference and revision-safe sidecars | Historical-window reconstruction, actual model/accuracy evaluation, Kubernetes collection and postmortem UI |
 | A6 Policy | Versioned typed policies, risk matrix and hard execution bounds | Runtime policy update, complete action matrix and safety evaluation |
 | A7 Approvals | Approve/reject/defer API and audit implemented | Authorized console flow, impact view and click-count check |
 | A8 Autonomy | Conservative decision gates, kill switch and executor code | Auto scheduler, least-privilege cluster integration, eligible-action success rate |
@@ -180,8 +205,8 @@ viewer and real-fault retrieval evaluation are still open.
 | A10 Dashboard | Existing four-page scaffold | Live overview, service/incident details, approvals and honest MTTD/MTTR |
 | A11 Chaoslab | Catalog's existing fault-hook stub | All ten isolated faults, restoration and experiment manifests |
 | A12 Evaluation | Existing protocol | Reproducible >=10 runs per fault, baseline comparison, mean/std report |
-| B1 RAG | Scoped pgvector retrieval, local lexical embeddings, incremental runbook/pattern/metadata/closed-case indexing and RCA context API | Hosted vector proof and recall@5 on real evaluation faults |
-| B2 Ask Aegis | Not implemented | Read-only tools, citations, tool-call view and no write exposure |
+| B1 RAG | Scoped pgvector retrieval, local lexical embeddings, incremental indexing, RCA context and hosted actual-vector proof | Recall@5 on real evaluation faults |
+| B2 Ask Aegis | Authenticated API, seven read-only tools, visible citations/freshness, disabled/failed inference labels and no write tools | Hosted evidence-only gate, actual chosen-model acceptance and console view |
 | C1 Eight pages | Four-page scaffold | Complete live eight-page console and UI checks |
 | C3 Runbooks | Ten packaged guides, indexing and authenticated list/detail/context APIs | Live console viewer and incident links |
 | C4 Postmortems | Verified-closure API implemented | Viewer, evidence/timeline/action rendering and metrics |
