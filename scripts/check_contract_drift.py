@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -34,6 +35,9 @@ try:
 except ImportError:
     print("ERROR: PyYAML is required (pip install pyyaml)", file=sys.stderr)
     sys.exit(2)
+
+# Import-only contract inspection never starts a reachable service.
+os.environ.setdefault("AEGIS_METADATA_DEV_MODE", "true")
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_MANIFEST = ROOT / "docs" / "contracts" / "manifest.json"

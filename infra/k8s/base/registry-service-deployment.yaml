@@ -1,4 +1,3 @@
-# registry-service Kubernetes base (ADR-0005: 1:1 with the Compose service).
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -18,43 +17,78 @@ spec:
         app.kubernetes.io/part-of: aegissre
     spec:
       containers:
-        - name: registry-service
-          image: aegissre/registry-service:0.1.0
-          ports:
-            - containerPort: 8101
-              name: http
-          env:
-            - name: DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: aegissre-database
-                  key: url
-            - name: REGISTRY_PROBE
-              value: "true"
-            - name: SERVICE_NAME
-              value: registry-service
-            - name: SERVICE_PORT
-              value: "8101"
-            - name: ENVIRONMENT
-              value: dev
-            - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: http://otel-collector:4317
-          readinessProbe:
-            httpGet:
-              path: /ready
-              port: http
-            initialDelaySeconds: 5
-            periodSeconds: 10
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: http
-            initialDelaySeconds: 5
-            periodSeconds: 15
-          resources:
-            requests:
-              cpu: 50m
-              memory: 128Mi
-            limits:
-              cpu: 200m
-              memory: 256Mi
+      - name: registry-service
+        image: aegissre/registry-service:0.1.0
+        ports:
+        - containerPort: 8101
+          name: http
+        env:
+        - name: AEGIS_METADATA_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: aegissre-metadata
+              key: api-token
+        - name: AEGIS_METADATA_READ_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: aegissre-metadata
+              key: read-token
+        - name: AEGIS_METADATA_DEV_MODE
+          value: 'false'
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: aegissre-database
+              key: url
+        - name: REGISTRY_PROBE
+          value: 'true'
+        - name: SERVICE_NAME
+          value: registry-service
+        - name: SERVICE_PORT
+          value: '8101'
+        - name: ENVIRONMENT
+          value: dev
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://otel-collector:4317
+        readinessProbe:
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          exec:
+            command:
+            - python
+            - -c
+            - import os,urllib.request; r=urllib.request.Request("http://localhost:8101/ready",headers={"Authorization":"Bearer
+              "+os.environ["AEGIS_METADATA_READ_TOKEN"]}); urllib.request.urlopen(r,timeout=2).close()
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 15
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: scratch
+          mountPath: /tmp
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+      - name: scratch
+        emptyDir:
+          sizeLimit: 64Mi

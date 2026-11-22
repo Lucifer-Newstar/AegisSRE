@@ -1,9 +1,8 @@
-# Deployment contract v1.1: durable idempotency and producer-time ordering.
 openapi: 3.1.0
 info:
   title: AegisSRE Deployments Service (DI-1)
   version: 1.1.0
-  description: Deployment tracker — record and query deployment events.
+  description: "Deployment tracker \u2014 record and query deployment events."
 servers:
 - url: http://localhost:8701
   description: local compose
@@ -14,6 +13,7 @@ paths:
       responses:
         '200':
           description: ok
+      security: []
   /ready:
     get:
       summary: Readiness probe (needs Postgres)
@@ -22,15 +22,14 @@ paths:
           description: ready
         '503':
           description: Postgres unreachable
+        '401':
+          description: Valid service token required
   /deployments:
     post:
       summary: Record a deployment event (envelope v0.2, type=deployment)
-      description: 'Body is the standard telemetry envelope with type `deployment`
-        and the canonical deployment_payload (schema enforced at ingestion — P2 gate
-        criterion). Idempotent on envelope `id`: replaying the same event returns
-        the stored record (200) instead of duplicating it.
-
-        '
+      description: "Body is the standard telemetry envelope with type `deployment` and the canonical deployment_payload\
+        \ (schema enforced at ingestion \u2014 P2 gate criterion). Idempotent on envelope `id`: replaying\
+        \ the same event returns the stored record (200) instead of duplicating it.\n"
       requestBody:
         required: true
         content:
@@ -45,7 +44,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/DeploymentRecord'
         '200':
-          description: duplicate event id — existing record returned
+          description: "duplicate event id \u2014 existing record returned"
           content:
             application/json:
               schema:
@@ -54,6 +53,12 @@ paths:
           description: envelope failed schema validation
         '409':
           description: Event id reused with conflicting content
+        '401':
+          description: Valid service token required
+        '403':
+          description: Read-only token cannot mutate metadata
+        '413':
+          description: Request exceeds 64KB
     get:
       summary: Query deployment history
       parameters:
@@ -88,6 +93,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/DeploymentRecord'
+        '401':
+          description: Valid service token required
   /deployments/{event_id}:
     get:
       summary: Get one deployment event by envelope id
@@ -107,6 +114,8 @@ paths:
                 $ref: '#/components/schemas/DeploymentRecord'
         '404':
           description: unknown event id
+        '401':
+          description: Valid service token required
   /deployments/{service}/latest:
     get:
       summary: Latest deployment for a service (DI-4 window start, P3)
@@ -125,6 +134,8 @@ paths:
                 $ref: '#/components/schemas/DeploymentRecord'
         '404':
           description: no deployments recorded for this service
+        '401':
+          description: Valid service token required
 components:
   schemas:
     DeploymentEnvelope:
@@ -167,7 +178,7 @@ components:
         timestamp:
           type: string
           format: date-time
-          description: producer-side UTC timestamp — authoritative
+          description: "producer-side UTC timestamp \u2014 authoritative"
         correlation_id:
           type: string
           nullable: true
@@ -254,7 +265,7 @@ components:
       properties:
         event_id:
           type: string
-          description: envelope id — unique (idempotency key)
+          description: "envelope id \u2014 unique (idempotency key)"
         service:
           type: string
         revision:
@@ -271,5 +282,11 @@ components:
         stored_at:
           type: string
           format: date-time
-          description: consumer-side receive time (for audit only — never for DI timing
-            math)
+          description: "consumer-side receive time (for audit only \u2014 never for DI timing math)"
+  securitySchemes:
+    HTTPBearer:
+      type: http
+      scheme: bearer
+      description: Distinct internal write and read-only credentials. Readers can only GET/HEAD.
+security:
+- HTTPBearer: []
