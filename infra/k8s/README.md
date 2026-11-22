@@ -6,14 +6,19 @@ using the same image tags, environment variable names, and config mounts as Comp
 
 ## Current state
 
-- `base/kustomization.yaml` is the anchor; manifests land incrementally as services
-  are implemented (M2+).
-- CI lints every manifest in this directory with kubeconform.
+- `base/kustomization.yaml` retains the application bases. The complete
+  `../kustomization.yaml` assembly adds all current platform dependencies,
+  runtime/gateway workloads and shared configuration generators.
+- [The local-demo kind guide](../../docs/operations/kind-platform.md) lists all
+  required Secrets, storage prerequisites and safety limits. A hosted owned-kind
+  gate must demonstrate real startup/persistence before merge.
+- CI validates the manifests and both Kustomize assemblies.
 - Registry/deployment workloads require a namespace-local `aegissre-database`
   Secret with key `url` for `DATABASE_URL`. No actual database credentials are
   committed.
-- A complete dependency/bootstrap path and real kind integration test are still
-  pending in the [acceptance ledger](../../docs/implementation/status.md).
+- Running on kind is distinct from real remediation, full live-console scope,
+  chaos fault injection and measured evaluation. Those remain tracked separately
+  in the [acceptance ledger](../../docs/implementation/status.md).
   Manifest validation alone is not a running-cluster claim.
 
 ## Conventions

@@ -364,3 +364,34 @@ Project positioning now names the existing security controls as DevSecOps and
 keeps the small planned MLOps scope to risk/canary scoring. Full training,
 registries and drift pipelines are v2 ideas. Model selection, downloads, remote
 inference disclosure and spending remain unapproved.
+
+## Milestone 3b: complete local-demo kind assembly
+
+The infra-root Kustomization now assembles all sixteen current Compose services
+from the existing application bases plus the runtime, gateway, persistent stores
+and observability workloads. ConfigMap generators use the exact shared infra
+files, rather than duplicated configs. Six stores have PVCs; required service,
+operator, database and Grafana credentials come from pre-created Secrets.
+
+The runtime uses a dedicated projected-SA/TLS evidence reader with list-only
+namespace permissions. Other Pods do not mount Kubernetes credentials. The
+executor remains simulation and model inference stays disabled. Kubernetes
+lists now handle up to five bounded pages, sharing the original 1MB resource
+budget and ten-second collection deadline. Partial or unsafe pagination still
+fails closed. The console binds explicitly on all Pod interfaces, without
+changing its unfinished mock/session limitations.
+
+Local checks: 276 passing native tests, seven explicit server-only skips,
+strict mypy across 118 files, Ruff, 68 YAML files, docs links and API contracts.
+Static/native checks cover image parity, persistent mounts, source config
+paths, no external Services, credentials/evidence boundaries, owner/context
+checks and bounded pagination. Offline Kustomize rendering produces 49 resources.
+The added hosted gate must pass before merge: all sixteen workloads ready,
+actual collection/log-trace/retrieval/gateway/Redis behavior, two application
+restarts, projected-SA/TLS success, denied evidence-account writes/Secret access,
+and Postgres Pod replacement without losing its PVC-backed metadata record.
+
+This is demo infrastructure and running-service proof, not production tenancy,
+real remediation, ten-fault chaos, numerical evaluation or the complete console.
+The [kind operating guide](../operations/kind-platform.md) names those limits.
+No paid cloud resources, model selection or inference are part of this change.

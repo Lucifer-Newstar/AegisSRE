@@ -67,8 +67,11 @@ measured checks and remaining work. Code presence is not an acceptance result.
   services with tests.
 - **Console** (Next.js 14 on :3030): overview, services, deployments, and incidents
   pages — live data where APIs exist, clearly-marked mock fallback elsewhere.
-- Initial application K8s manifests (Kustomize base) and Terraform skeleton (`iac/`).
-  Full cluster bootstrap and parity with the expanded Compose stack remain open.
+- Full local-demo Kustomize assembly in `infra/kustomization.yaml`: all sixteen
+  current services, shared observability configs, PVC-backed stores, authenticated
+  runtime/gateway probes and a read-only Kubernetes evidence account. The hosted
+  gate requires actual collection and restart/PVC proof. See [kind platform](docs/operations/kind-platform.md).
+  The Terraform skeleton remains cut scope, not a cloud-deployment claim.
 - CI: YAML/Compose validation, kubeconform + kustomize checks, docs link check, ruff,
   mypy (strict), pytest, contract-drift guard, image builds, actual PostgreSQL/Redis
   tests and Compose collection/restart gates.
@@ -85,7 +88,8 @@ measured checks and remaining work. Code presence is not an acceptance result.
 - Chaos lab (`chaoslab/` planned), DI-2 risk scoring, DI-6 canary analysis and the
   remaining DI-3/DI-5/evaluation work. DI-4 observed windows and the DI-7 counting
   foundation exist, but real-fault detection and predictive acceptance are open.
-- Full eight-page console scope, kind-cluster deployment, evaluation harness.
+- Full eight-page console scope, real fault injection/restoration, executor and
+  evaluation acceptance. Running the platform on kind alone does not prove those.
 
 Nothing in this repo claims otherwise: design docs describe the target; the phase plan
 tracks what is proven.
