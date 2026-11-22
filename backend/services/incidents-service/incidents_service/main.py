@@ -402,6 +402,20 @@ def create_app(
         with repo.transaction() as tx:
             return tx.recent_events(service, environment, event_type, limit)
 
+    @application.get("/metric-history", dependencies=[Depends(authorized)])
+    def metric_history(
+        service: str = Query(min_length=1, max_length=63),
+        metric: str = Query(min_length=1, max_length=100),
+        hours: int = Query(default=24, ge=1, le=24),
+        buckets: int = Query(default=288, ge=12, le=600),
+    ) -> dict[str, Any]:
+        from incidents_service.metric_history import METRICS, history
+
+        if service not in config.allowed_targets or metric not in METRICS:
+            raise HTTPException(422, "Service or metric outside configured scope")
+        with repo.transaction() as tx:
+            return history(tx, service, config.environment, metric, now(), hours, buckets)
+
     @application.get("/events/{event_id}", dependencies=[Depends(authorized)])
     def get_evidence(event_id: str) -> dict[str, Any]:
         with repo.transaction() as tx:
