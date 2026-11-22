@@ -378,6 +378,11 @@ jobs:
           python-version: '3.12'
       - name: Install the integration driver's Redis client
         run: pip install -c backend/services/incidents-service/requirements.lock redis
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install actual UI capture browser
+        run: npm --prefix scripts/visual ci && cd scripts/visual && npx playwright install --with-deps chromium
       - name: Install checksum-pinned kind and kubectl
         run: python3 scripts/ci/kind_platform_gate.py install
       - name: Build all nine actual application images

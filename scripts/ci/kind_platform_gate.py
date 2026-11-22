@@ -323,6 +323,9 @@ def verify() -> None:
         ]
         for command in scripts:
             run([sys.executable, str(ROOT / "scripts" / command[0]), *command[1:]], timeout=240)
+        visual = directory() / "diagnostics" / "visual"
+        run(["env", "AEGIS_VISUAL_OUTPUT=" + str(visual), "node",
+             str(ROOT / "scripts/visual/grafana.mjs")], timeout=90)
         status = api("/runtime")["kubernetes"]
         assert status["enabled"] and status["succeeded_at"] and status["error"] is None, status
         assert status["health_verdict"] == "unknown"
