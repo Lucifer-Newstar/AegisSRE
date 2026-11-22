@@ -30,8 +30,8 @@ def test_transaction_rollback_and_durability(tmp_path: Path) -> None:
         assert record is not None and record["id"] == "one"
         assert tx.baseline(event.series()) == [0.1]
         assert len(tx.audits()) == 1
-        seq, _ = tx.pending()[0]
-        tx.delivered(seq)
+        for seq, _ in tx.pending():
+            tx.delivered(seq)
         assert not tx.pending()
     second.close()
 

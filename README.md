@@ -23,40 +23,44 @@ keeping humans in control of higher-risk operations.
 
 ## 1. Project Status (honest: built vs designed)
 
-This repo is in the **foundation / P2 phase**. The design documents cover the full
-vision; the code implements the first slice of it.
+This repo is under active implementation. The design documents cover the full
+vision; the acceptance ledger separates implemented code from measured results.
 
 Implementation is continuing against the complete approved scope. See the
 [feature-by-feature acceptance ledger](docs/implementation/status.md) for code,
 measured checks and remaining work. Code presence is not an acceptance result.
 
-**Built and working today:**
+**Implemented:**
 
-- Full local observability stack: OpenTelemetry Collector, Prometheus, Grafana, Loki,
-  Tempo, Postgres, Redis (one `make infra-up`, 15 containers).
+- Local observability configurations: OpenTelemetry Collector, Prometheus,
+  Grafana, Loki, Tempo, Postgres and Redis. CI checks selected running stacks;
+  full-platform acceptance remains in the ledger.
 - Shared backend libraries: telemetry envelope contract (`backend/libs/telemetry`) and a
   Redis Streams event bus (`backend/libs/eventbus`), both tested.
 - FastAPI service template (`backend/services/_template`) used as the copy-paste pattern
   for every service.
 - **registry-service** — service catalogue + health aggregation API (:8101, live).
 - **deployments-service** — DI-1 deployment history API (:8701, live).
-- **Reliability core API** (`backend/services/incidents-service`, integration in progress):
-  validated telemetry, durable incidents/audit/outbox, statistical + Isolation Forest
-  detection, cited deterministic RCA, approvals, policy and recovery gates. The
-  default executor is explicitly simulation; no real-cluster success is claimed.
+- **Reliability API and background runtime** (`backend/services/incidents-service`, :8201):
+  live scoped metric/health/deployment collection, durable Redis processing and
+  incident/audit outbox delivery, statistical + Isolation Forest detection, cited
+  deterministic RCA, approvals, policy and recovery gates. The default executor
+  is explicitly simulation; no real-cluster success is claimed.
 - **AegisShop** demo app: catalog (:9001), cart (:9002), order (:9003), payment (:9004)
   services with tests.
 - **Console** (Next.js 14 on :3030): overview, services, deployments, and incidents
   pages — live data where APIs exist, clearly-marked mock fallback elsewhere.
-- K8s manifests (Kustomize base, 1:1 with Compose), Terraform skeleton (`iac/`).
+- Initial application K8s manifests (Kustomize base) and Terraform skeleton (`iac/`).
+  Full cluster bootstrap and parity with the expanded Compose stack remain open.
 - CI: YAML/Compose validation, kubeconform + kustomize checks, docs link check, ruff,
-  mypy (strict), pytest (81 tests at the first reliability-core milestone), contract-drift guard, image builds.
+  mypy (strict), pytest, contract-drift guard, image builds, actual PostgreSQL/Redis
+  tests and Compose collection/restart gates.
 - OpenAPI contract set with a CI drift guard, 14-diagram UML set, ADRs.
 
 **Remaining scope** (see [docs/planning/](docs/planning/) and
 [docs/architecture/](docs/architecture/)):
 
-- Live collector/event integration and measured anomaly/incident acceptance;
+- Log/trace evidence tools, trace joins and measured anomaly/incident acceptance;
   LLM reasoning, pgvector RAG knowledge base and Ask Aegis assistant.
 - Console approvals, scheduled safe autonomy, live executor verification and
   complete evaluation of the implemented policy/recovery core.
@@ -186,13 +190,18 @@ Prerequisites: Docker + Docker Compose v2. For running tests outside containers:
 Python **3.12+** and Node.js 22.
 
 ```bash
-# 1. Bring up the whole stack (infra + all services, 15 containers)
+# 1. Configure local credentials (preserve an existing .env)
+test -f .env || cp .env.example .env
+# Set AEGIS_API_TOKEN to a long random value in .env or your secret manager.
+# No default API token is supplied. Without one the reliability service fails closed.
+
+# 2. Bring up the local stack
 make infra-up
 
-# 2. Verify the stack
+# 3. Verify the stack
 docker compose ps
 
-# 3. Open the dashboards
+# 4. Open the dashboards
 #    Grafana       → http://localhost:3000   (admin / aegis)
 #    Console       → http://localhost:3030
 #    Prometheus    → http://localhost:9090
@@ -200,10 +209,11 @@ docker compose ps
 #    Tempo         → http://localhost:3200
 #    Registry      → http://localhost:8101/services
 #    Deployments   → http://localhost:8701/deployments
+#    Incidents API → http://localhost:8201/docs (bearer token required)
 #    Catalog API   → http://localhost:9001/products
 #    OTLP endpoint → localhost:4317 (gRPC) / 4318 (HTTP)
 
-# 4. Tear down
+# 5. Tear down (deletes local data volumes)
 make infra-down
 ```
 

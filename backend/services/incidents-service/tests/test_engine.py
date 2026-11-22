@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 import pytest
@@ -57,8 +57,35 @@ def test_baseline_incident_correlation_and_persistence(loop: ReliabilityLoop) ->
         assert incident.plan.action == "restart"
         assert incident.analysis.hypotheses[0]["cause"] == "memory_exhaustion"
         assert "log-1" in incident.analysis.evidence_ids
-        assert len(tx.pending()) == 2
+        pending = [event for _, event in tx.pending()]
+        assert len(pending) == 4
+        anomaly = next(event for event in pending if event["type"] == "anomaly")
+        first_sample = tx.event("warm-0")
+        assert first_sample is not None
+        assert datetime.fromisoformat(
+            anomaly["payload"]["window"]["start"]
+        ) == datetime.fromisoformat(first_sample["timestamp"])
+        audit_events = [event for event in pending if event["type"] == "audit"]
+        assert len(audit_events) == 2
+        assert all(event["service"] == "catalog-service" for event in audit_events)
+        assert all(event["payload"]["target"] == incident_id for event in audit_events)
         assert len(tx.audits(incident_id)) == 2
+    loop.settings.environment = "prod"
+    loop.execute(incident_id, "tester")
+    loop.set_mode("recommend", "tester")
+    with loop.repo.transaction() as tx:
+        outputs = [event for _, event in tx.pending() if event["type"] == "audit"]
+        denied = next(
+            event for event in outputs if event["payload"]["action"] == "remediation.denied"
+        )
+        global_change = next(
+            event for event in outputs if event["payload"]["action"] == "autonomy.mode.set"
+        )
+        assert denied["service"] == "catalog-service" and denied["environment"] == "dev"
+        assert (
+            global_change["service"] == "incidents-service"
+            and global_change["environment"] == "prod"
+        )
     sample(loop, "fault-2", 800.0, 0)
     with loop.repo.transaction() as tx:
         assert len(tx.list_incidents()) == 1
@@ -215,6 +242,16 @@ def test_unrecovered_is_escalated_at_deadline(
     with loop.repo.transaction() as tx:
         stored = tx.incident(key)
         assert stored and stored.status == "escalated"
+
+
+def test_execution_cannot_cross_configured_environment(loop: ReliabilityLoop) -> None:
+    key = open_incident(loop)
+    loop.decide(key, "approved", Decision(actor="navin"))
+    loop.settings.environment = "prod"
+    denied = loop.execute(key, "navin")
+    assert denied.execution_output and denied.execution_output.startswith("DENIED")
+    with loop.repo.transaction() as tx:
+        assert not tx.get_state("executions", [])
 
 
 def test_environment_isolation(loop: ReliabilityLoop) -> None:

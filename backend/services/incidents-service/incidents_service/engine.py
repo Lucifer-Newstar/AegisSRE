@@ -40,7 +40,12 @@ class ReliabilityLoop:
         entry = Audit(action=action, actor=actor, detail=detail)
         incident.audit.append(entry)
         incident.updated_at = entry.at
-        tx.append_audit(incident.id, entry.model_dump(mode="json"))
+        tx.append_audit(
+            incident.id,
+            entry.model_dump(mode="json"),
+            service=incident.service,
+            environment=incident.environment,
+        )
 
     def _emit(self, tx: Transaction, incident: Incident, kind: str) -> None:
         tx.emit(
@@ -73,6 +78,7 @@ class ReliabilityLoop:
             normal = False
             signal: Signal | None = None
             ready = False
+            window_start = event.timestamp
             if event.type == "metric":
                 metric = Metric.model_validate(event.payload)
                 latest = tx.latest_sample(event.series())
@@ -80,7 +86,10 @@ class ReliabilityLoop:
                     raise DomainError(
                         "Metric samples must have increasing producer timestamps per series"
                     )
-                history = tx.baseline(event.series())
+                preceding = tx.baseline_samples(event.series())
+                history = [value for _, value in preceding]
+                if preceding:
+                    window_start = datetime.fromisoformat(preceding[0][0])
                 verdict = detect(
                     history, metric.value, two_sided=not upper_bound_metric(metric.name)
                 )
@@ -101,7 +110,7 @@ class ReliabilityLoop:
             tx.add_event(event, normal=normal)
             active = tx.active_incident(event.service, event.environment)
             if signal is not None:
-                active = self._on_anomaly(tx, event, signal, active)
+                active = self._on_anomaly(tx, event, signal, active, window_start)
             elif active and active.status == "verifying" and event.type in {"metric", "health"}:
                 self._verify(tx, active, event)
             if active:
@@ -115,7 +124,12 @@ class ReliabilityLoop:
             }
 
     def _on_anomaly(
-        self, tx: Transaction, event: Event, signal: Signal, active: Incident | None
+        self,
+        tx: Transaction,
+        event: Event,
+        signal: Signal,
+        active: Incident | None,
+        window_start: datetime,
     ) -> Incident:
         if active is not None:
             # Baseline is frozen in each signal, including throughout recovery.
@@ -205,7 +219,10 @@ class ReliabilityLoop:
                     "score": 1 - math.exp(-abs(signal.z_score) / 4),
                     "threshold": 0.63,
                     "model": signal.model,
-                    "window": {"end": event.timestamp.isoformat()},
+                    "window": {
+                        "start": window_start.isoformat(),
+                        "end": event.timestamp.isoformat(),
+                    },
                     "baseline": {"mean": signal.baseline_mean, "std": signal.baseline_std},
                 },
             }
@@ -258,7 +275,10 @@ class ReliabilityLoop:
                     1 for a in incident.audit if a.action == "remediation.started"
                 ),
                 seconds_since_target_action=elapsed,
-                target_allowed=incident.service in self.settings.allowed_targets,
+                target_allowed=(
+                    incident.service in self.settings.allowed_targets
+                    and incident.environment == self.settings.environment
+                ),
             )
             if not verdict.allowed:
                 tx.append_audit(
@@ -266,6 +286,8 @@ class ReliabilityLoop:
                     Audit(
                         action="remediation.denied", actor=actor, detail=verdict.reason
                     ).model_dump(mode="json"),
+                    service=incident.service,
+                    environment=incident.environment,
                 )
                 # A denial is a recorded result, not an exception that rolls the audit back.
                 return incident.model_copy(update={"execution_output": f"DENIED: {verdict.reason}"})
@@ -385,6 +407,7 @@ class ReliabilityLoop:
             tx.append_audit(
                 None,
                 Audit(action="autonomy.mode.set", actor=actor, detail=mode).model_dump(mode="json"),
+                environment=self.settings.environment,
             )
 
     def postmortem(self, incident_id: str) -> dict[str, Any]:

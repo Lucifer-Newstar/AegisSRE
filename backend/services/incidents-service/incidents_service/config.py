@@ -9,9 +9,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="AEGIS_", extra="ignore")
-    database_url: str = "sqlite:///./aegis-incidents.db"
-    api_token: str = ""
+    model_config = SettingsConfigDict(
+        env_prefix="AEGIS_", extra="ignore", hide_input_in_errors=True
+    )
+    database_url: str = Field(default="sqlite:///./aegis-incidents.db", repr=False)
+    api_token: str = Field(default="", repr=False)
     dev_mode: bool = False
     executor: Literal["simulation", "kubernetes"] = "simulation"
     kube_context: str = ""
@@ -34,11 +36,58 @@ class Settings(BaseSettings):
     llm_provider: Literal["disabled", "ollama", "openai"] = "disabled"
     llm_url: str = "http://localhost:11434"
     llm_model: str = ""
-    llm_api_key: str = ""
+    llm_api_key: str = Field(default="", repr=False)
+    redis_url: str = Field(default="", repr=False)
+    environment: str = Field(
+        default="dev", min_length=1, max_length=40, pattern=r"^[a-zA-Z0-9_-]+$"
+    )
+    collector_enabled: bool = False
     worker_enabled: bool = False
 
     @model_validator(mode="after")
     def safe_config(self) -> Settings:
+        import re
+        from urllib.parse import urlsplit
+
+        if not 1 <= len(self.allowed_targets) <= 20 or len(set(self.allowed_targets)) != len(
+            self.allowed_targets
+        ):
+            raise ValueError("Configure 1..20 distinct allowed service targets")
+        if any(
+            len(target) > 63 or not re.fullmatch(r"[a-z0-9]([a-z0-9-]*[a-z0-9])?", target)
+            for target in self.allowed_targets
+        ):
+            raise ValueError("Invalid allowed service target")
+        for endpoint in (
+            self.prometheus_url,
+            self.loki_url,
+            self.tempo_url,
+            self.registry_url,
+            self.deployments_url,
+        ):
+            if endpoint:
+                parsed = urlsplit(endpoint)
+                if (
+                    parsed.scheme not in {"http", "https"}
+                    or not parsed.hostname
+                    or parsed.username
+                    or parsed.password
+                    or parsed.query
+                    or parsed.fragment
+                ):
+                    raise ValueError(
+                        "Evidence origins must be HTTP(S) URLs without credentials/query/fragment"
+                    )
+        if self.worker_enabled and not self.redis_url:
+            raise ValueError("The worker requires AEGIS_REDIS_URL")
+        if self.collector_enabled and not self.worker_enabled:
+            raise ValueError("The collector requires the durable delivery worker")
+        if self.collector_enabled and not (
+            self.prometheus_url and self.registry_url and self.deployments_url
+        ):
+            raise ValueError(
+                "Collection requires configured Prometheus, registry and deployment origins"
+            )
         if not self.api_token and not self.dev_mode:
             raise ValueError(
                 "Set AEGIS_API_TOKEN, or explicitly enable AEGIS_DEV_MODE for local simulation"

@@ -88,6 +88,20 @@ def test_runtime_requires_deliberate_security_configuration() -> None:
         Settings(dev_mode=True, llm_provider="ollama")
 
 
+def test_secret_configuration_is_not_exposed_in_repr_or_validation_errors() -> None:
+    secret = "not-a-real-credential-redaction-fixture"
+    config = Settings(
+        api_token=secret,
+        llm_api_key=secret,
+        database_url=f"postgresql://user:{secret}@localhost/db",
+        redis_url=f"redis://:{secret}@localhost/0",
+    )
+    assert secret not in repr(config)
+    with pytest.raises(ValidationError) as exc:
+        Settings(api_token=secret, collector_enabled=True)
+    assert secret not in str(exc.value)
+
+
 def test_aware_nonfuture_timestamp_required() -> None:
     base = {
         "id": "x",

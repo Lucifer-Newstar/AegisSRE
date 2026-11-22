@@ -31,6 +31,23 @@ paths:
                   type: string
                 type: object
                 title: Response Ready Ready Get
+        '503':
+          description: A dependency, worker or configured evidence source is unavailable
+      security:
+      - HTTPBearer: []
+  /runtime:
+    get:
+      summary: Runtime Status
+      operationId: runtime_status_runtime_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Runtime Status Runtime Get
       security:
       - HTTPBearer: []
   /metrics:
