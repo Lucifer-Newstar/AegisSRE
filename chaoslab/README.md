@@ -32,7 +32,7 @@ Supported runner operations so far:
 | `database-outage` | shop DB replicas 1 to 0, then back to 1 | controller restoration is not app-health recovery |
 | `dependency-failure` | shop Redis replicas 1 to 0, then back to 1 | same health limitation |
 
-Faulty deployment and traffic-spike experiments remain unimplemented. Container crash and invalid configuration are implemented
+Faulty deployment remains unimplemented. Container crash and invalid configuration are implemented
 below, with real hosted proof required. The final A11 ten-fault catalogue is not
 complete. The current hook/runner set must not be reported as meeting it.
 
@@ -90,3 +90,17 @@ The actual hosted check must observe same-Pod restart and Kubernetes
 connection loss and runner completion alone are not OOM proof. The ephemeral
 control file disappears on container restart and is explicitly removed at
 restoration. No hosted OOM result or evaluation accuracy is claimed yet.
+
+
+## Bounded traffic spike
+
+`traffic-spike` runs eight threads with 100ms per-thread spacing and 2s
+request timeouts against the fixed local `/products` endpoint inside the owned
+catalog container. Duration is bounded to 1..120 seconds; no destination,
+concurrency, endpoint or caller command is accepted. The child exits before
+restoration, without changing workload configuration or leaving a daemon.
+The hosted gate independently requires a Prometheus request-counter increase
+of at least100 during a ten-second CLI trial and a subsequent200 response.
+The counter includes background traffic and scrape timing; it is not an exact
+RPS measurement, sustained load claim or detection-accuracy acceptance.
+Hosted proof is pending.

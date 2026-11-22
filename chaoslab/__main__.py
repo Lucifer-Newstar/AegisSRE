@@ -19,11 +19,12 @@ from typing import Any
 from uuid import uuid4
 
 from chaoslab.journal import Journal
+from chaoslab.traffic import TRAFFIC_PROGRAM
 
 ROOT = Path(__file__).resolve().parents[1]
 HOOKS = {"http-5xx", "network-latency", "cpu-saturation", "memory-pressure", "memory-exhaustion"}
 DATABASES = {"database-outage": "shop-postgres", "dependency-failure": "shop-redis"}
-FAULTS = HOOKS | set(DATABASES) | {"container-crash", "config-error"}
+FAULTS = HOOKS | set(DATABASES) | {"container-crash", "config-error", "traffic-spike"}
 WRITE_CONTROL = (
     "import os,sys;from pathlib import Path;"
     "p=Path('/tmp/aegisshop-fault.json');"
@@ -89,6 +90,14 @@ def _run(api: ModuleType, fault: str, seconds: int, output: Path) -> Path:
             api.kubectl("scale", kind + "/" + target, "--replicas=0", "--namespace", api.NS)
             api.kubectl("wait", "--for=delete", "pod/" + target + "-0", "--namespace", api.NS,
                         "--timeout=90s", timeout=100)
+        elif fault == "traffic-spike":
+            counts = json.loads(api.kubectl(
+                "exec", "deployment/" + target, "--namespace", api.NS, "-i", "--",
+                "python", "-c", TRAFFIC_PROGRAM, body=str(seconds),
+                capture=True, timeout=seconds + 30,
+            ))
+            journal.record("load_completed", **counts,
+                           independently_verified_rate=False)
         elif fault == "config-error":
             # Invalid real application setting, not a synthetic failure flag.
             api.kubectl("set", "env", "deployment/" + target,
@@ -112,7 +121,8 @@ def _run(api: ModuleType, fault: str, seconds: int, output: Path) -> Path:
                         "python", "-c", WRITE_CONTROL, body=control)
         journal.record("injection_applied", fault=fault,
                        onset_semantics="control applied; not independently observed symptom onset")
-        time.sleep(seconds)
+        if fault != "traffic-spike":
+            time.sleep(seconds)
     except BaseException as error:
         journal.record("run_failed", error_type=type(error).__name__)
         raise
@@ -127,6 +137,10 @@ def _run(api: ModuleType, fault: str, seconds: int, output: Path) -> Path:
                     api.kubectl("scale", kind + "/" + target, "--replicas=1", "--namespace", api.NS)
                     api.kubectl("rollout", "status", kind + "/" + target,
                                 "--namespace", api.NS, "--timeout=180s", timeout=200)
+                elif fault == "traffic-spike":
+                    # The bounded child exits before restoration. No workload
+                    # configuration or persistent background process remains.
+                    pass
                 elif fault == "config-error":
                     entry = next((item for item in env if item.get("name") == "CATALOG_MAX_PRODUCTS"),
                                  {"name": "CATALOG_MAX_PRODUCTS", "$patch": "delete"})

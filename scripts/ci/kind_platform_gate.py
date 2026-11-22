@@ -594,6 +594,28 @@ def verify() -> None:
         (config_dir / "independent-proof.json").write_text(json.dumps(config_proof, indent=2))
         print("Actual invalid catalog setting rejected on startup; exact Pod template restored and domain ready, no outage assumed")
 
+        traffic_dir = experiment_dir / "traffic-spike"
+        def catalog_requests() -> float:
+            import urllib.parse
+            expression = 'sum(http_server_requests_total{service="catalog-service",path="/products"})'
+            with urllib.request.urlopen("http://127.0.0.1:19090/api/v1/query?" +
+                    urllib.parse.urlencode({"query": expression}), timeout=10) as response:
+                result = json.load(response)["data"]["result"]
+            assert len(result) == 1
+            return float(result[0]["value"][1])
+        before_load = catalog_requests()
+        run([sys.executable, "-m", "chaoslab", "traffic-spike", "--seconds", "10",
+             "--output", str(traffic_dir)], timeout=60)
+        after_load = wait_for(lambda: (value if (value := catalog_requests()) >= before_load + 100 else None),
+                             "independently scraped request counter increase", 60)
+        assert shop_request(9001, "/products")[0] == 200
+        (traffic_dir / "independent-proof.json").write_text(json.dumps({
+            "prometheus_requests_before": before_load, "prometheus_requests_after": after_load,
+            "window_seconds": 10, "minimum_request_delta": 100,
+            "domain_response_after": 200, "not_evaluation_accuracy": True,
+            "caveat": "Counter difference includes background traffic and scrape timing, not an exact generator RPS measurement",
+        }, indent=2))
+        print("Actual bounded traffic CLI and independent Prometheus counter growth verified; not sustained capacity or detection acceptance")
         run([sys.executable, str(ROOT / "scripts/check_console_stack.py")], timeout=240)
         with urllib.request.urlopen("http://127.0.0.1:3030/login", timeout=15) as response:
             assert response.status == 200
