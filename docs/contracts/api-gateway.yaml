@@ -3,6 +3,20 @@ info:
   title: AegisSRE API Gateway
   version: 0.1.0
 paths:
+  /api/v1/metric-history:
+    get:
+      summary: Bounded persisted aggregate metric history
+      description: Up to 24 hours, 600 buckets and 12000 latest aggregate Prometheus samples. Gaps are not zero. Truncation and mixed units are explicit. Authenticated, configured service/environment only. Not an SLO budget.
+      security:
+      - HTTPBearer: []
+      parameters:
+      - {name: service, in: query, required: true, schema: {type: string}}
+      - {name: metric, in: query, required: true, schema: {type: string}}
+      - {name: hours, in: query, schema: {type: integer, minimum: 1, maximum: 24, default: 24}}
+      - {name: buckets, in: query, schema: {type: integer, minimum: 12, maximum: 600, default: 288}}
+      responses:
+        '200': {description: Observed buckets with provenance and missing-data status}
+        '422': {description: Invalid bounds or out-of-scope query}
   /health:
     get:
       summary: Health
