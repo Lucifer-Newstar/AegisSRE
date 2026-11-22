@@ -45,6 +45,15 @@ class KnowledgeSearch(StrictModel):
     kind: Literal["runbook", "incident", "service", "failure_pattern"] | None = None
 
 
+class RiskPreview(StrictModel):
+    service: str
+    deployment_id: str = Field(
+        min_length=1, max_length=160, pattern=r"^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    )
+    revision: str = Field(min_length=1, max_length=200)
+    attributes: dict[str, Any]
+
+
 class IngestIn(StrictModel):
     events: list[Event] = Field(min_length=1, max_length=100)
 
@@ -275,6 +284,33 @@ def create_app(
             raise HTTPException(422, "Select an allowed service and metric")
         with repo.transaction() as tx:
             return windows(tx, service, config.environment, metric, datetime.now(UTC))
+    @application.post("/deployment-intelligence/risk-preview", dependencies=[Depends(authorized)])
+    def risk_preview(body: RiskPreview) -> dict[str, Any]:
+        from pydantic import ValidationError
+
+        from incidents_service.change_risk import Attributes, preview
+
+        if body.service not in config.allowed_targets:
+            raise HTTPException(422, "Select an allowed service")
+        try:
+            attributes = Attributes.model_validate(body.attributes)
+        except ValidationError as exc:
+            raise HTTPException(422, "Invalid change attributes") from exc
+        with repo.transaction() as tx:
+            try:
+                return preview(
+                    tx,
+                    body.service,
+                    config.environment,
+                    body.deployment_id,
+                    body.revision,
+                    attributes,
+                )
+            except ValueError as exc:
+                raise HTTPException(
+                    409, "Preview identity already bound to different inputs"
+                ) from exc
+
     @application.get("/slo", dependencies=[Depends(authorized)])
     def slo_readout(service: str) -> dict[str, Any]:
         from incidents_service.slo import readout
@@ -282,8 +318,11 @@ def create_app(
             raise HTTPException(422, "Select an allowed service")
         return readout(config, service)
     @application.get("/deployment-intelligence/risk", dependencies=[Depends(authorized)])
-    def deployment_risk(service: str, limit: int = Query(default=50, ge=1, le=100)) -> dict[str, Any]:
+    def deployment_risk(
+        service: str, limit: int = Query(default=50, ge=1, le=100)
+    ) -> dict[str, Any]:
         from incidents_service.deployment_risk import scores
+
         if service not in config.allowed_targets:
             raise HTTPException(422, "Select an allowed service")
         with repo.transaction() as tx:
