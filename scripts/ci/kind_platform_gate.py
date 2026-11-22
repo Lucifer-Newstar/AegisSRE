@@ -204,6 +204,7 @@ def create() -> None:
         ("statefulset", "postgres"),
         ("statefulset", "shop-postgres"),
         ("statefulset", "redis"),
+        ("statefulset", "shop-redis"),
         *[
             ("deployment", name)
             for name in [*APPS, "prometheus", "grafana", "loki", "tempo", "otel-collector"]
@@ -212,7 +213,7 @@ def create() -> None:
         kubectl(
             "rollout", "status", kind + "/" + name, "--namespace", NS, "--timeout=300s", timeout=320
         )
-    print("All seventeen actual platform/workload Pods rolled out in the fixture-owned cluster")
+    print("All eighteen actual platform/workload Pods rolled out in the fixture-owned cluster")
 
 
 class Forwards:
@@ -396,6 +397,32 @@ def verify() -> None:
         wait_for(lambda: shop_request(9003, "/ready")[0] == 200 and retained(order),
                  "same persisted order after actual shop database restoration", 180)
         print("Actual shop order survived app restart and isolated database outage/restoration; platform stayed ready")
+        cart_before = shop_request(9002, "/cart/ci-persistent-order")[1]
+        kubectl("rollout", "restart", "deployment/cart-service", "--namespace", NS)
+        kubectl("rollout", "status", "deployment/cart-service", "--namespace", NS,
+                "--timeout=180s", timeout=200)
+        forwards.start("cart-service", 9002, 9002)
+        wait_for(lambda: shop_request(9002, "/cart/ci-persistent-order") == (200, cart_before),
+                 "Redis cart retained after actual app restart", 120)
+        try:
+            kubectl("scale", "statefulset/shop-redis", "--replicas=0", "--namespace", NS)
+            kubectl("wait", "--for=delete", "pod/shop-redis-0", "--namespace", NS,
+                    "--timeout=90s", timeout=100)
+            wait_for(lambda: (
+                shop_request(9002, "/health")[0] == 200
+                and shop_request(9002, "/ready")[0] == 503
+                and shop_request(9002, "/cart/ci-persistent-order")[0] == 503
+                and shop_request(9003, "/orders", {"user_id": "ci-persistent-order"})[0] == 503
+            ), "real Redis outage affects cart/checkout but not process liveness", 90)
+            assert request("/api/v1/ready")["status"] == "ready"
+            assert retained(order)
+        finally:
+            kubectl("scale", "statefulset/shop-redis", "--replicas=1", "--namespace", NS)
+        wait_for(lambda: (
+            shop_request(9002, "/ready")[0] == 200
+            and shop_request(9002, "/cart/ci-persistent-order") == (200, cart_before)
+        ), "same AOF-persisted cart after Redis outage/restoration", 180)
+        print("Actual Redis cart survived app restart and isolated Redis outage/restoration; platform stayed ready")
         with urllib.request.urlopen("http://127.0.0.1:3030/", timeout=15) as response:
             assert response.status == 200
         print(
@@ -403,7 +430,8 @@ def verify() -> None:
                 {
                     "result": "passed",
                     "actual_kind_platform": True,
-                    "services": 17,
+                    "services": 18,
+                    "actual_shop_redis_outage_restored": True,
                     "actual_shop_postgres_outage_restored": True,
                     "actual_postgres_pvc_replacement": True,
                     "actual_projected_sa_tls": True,
