@@ -478,6 +478,66 @@ def verify() -> None:
         assert stages == ["prepared", "injection_requested", "injection_applied",
                           "restoration_requested", "restored_control_state"]
         print("Actual opt-in HTTP fault CLI injected/restored with durable ground truth; not ten-fault acceptance")
+        # Exercise remaining existing hooks through their actual CLI, with
+        # independent domain/resource observations instead of journal truth.
+        import time
+        for operation in ("network-latency", "cpu-saturation", "memory-pressure"):
+            target_dir = experiment_dir / operation
+            target_dir.mkdir(exist_ok=True)
+            def process_sample() -> dict[str, float]:
+                with urllib.request.urlopen("http://127.0.0.1:9001/metrics", timeout=10) as response:
+                    lines = response.read().decode().splitlines()
+                wanted = {"process_cpu_seconds_total", "process_resident_memory_bytes"}
+                return {line.split()[0]: float(line.split()[1]) for line in lines
+                        if line and not line.startswith("#") and line.split()[0] in wanted}
+            baseline = process_sample()
+            start = time.monotonic()
+            assert shop_request(9001, "/products")[0] == 200
+            baseline_latency = time.monotonic() - start
+            samples: list[dict[str, float]] = []
+            with (target_dir / "runner.log").open("w") as output:
+                experiment = subprocess.Popen(
+                    [sys.executable, "-m", "chaoslab", operation, "--seconds", "15",
+                     "--output", str(target_dir)],
+                    cwd=ROOT, env={**os.environ, **FIXTURE}, stdout=output, stderr=subprocess.STDOUT,
+                )
+                try:
+                    def observed_effect(operation: str = operation, baseline: dict[str, float] = baseline,
+                                        samples: list[dict[str, float]] = samples,
+                                        baseline_latency: float = baseline_latency) -> bool:
+                        from concurrent.futures import ThreadPoolExecutor
+                        with ThreadPoolExecutor(max_workers=1) as pool:
+                            started = time.monotonic()
+                            pending = pool.submit(shop_request, 9001, "/products")
+                            time.sleep(0.15)
+                            resource = process_sample()
+                            assert pending.result(timeout=5)[0] == 200
+                            elapsed = time.monotonic() - started
+                        samples.append({**resource, "request_seconds": elapsed})
+                        if operation == "network-latency":
+                            return elapsed >= 0.9 and elapsed > baseline_latency + 0.5
+                        if operation == "cpu-saturation":
+                            return resource["process_cpu_seconds_total"] > baseline["process_cpu_seconds_total"] + 0.3
+                        return resource["process_resident_memory_bytes"] > baseline["process_resident_memory_bytes"] + 20 * 1024 * 1024
+                    wait_for(observed_effect, "independent effect of " + operation, 12)
+                    assert experiment.wait(timeout=60) == 0
+                finally:
+                    if experiment.poll() is None:
+                        experiment.terminate()
+                        experiment.wait(timeout=30)
+            started = time.monotonic()
+            assert shop_request(9001, "/products")[0] == 200
+            restored_latency = time.monotonic() - started
+            if operation == "network-latency":
+                assert restored_latency < 0.7
+            (target_dir / "independent-proof.json").write_text(json.dumps({
+                "operation": operation, "baseline": baseline,
+                "baseline_request_seconds": baseline_latency, "samples": samples,
+                "restored_request_seconds": restored_latency,
+                "caveat": "Observed bounded effect; CPU delta is not sustained saturation and memory pressure is not OOM",
+                "not_evaluation_accuracy": True,
+            }, indent=2))
+        print("Actual CLI latency/CPU-work/memory-pressure effects independently observed; no sustained-saturation or detection-accuracy claim")
         def catalog_container() -> dict[str, Any]:
             pods = json.loads(kubectl("get", "pods", "--namespace", NS, "-l",
                 "app.kubernetes.io/name=catalog-service", "-o", "json", capture=True))["items"]
