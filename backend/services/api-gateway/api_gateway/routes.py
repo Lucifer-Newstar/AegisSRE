@@ -41,6 +41,7 @@ ROUTES = (
     Route("/ask", "incidents", ("POST",), timeout_seconds=135),
     Route("/deployment-intelligence/trends", "incidents", queries=("service",)),
     Route("/deployment-intelligence/review", "incidents", queries=("service", "rollout_id")),
+    Route("/deployment-intelligence/risk-preview", "incidents", ("POST",)),
     Route("/deployment-intelligence/risk", "incidents", queries=("service", "limit")),
     Route("/deployment-intelligence/rollouts", "incidents", queries=("service", "limit")),
     Route("/deployment-intelligence/summary", "incidents", queries=("service", "since")),
