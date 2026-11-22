@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import hashlib
 from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy import select
 
 from incidents_service.repository import Transaction, state
+
+
+def sample_key(event_id: str) -> str:
+    return "anomaly-sample:" + hashlib.sha256(event_id.encode()).hexdigest()
 
 
 def windows(
@@ -27,7 +32,7 @@ def windows(
         str(key): doc
         for key, doc in tx.conn.execute(
             select(state.c.key, state.c.document).where(
-                state.c.key.in_(["anomaly-sample:" + str(row["id"]) for row in rows[:5000]])
+                state.c.key.in_([sample_key(str(row["id"])) for row in rows[:5000]])
             )
         )
     }
@@ -36,7 +41,7 @@ def windows(
         payload = row["payload"]
         if payload.get("name") != metric or payload.get("labels"):
             continue
-        record = records.get("anomaly-sample:" + row["id"])
+        record = records.get(sample_key(str(row["id"])))
         if record:
             points.append(record)
     return {
