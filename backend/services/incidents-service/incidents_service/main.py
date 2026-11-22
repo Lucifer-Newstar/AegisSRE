@@ -22,7 +22,8 @@ from incidents_service.engine import DomainError, ReliabilityLoop
 from incidents_service.intelligence import AskRequest, AskResult, Intelligence, IntelligenceError
 from incidents_service.knowledge import KnowledgeStore
 from incidents_service.knowledge_indexer import KnowledgeIndexer
-from incidents_service.models import Decision, Event, StrictModel
+from incidents_service.kubernetes_evidence import KubernetesEvidence
+from incidents_service.models import Decision, Event, StrictModel, now
 from incidents_service.repository import Repository
 from incidents_service.runtime import Runtime
 
@@ -46,7 +47,12 @@ class IngestIn(StrictModel):
     events: list[Event] = Field(min_length=1, max_length=100)
 
 
-def create_app(settings: Settings | None = None, repository: Repository | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    repository: Repository | None = None,
+    *,
+    kube_source: KubernetesEvidence | None = None,
+) -> FastAPI:
     config = settings or Settings()
     repo = repository or Repository(config.database_url)
     loop = ReliabilityLoop(repo, config)
@@ -62,6 +68,9 @@ def create_app(settings: Settings | None = None, repository: Repository | None =
     knowledge = KnowledgeStore(repo) if config.knowledge_enabled else None
     indexer = KnowledgeIndexer(knowledge, config) if knowledge else None
     intelligence = Intelligence(repo, config, knowledge)
+    kubernetes = (
+        (kube_source or KubernetesEvidence(config)) if config.kube_evidence_enabled else None
+    )
 
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
@@ -96,8 +105,24 @@ def create_app(settings: Settings | None = None, repository: Repository | None =
                 with suppress(TimeoutError):
                     await asyncio.wait_for(stop.wait(), timeout=delay)
 
+        async def collect_kubernetes() -> None:
+            assert kubernetes is not None and runtime is not None
+            while not stop.is_set():
+                try:
+                    for event in await kubernetes.collect():
+                        await asyncio.to_thread(runtime.delivery.stage, event)
+                    if kubernetes.error in {"cluster_throttled", "cluster_access_denied"}:
+                        # Do not keep hitting an account after throttling/auth denial.
+                        break
+                except Exception as exc:
+                    kubernetes.error = "cluster_staging_failed"
+                    logger.error("Kubernetes evidence staging failed (%s)", type(exc).__name__)
+                with suppress(TimeoutError):
+                    await asyncio.wait_for(stop.wait(), timeout=config.kube_poll_seconds)
+
         task = asyncio.create_task(work()) if runtime else None
         knowledge_task = asyncio.create_task(index_knowledge()) if indexer else None
+        kubernetes_task = asyncio.create_task(collect_kubernetes()) if kubernetes else None
         try:
             yield
         finally:
@@ -107,6 +132,10 @@ def create_app(settings: Settings | None = None, repository: Repository | None =
                 await task
             if knowledge_task is not None:
                 await knowledge_task
+            if kubernetes_task is not None:
+                await kubernetes_task
+            if kubernetes:
+                await kubernetes.close()
             if indexer:
                 indexer.close()
             if runtime:
@@ -119,6 +148,7 @@ def create_app(settings: Settings | None = None, repository: Repository | None =
     application.state.loop = loop
     application.state.runtime = runtime
     application.state.intelligence = intelligence
+    application.state.kubernetes = kubernetes
     application.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:3030", "http://127.0.0.1:3030"],
@@ -208,6 +238,13 @@ def create_app(settings: Settings | None = None, repository: Repository | None =
                 tx.get_state("autonomy", {})
             if runtime is not None and not runtime.ready():
                 raise HTTPException(503, "Delivery worker or evidence sources not ready")
+            if kubernetes is not None and (
+                kubernetes.error
+                or kubernetes.succeeded_at is None
+                or (now() - kubernetes.succeeded_at).total_seconds()
+                > max(60, config.kube_poll_seconds * 2)
+            ):
+                raise HTTPException(503, "Kubernetes evidence is not ready")
         except HTTPException:
             raise
         except Exception as exc:
@@ -216,7 +253,11 @@ def create_app(settings: Settings | None = None, repository: Repository | None =
 
     @application.get("/runtime", dependencies=[Depends(authorized)])
     def runtime_status() -> dict[str, Any]:
-        return runtime.snapshot() if runtime else {"enabled": False, "collector_enabled": False}
+        snapshot = runtime.snapshot() if runtime else {"enabled": False, "collector_enabled": False}
+        return {
+            **snapshot,
+            "kubernetes": kubernetes.snapshot() if kubernetes else {"enabled": False},
+        }
 
     @application.get("/metrics", dependencies=[Depends(authorized)])
     def scrape() -> Response:
