@@ -395,3 +395,21 @@ This is demo infrastructure and running-service proof, not production tenancy,
 real remediation, ten-fault chaos, numerical evaluation or the complete console.
 The [kind operating guide](../operations/kind-platform.md) names those limits.
 No paid cloud resources, model selection or inference are part of this change.
+
+
+## Shop order persistence foundation
+
+Order-service replaces its process dictionary with committed SQL storage.
+Compose/kind wire a separate shop PostgreSQL server, identity and volume; the
+platform evidence database is not its dependency. Database health is real and
+connection/statement waits are bounded. Readiness/domain calls fail 503 while
+liveness remains up; a cart transport error is no longer mislabeled empty-cart.
+SQLite remains an explicit development/test default, not production persistence.
+
+Native tests include file-backed store recreation, bound lookup keys, dependency
+failure behavior and an actual closed-port connection failure. The full-platform
+kind gate is extended to require committed order preservation across app restart
+and a real isolated shop database outage/restoration, while checking the platform
+stays ready. Hosted proof must pass on the exact PR head before merge. This does
+not complete the chaos CLI, its ten fault types, Redis carts, or any measured
+accuracy/autonomy/MTTR acceptance threshold.
