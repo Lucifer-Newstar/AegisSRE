@@ -39,7 +39,7 @@ def windows(
     points = []
     for row in rows[:5000]:
         payload = row["payload"]
-        if payload.get("name") != metric or payload.get("labels"):
+        if row["source"] != "prometheus" or payload.get("name") != metric or payload.get("labels"):
             continue
         record = records.get(sample_key(str(row["id"])))
         if record:
