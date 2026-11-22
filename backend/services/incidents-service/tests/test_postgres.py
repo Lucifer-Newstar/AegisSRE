@@ -114,3 +114,26 @@ def test_postgres_runtime_waits_are_bounded() -> None:
             assert connection.execute(text("SHOW lock_timeout")).scalar_one()=="10s"
     finally:
         repo.close()
+
+
+
+def test_postgres_metric_history_uses_actual_json_and_instant_filters() -> None:
+    from datetime import timedelta
+
+    from incidents_service.metric_history import history
+    from incidents_service.models import now
+
+    repo = Repository(DATABASE_URL)
+    environment = "chart-" + uuid.uuid4().hex[:10]
+    point = now()
+    try:
+        with repo.transaction() as tx:
+            tx.add_event(Event(id="chart-"+uuid.uuid4().hex, type="metric", source="prometheus",
+                timestamp=point-timedelta(seconds=10),service="catalog-service",environment=environment,
+                payload={"name":"error_rate","value":0.25,"unit":"ratio"}))
+            result=history(tx,"catalog-service",environment,"error_rate",point,24,288)
+            assert result["status"]=="observed" and len(result["points"])==1
+            assert result["points"][0]["mean"]==0.25
+            assert result["missing_buckets"]==287
+    finally:
+        repo.close()

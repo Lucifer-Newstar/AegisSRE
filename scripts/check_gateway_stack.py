@@ -59,6 +59,15 @@ def main() -> None:
         for row in audit
     )
     assert request("/api/v1/runtime")["enabled"]
+    chart=request("/api/v1/metric-history?service=catalog-service&metric=latency_p95&hours=24&buckets=288")
+    assert chart["status"]=="observed" and chart["source"]=="persisted-prometheus"
+    assert chart["points"] and chart["missing_buckets"]>0
+    for point in chart["points"]:
+        evidence=request("/api/v1/events/"+point["evidence_id"])
+        assert evidence["source"]=="prometheus" and evidence["service"]=="catalog-service"
+        assert evidence["payload"]["name"]=="latency_p95"
+        assert point["min"]<=evidence["payload"]["value"]<=point["max"]
+    print("Actual persisted Prometheus metric-history buckets and evidence references passed; gaps retained")
     print(
         "Actual gateway auth, fixed routing, correlation and principal-bound approval passed; no execution requested"
     )
