@@ -87,7 +87,7 @@ are loopback-only. Compose requires an operator-supplied token and fixes the
 executor to simulation. Single-process embedded runtime is supported; distributed
 execution ownership and the authenticated console gateway are still ahead.
 
-Local checks: 132 tests, Ruff, strict mypy, YAML and API contracts. A dedicated
+Local checks: 133 tests, Ruff, strict mypy, YAML and API contracts. A dedicated
 hosted gate starts the actual runtime, observes real Prometheus/deployment data,
 checks controlled Redis-to-incident/outbox/poison fixtures, restarts the API and
 checks persisted business state plus pending-entry recovery. Those fixtures are

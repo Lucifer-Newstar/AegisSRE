@@ -244,6 +244,16 @@ def test_unrecovered_is_escalated_at_deadline(
         assert stored and stored.status == "escalated"
 
 
+def test_execution_cannot_cross_configured_environment(loop: ReliabilityLoop) -> None:
+    key = open_incident(loop)
+    loop.decide(key, "approved", Decision(actor="navin"))
+    loop.settings.environment = "prod"
+    denied = loop.execute(key, "navin")
+    assert denied.execution_output and denied.execution_output.startswith("DENIED")
+    with loop.repo.transaction() as tx:
+        assert not tx.get_state("executions", [])
+
+
 def test_environment_isolation(loop: ReliabilityLoop) -> None:
     open_incident(loop)
     result = sample(loop, "prod-sample", 900, 0, environment="prod")

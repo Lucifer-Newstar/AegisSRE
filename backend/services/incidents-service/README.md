@@ -83,7 +83,8 @@ Simulation is the default. Kubernetes execution additionally requires:
 
 - `AEGIS_EXECUTOR=kubernetes`, a bearer token, dev mode off, explicit
   `AEGIS_KUBE_CONTEXT` and namespace;
-- a configured target allowlist (JSON in `AEGIS_ALLOWED_TARGETS`);
+- a configured target allowlist (JSON in `AEGIS_ALLOWED_TARGETS`) and incident
+  environment matching `AEGIS_ENVIRONMENT`;
 - a deployment labelled `aegissre.managed=true` in that exact namespace;
 - a policy/approval decision, rate limits and cooldown checks;
 - at least two replicas for a rolling restart; one-step bounded scale changes;

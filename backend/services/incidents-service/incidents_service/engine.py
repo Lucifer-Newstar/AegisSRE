@@ -275,7 +275,10 @@ class ReliabilityLoop:
                     1 for a in incident.audit if a.action == "remediation.started"
                 ),
                 seconds_since_target_action=elapsed,
-                target_allowed=incident.service in self.settings.allowed_targets,
+                target_allowed=(
+                    incident.service in self.settings.allowed_targets
+                    and incident.environment == self.settings.environment
+                ),
             )
             if not verdict.allowed:
                 tx.append_audit(
