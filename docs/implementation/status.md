@@ -139,6 +139,31 @@ pipeline proof, not the ten-fault chaos benchmark or an AI accuracy claim.
 Kubernetes event collection, the remaining evidence tools, LLM/RAG/Ask and the
 complete console remain open.
 
+## Milestone 2f: knowledge retrieval and operator runbooks
+
+Ten packaged fault-specific runbooks and ten heuristic pattern documents now
+have a scoped, versioned chunk index. PostgreSQL uses real `vector(768)` storage
+and pgvector cosine search. SQLite is an explicitly named small-corpus fallback.
+Embeddings are local lexical hashing, not a neural model or a paid model call.
+
+A separate index task refreshes selected service metadata and verified-closed
+incidents. Network reads and embedding work happen outside SQL transactions.
+Deleted services/removed runbooks are dropped from retrieval. Cited snapshots
+include document hashes, indexed times and versioned chunk IDs. Closed cases
+retain cause uncertainty and simulation labels.
+
+Authenticated runbook list/detail, scoped search, index status and read-only
+incident-context APIs are routed through the gateway. Retrieval does not grant
+approval or change an executable plan. Existing database migration cautions and
+operating details are in [Knowledge retrieval](../operations/knowledge.md).
+
+Local checks: 164 passing tests, four external-server tests deliberately skipped
+locally, Ruff, strict mypy, YAML and eight API contracts. The authored ten-query
+retrieval regression passes its recall@5 threshold, but is not the real chaos
+benchmark. Hosted actual pgvector/vector-distance/persistence and Compose
+retrieval/citation checks must pass before merge. The LLM, Ask Aegis, console
+viewer and real-fault retrieval evaluation are still open.
+
 ## Feature-by-feature status
 
 | ID | Implementation state | Acceptance still required |
@@ -155,10 +180,10 @@ complete console remain open.
 | A10 Dashboard | Existing four-page scaffold | Live overview, service/incident details, approvals and honest MTTD/MTTR |
 | A11 Chaoslab | Catalog's existing fault-hook stub | All ten isolated faults, restoration and experiment manifests |
 | A12 Evaluation | Existing protocol | Reproducible >=10 runs per fault, baseline comparison, mean/std report |
-| B1 RAG | Not implemented | pgvector, indexing, cited retrieval and recall@5 |
+| B1 RAG | Scoped pgvector retrieval, local lexical embeddings, incremental runbook/pattern/metadata/closed-case indexing and RCA context API | Hosted vector proof and recall@5 on real evaluation faults |
 | B2 Ask Aegis | Not implemented | Read-only tools, citations, tool-call view and no write exposure |
 | C1 Eight pages | Four-page scaffold | Complete live eight-page console and UI checks |
-| C3 Runbooks | Not implemented | List, viewer, indexing and incident links |
+| C3 Runbooks | Ten packaged guides, indexing and authenticated list/detail/context APIs | Live console viewer and incident links |
 | C4 Postmortems | Verified-closure API implemented | Viewer, evidence/timeline/action rendering and metrics |
 | C5 Audit | Durable append-only store, transactional Redis emission and filtered API implemented | Console viewer and filtering |
 | D1 kind | Existing app manifests | Full dependencies, least privilege, kind boot and behavior checks |

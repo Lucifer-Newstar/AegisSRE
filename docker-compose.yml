@@ -24,7 +24,7 @@ x-logging: &default-logging
 services:
   # ── Data layer ────────────────────────────────────────────────────────────
   postgres:
-    image: postgres:16-alpine
+    image: ${AEGIS_POSTGRES_IMAGE:-pgvector/pgvector:0.8.1-pg16-bookworm@sha256:33198da2828a14c30348d2ccb4750833d5ed9a44c88d840a0e523d7417120337}
     container_name: aegissre-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-aegis}
@@ -290,6 +290,7 @@ services:
       AEGIS_REDIS_URL: redis://redis:6379/0
       AEGIS_WORKER_ENABLED: "true"
       AEGIS_COLLECTOR_ENABLED: "true"
+      AEGIS_KNOWLEDGE_ENABLED: ${AEGIS_KNOWLEDGE_ENABLED:-true}
       AEGIS_POLL_SECONDS: ${AEGIS_POLL_SECONDS:-15}
       AEGIS_ENVIRONMENT: dev
       AEGIS_PROMETHEUS_URL: http://prometheus:9090
