@@ -267,6 +267,15 @@ def create_app(
             generate_latest(metrics), media_type="text/plain; version=0.0.4; charset=utf-8"
         )
 
+    @application.get("/anomaly-samples", dependencies=[Depends(authorized)])
+    def anomaly_samples(service: str, metric: str) -> dict[str, Any]:
+        from incidents_service.anomaly_windows import windows
+        from incidents_service.metric_history import METRICS
+        if service not in config.allowed_targets or metric not in METRICS:
+            raise HTTPException(422, "Select an allowed service and metric")
+        with repo.transaction() as tx:
+            return windows(tx, service, config.environment, metric, datetime.now(UTC))
+
     @application.get("/deployment-intelligence/rollouts", dependencies=[Depends(authorized)])
     def deployment_rollouts(
         service: str, limit: int = Query(default=100, ge=1, le=500)

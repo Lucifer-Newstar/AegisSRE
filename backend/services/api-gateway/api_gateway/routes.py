@@ -24,6 +24,7 @@ ROUTES = (
         "/events", "incidents", ("GET", "POST"), ("service", "environment", "event_type", "limit")
     ),
     Route("/events/{event_id}", "incidents"),
+    Route("/anomaly-samples", "incidents", queries=("service", "metric")),
     Route("/metric-history", "incidents", queries=("service", "metric", "hours", "buckets")),
     Route("/incidents", "incidents", queries=("service", "limit")),
     Route("/incidents/{incident_id}", "incidents"),

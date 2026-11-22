@@ -13,6 +13,7 @@ const fixture=http.createServer((req,res)=>{
  if(req.headers.authorization!=='Bearer ci-local-ui-fixture'){res.writeHead(401);res.end('{}');return;}
  let result={};
  if(req.url==='/api/v1/autonomy')result={mode:'recommend',executor:'simulation'};
+ else if(req.url.startsWith('/api/v1/anomaly-samples'))result={points:[{at:new Date(Date.now()-1200000).toISOString(),event_id:'synthetic-marker',z_score:6,observed:0.6}],truncated:false};
  else if(req.url.startsWith('/api/v1/metric-history')){const metric=new URL(req.url,'http://fixture').searchParams.get('metric');const end=new Date(),start=new Date(end-86400000);result={metric,start:start.toISOString(),end:end.toISOString(),unit:({latency_p95:'seconds',error_rate:'ratio',request_rate:'requests/second',cpu_usage_percent:'percent',memory_bytes:'bytes'})[metric],bucket_seconds:300,status:'observed',missing_buckets:245,truncated:false,note:'Synthetic visual fixture only',points:Array.from({length:43},(_,i)=>({at:new Date(+end-13500000+i*300000).toISOString(),mean:0.1+Math.abs(Math.sin(i/4))*0.4,min:0.05,max:0.6,samples:20,evidence_id:'fixture:'+i}))};}
  else if(req.url==='/api/v1/services/catalog-service')result={id:'catalog-service',name:'AegisShop Catalog',version:'0.1.0',status:'unknown',availability_slo:0.999,latency_slo_seconds:0.5};
  else if(req.url.startsWith('/api/v1/services'))result=[{id:'catalog-service',name:'AegisShop Catalog',url:'http://catalog-service:9001',version:'0.1.0',status:'unknown'}];
