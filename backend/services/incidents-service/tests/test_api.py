@@ -27,7 +27,13 @@ def test_api_requires_authorization_and_limits_request_size() -> None:
 def test_api_event_and_audit() -> None:
     with client() as http:
         http.headers["Authorization"] = "Bearer test-token"
-        event = Event(id="evt_one", type="metric", source="prometheus", service="catalog-service", payload={"name": "latency", "value": 0.1})
+        event = Event(
+            id="evt_one",
+            type="metric",
+            source="prometheus",
+            service="catalog-service",
+            payload={"name": "latency", "value": 0.1},
+        )
         assert http.post("/events", json=event.model_dump(mode="json")).status_code == 200
         assert http.post("/events", json=event.model_dump(mode="json")).json()["duplicate"]
         assert http.get("/events/evt_one").json()["service"] == "catalog-service"
@@ -42,9 +48,35 @@ def test_api_event_and_audit() -> None:
 def test_bad_payloads_rejected() -> None:
     with client() as http:
         http.headers["Authorization"] = "Bearer test-token"
-        assert http.post("/events", json={"id": "x", "type": "metric", "source": "prometheus", "service": "catalog-service", "payload": {"name": "latency", "value": "NaN"}}).status_code == 422
-        assert http.post("/autonomy", json={"mode": "unbounded", "actor": "navin"}).status_code == 422
-        assert http.post("/events", json={"id": "x", "type": "metric", "source": "unknown", "service": "catalog-service", "payload": {"name": "latency", "value": 1}}).status_code == 422
+        assert (
+            http.post(
+                "/events",
+                json={
+                    "id": "x",
+                    "type": "metric",
+                    "source": "prometheus",
+                    "service": "catalog-service",
+                    "payload": {"name": "latency", "value": "NaN"},
+                },
+            ).status_code
+            == 422
+        )
+        assert (
+            http.post("/autonomy", json={"mode": "unbounded", "actor": "navin"}).status_code == 422
+        )
+        assert (
+            http.post(
+                "/events",
+                json={
+                    "id": "x",
+                    "type": "metric",
+                    "source": "unknown",
+                    "service": "catalog-service",
+                    "payload": {"name": "latency", "value": 1},
+                },
+            ).status_code
+            == 422
+        )
 
 
 def test_runtime_requires_deliberate_security_configuration() -> None:
@@ -57,7 +89,13 @@ def test_runtime_requires_deliberate_security_configuration() -> None:
 
 
 def test_aware_nonfuture_timestamp_required() -> None:
-    base = {"id": "x", "type": "metric", "source": "prometheus", "service": "catalog-service", "payload": {"name": "latency", "value": 1}}
+    base = {
+        "id": "x",
+        "type": "metric",
+        "source": "prometheus",
+        "service": "catalog-service",
+        "payload": {"name": "latency", "value": 1},
+    }
     with pytest.raises(ValidationError):
         Event.model_validate({**base, "timestamp": "2026-11-22T12:00:00"})
     with pytest.raises(ValidationError):

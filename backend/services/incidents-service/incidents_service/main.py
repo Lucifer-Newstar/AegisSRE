@@ -1,4 +1,5 @@
 """A4-A9 API. Production mode requires a bearer token, including for reads."""
+
 from __future__ import annotations
 
 import hmac
@@ -32,8 +33,12 @@ def create_app(settings: Settings | None = None, repository: Repository | None =
     repo = repository or Repository(config.database_url)
     loop = ReliabilityLoop(repo, config)
     metrics = CollectorRegistry()
-    ingested = Counter("aegis_events_ingested_total", "Successfully processed telemetry events", registry=metrics)
-    errors = Counter("aegis_domain_errors_total", "Rejected reliability API operations", registry=metrics)
+    ingested = Counter(
+        "aegis_events_ingested_total", "Successfully processed telemetry events", registry=metrics
+    )
+    errors = Counter(
+        "aegis_domain_errors_total", "Rejected reliability API operations", registry=metrics
+    )
 
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
@@ -44,8 +49,12 @@ def create_app(settings: Settings | None = None, repository: Repository | None =
 
     application = FastAPI(title="AegisSRE Reliability API", version="0.1.0", lifespan=lifespan)
     application.state.loop = loop
-    application.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3030", "http://127.0.0.1:3030"],
-                               allow_methods=["GET", "POST"], allow_headers=["Authorization", "Content-Type"])
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:3030", "http://127.0.0.1:3030"],
+        allow_methods=["GET", "POST"],
+        allow_headers=["Authorization", "Content-Type"],
+    )
 
     def authorized(authorization: Annotated[str | None, Header()] = None) -> None:
         if config.dev_mode and not config.api_token:
@@ -76,8 +85,12 @@ def create_app(settings: Settings | None = None, repository: Repository | None =
 
     @application.get("/health")
     def health() -> dict[str, str]:
-        return {"status": "healthy", "service": "incidents-service", "executor": config.executor,
-                "analysis_engine": "deterministic-evidence-v1"}
+        return {
+            "status": "healthy",
+            "service": "incidents-service",
+            "executor": config.executor,
+            "analysis_engine": "deterministic-evidence-v1",
+        }
 
     @application.get("/ready", dependencies=[Depends(authorized)])
     def ready() -> dict[str, str]:
@@ -87,7 +100,9 @@ def create_app(settings: Settings | None = None, repository: Repository | None =
 
     @application.get("/metrics", dependencies=[Depends(authorized)])
     def scrape() -> Response:
-        return Response(generate_latest(metrics), media_type="text/plain; version=0.0.4; charset=utf-8")
+        return Response(
+            generate_latest(metrics), media_type="text/plain; version=0.0.4; charset=utf-8"
+        )
 
     @application.post("/events", dependencies=[Depends(authorized)])
     def ingest(body: Event) -> dict[str, Any]:
@@ -97,8 +112,12 @@ def create_app(settings: Settings | None = None, repository: Repository | None =
         return result
 
     @application.get("/events", dependencies=[Depends(authorized)])
-    def evidence(service: str | None = None, environment: str | None = None,
-                 event_type: str | None = None, limit: int = Query(default=100, ge=1, le=500)) -> list[dict[str, Any]]:
+    def evidence(
+        service: str | None = None,
+        environment: str | None = None,
+        event_type: str | None = None,
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> list[dict[str, Any]]:
         with repo.transaction() as tx:
             return tx.recent_events(service, environment, event_type, limit)
 
@@ -111,7 +130,9 @@ def create_app(settings: Settings | None = None, repository: Repository | None =
             return item
 
     @application.get("/incidents", dependencies=[Depends(authorized)])
-    def list_incidents(service: str | None = None, limit: int = Query(default=100, ge=1, le=500)) -> list[dict[str, Any]]:
+    def list_incidents(
+        service: str | None = None, limit: int = Query(default=100, ge=1, le=500)
+    ) -> list[dict[str, Any]]:
         loop.sweep()
         with repo.transaction() as tx:
             return [item.model_dump(mode="json") for item in tx.list_incidents(service, limit)]
@@ -123,8 +144,14 @@ def create_app(settings: Settings | None = None, repository: Repository | None =
             return loop._get(tx, incident_id).model_dump(mode="json")
 
     @application.post("/incidents/{incident_id}/{decision}", dependencies=[Depends(authorized)])
-    def decide(incident_id: str, decision: Literal["approve", "reject", "defer"], body: Decision) -> dict[str, Any]:
-        choices: dict[str, Literal["approved", "rejected", "deferred"]] = {"approve": "approved", "reject": "rejected", "defer": "deferred"}
+    def decide(
+        incident_id: str, decision: Literal["approve", "reject", "defer"], body: Decision
+    ) -> dict[str, Any]:
+        choices: dict[str, Literal["approved", "rejected", "deferred"]] = {
+            "approve": "approved",
+            "reject": "rejected",
+            "defer": "deferred",
+        }
         return loop.decide(incident_id, choices[decision], body).model_dump(mode="json")
 
     # Static route must precede /{decision} to avoid ambiguity. FastAPI matches
@@ -144,15 +171,20 @@ def create_app(settings: Settings | None = None, repository: Repository | None =
         return [loop.postmortem(key) for key in ids]
 
     @application.get("/audit", dependencies=[Depends(authorized)])
-    def audits(incident_id: str | None = None, limit: int = Query(default=200, ge=1, le=1000)) -> list[dict[str, Any]]:
+    def audits(
+        incident_id: str | None = None, limit: int = Query(default=200, ge=1, le=1000)
+    ) -> list[dict[str, Any]]:
         with repo.transaction() as tx:
             return tx.audits(incident_id, limit)
 
     @application.get("/autonomy", dependencies=[Depends(authorized)])
     def get_mode() -> dict[str, Any]:
         with repo.transaction() as tx:
-            return {**tx.get_state("autonomy", {"mode": "recommend"}), "executor": config.executor,
-                    "policy": loop.policy.model_dump(mode="json")}
+            return {
+                **tx.get_state("autonomy", {"mode": "recommend"}),
+                "executor": config.executor,
+                "policy": loop.policy.model_dump(mode="json"),
+            }
 
     @application.post("/autonomy", dependencies=[Depends(authorized)])
     def set_mode(body: ModeIn) -> dict[str, str]:

@@ -4,6 +4,7 @@ A single transaction covers deduplication, baselines, incident changes and audit
 Postgres advisory transaction locks serialize loop decisions across API/worker
 processes. SQLite runs one process and uses a process-local lock.
 """
+
 from __future__ import annotations
 
 import threading
@@ -33,7 +34,9 @@ from sqlalchemy.pool import StaticPool
 from incidents_service.models import Event, Incident, Metric
 
 metadata = MetaData()
-events = Table("aegis_events", metadata,
+events = Table(
+    "aegis_events",
+    metadata,
     Column("id", String(160), primary_key=True),
     Column("service", String(63), index=True, nullable=False),
     Column("environment", String(40), nullable=False),
@@ -42,22 +45,36 @@ events = Table("aegis_events", metadata,
     Column("series", String(64), index=True),
     Column("value", Float),
     Column("normal", Boolean, nullable=False, default=False),
-    Column("document", JSON, nullable=False))
-incidents = Table("aegis_incidents", metadata,
+    Column("document", JSON, nullable=False),
+)
+incidents = Table(
+    "aegis_incidents",
+    metadata,
     Column("id", String(80), primary_key=True),
     Column("service", String(63), index=True, nullable=False),
     Column("environment", String(40), nullable=False),
     Column("status", String(30), nullable=False),
-    Column("document", JSON, nullable=False))
-audit = Table("aegis_audit", metadata,
+    Column("document", JSON, nullable=False),
+)
+audit = Table(
+    "aegis_audit",
+    metadata,
     Column("seq", Integer, primary_key=True, autoincrement=True),
     Column("incident_id", String(80), index=True),
-    Column("document", JSON, nullable=False))
-state = Table("aegis_state", metadata,
-    Column("key", String(160), primary_key=True), Column("document", JSON, nullable=False))
-outbox = Table("aegis_outbox", metadata,
+    Column("document", JSON, nullable=False),
+)
+state = Table(
+    "aegis_state",
+    metadata,
+    Column("key", String(160), primary_key=True),
+    Column("document", JSON, nullable=False),
+)
+outbox = Table(
+    "aegis_outbox",
+    metadata,
     Column("seq", Integer, primary_key=True, autoincrement=True),
-    Column("document", JSON, nullable=False))
+    Column("document", JSON, nullable=False),
+)
 
 
 class Transaction:
@@ -65,29 +82,56 @@ class Transaction:
         self.conn = connection
 
     def event(self, event_id: str) -> dict[str, Any] | None:
-        row = self.conn.execute(select(events.c.document).where(events.c.id == event_id)).scalar_one_or_none()
+        row = self.conn.execute(
+            select(events.c.document).where(events.c.id == event_id)
+        ).scalar_one_or_none()
         return dict(row) if row is not None else None
 
     def add_event(self, event: Event, normal: bool = False) -> None:
         metric = Metric.model_validate(event.payload) if event.type == "metric" else None
-        self.conn.execute(insert(events).values(
-            id=event.id, service=event.service, environment=event.environment, type=event.type,
-            timestamp=event.timestamp.isoformat(), series=event.series() if metric else None,
-            value=metric.value if metric else None, normal=normal, document=event.model_dump(mode="json")))
+        self.conn.execute(
+            insert(events).values(
+                id=event.id,
+                service=event.service,
+                environment=event.environment,
+                type=event.type,
+                timestamp=event.timestamp.isoformat(),
+                series=event.series() if metric else None,
+                value=metric.value if metric else None,
+                normal=normal,
+                document=event.model_dump(mode="json"),
+            )
+        )
 
     def baseline(self, series: str, limit: int = 60) -> list[float]:
-        rows = self.conn.execute(select(events.c.value).where(
-            events.c.series == series, events.c.normal.is_(True))
-            .order_by(events.c.timestamp.desc()).limit(limit)).scalars().all()
+        rows = (
+            self.conn.execute(
+                select(events.c.value)
+                .where(events.c.series == series, events.c.normal.is_(True))
+                .order_by(events.c.timestamp.desc())
+                .limit(limit)
+            )
+            .scalars()
+            .all()
+        )
         return [float(v) for v in reversed(rows)]
 
     def latest_sample(self, series: str) -> dict[str, Any] | None:
-        row = self.conn.execute(select(events.c.document).where(events.c.series == series)
-            .order_by(events.c.timestamp.desc()).limit(1)).scalar_one_or_none()
+        row = self.conn.execute(
+            select(events.c.document)
+            .where(events.c.series == series)
+            .order_by(events.c.timestamp.desc())
+            .limit(1)
+        ).scalar_one_or_none()
         return dict(row) if row is not None else None
 
-    def recent_events(self, service: str | None = None, environment: str | None = None,
-                      event_type: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+    def recent_events(
+        self,
+        service: str | None = None,
+        environment: str | None = None,
+        event_type: str | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
         query = select(events.c.document)
         if service is not None:
             query = query.where(events.c.service == service)
@@ -95,29 +139,50 @@ class Transaction:
             query = query.where(events.c.environment == environment)
         if event_type is not None:
             query = query.where(events.c.type == event_type)
-        return [dict(row) for row in self.conn.execute(query.order_by(events.c.timestamp.desc()).limit(limit)).scalars()]
+        return [
+            dict(row)
+            for row in self.conn.execute(
+                query.order_by(events.c.timestamp.desc()).limit(limit)
+            ).scalars()
+        ]
 
     def incident(self, incident_id: str) -> Incident | None:
-        row = self.conn.execute(select(incidents.c.document).where(incidents.c.id == incident_id)).scalar_one_or_none()
+        row = self.conn.execute(
+            select(incidents.c.document).where(incidents.c.id == incident_id)
+        ).scalar_one_or_none()
         return Incident.model_validate(row) if row is not None else None
 
     def list_incidents(self, service: str | None = None, limit: int = 100) -> list[Incident]:
         query = select(incidents.c.document)
         if service is not None:
             query = query.where(incidents.c.service == service)
-        return [Incident.model_validate(row) for row in self.conn.execute(
-            query.order_by(incidents.c.id.desc()).limit(limit)).scalars()]
+        return [
+            Incident.model_validate(row)
+            for row in self.conn.execute(
+                query.order_by(incidents.c.id.desc()).limit(limit)
+            ).scalars()
+        ]
 
     def active_incident(self, service: str, environment: str) -> Incident | None:
-        row = self.conn.execute(select(incidents.c.document).where(
-            incidents.c.service == service, incidents.c.environment == environment,
-            incidents.c.status.not_in(["closed", "escalated"])).limit(1)).scalar_one_or_none()
+        row = self.conn.execute(
+            select(incidents.c.document)
+            .where(
+                incidents.c.service == service,
+                incidents.c.environment == environment,
+                incidents.c.status.not_in(["closed", "escalated"]),
+            )
+            .limit(1)
+        ).scalar_one_or_none()
         return Incident.model_validate(row) if row is not None else None
 
     def save_incident(self, item: Incident) -> None:
         exists = self.conn.execute(select(incidents.c.id).where(incidents.c.id == item.id)).first()
-        values = {"service": item.service, "environment": item.environment,
-                  "status": item.status, "document": item.model_dump(mode="json")}
+        values = {
+            "service": item.service,
+            "environment": item.environment,
+            "status": item.status,
+            "document": item.model_dump(mode="json"),
+        }
         if exists:
             self.conn.execute(update(incidents).where(incidents.c.id == item.id).values(**values))
         else:
@@ -130,11 +195,15 @@ class Transaction:
         query = select(audit.c.seq, audit.c.incident_id, audit.c.document)
         if incident_id is not None:
             query = query.where(audit.c.incident_id == incident_id)
-        return [{"seq": row.seq, "incident_id": row.incident_id, **row.document}
-                for row in self.conn.execute(query.order_by(audit.c.seq.desc()).limit(limit))]
+        return [
+            {"seq": row.seq, "incident_id": row.incident_id, **row.document}
+            for row in self.conn.execute(query.order_by(audit.c.seq.desc()).limit(limit))
+        ]
 
     def get_state(self, key: str, default: Any = None) -> Any:
-        row = self.conn.execute(select(state.c.document).where(state.c.key == key)).scalar_one_or_none()
+        row = self.conn.execute(
+            select(state.c.document).where(state.c.key == key)
+        ).scalar_one_or_none()
         return default if row is None else row
 
     def put_state(self, key: str, document: Any) -> None:
@@ -148,8 +217,10 @@ class Transaction:
         self.conn.execute(insert(outbox).values(document=document))
 
     def pending(self, limit: int = 100) -> list[tuple[int, dict[str, Any]]]:
-        return [(row.seq, dict(row.document)) for row in self.conn.execute(
-            select(outbox).order_by(outbox.c.seq).limit(limit))]
+        return [
+            (row.seq, dict(row.document))
+            for row in self.conn.execute(select(outbox).order_by(outbox.c.seq).limit(limit))
+        ]
 
     def delivered(self, seq: int) -> None:
         self.conn.execute(delete(outbox).where(outbox.c.seq == seq))

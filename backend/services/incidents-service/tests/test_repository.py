@@ -8,8 +8,13 @@ from incidents_service.repository import Repository
 def test_transaction_rollback_and_durability(tmp_path: Path) -> None:
     url = f"sqlite:///{tmp_path}/test.db"
     repo = Repository(url)
-    event = Event(id="one", source="prometheus", type="metric", service="catalog-service",
-                  payload={"name": "latency", "value": 0.1})
+    event = Event(
+        id="one",
+        source="prometheus",
+        type="metric",
+        service="catalog-service",
+        payload={"name": "latency", "value": 0.1},
+    )
     with pytest.raises(RuntimeError), repo.transaction() as tx:
         tx.add_event(event, normal=True)
         raise RuntimeError("crash")
@@ -32,8 +37,13 @@ def test_transaction_rollback_and_durability(tmp_path: Path) -> None:
 
 
 def test_series_isolates_environment_labels_and_units() -> None:
-    a = Event(id="a", source="prometheus", type="metric", service="catalog-service",
-              payload={"name": "latency", "value": 1, "unit": "seconds"})
+    a = Event(
+        id="a",
+        source="prometheus",
+        type="metric",
+        service="catalog-service",
+        payload={"name": "latency", "value": 1, "unit": "seconds"},
+    )
     b = a.model_copy(deep=True)
     b.environment = "prod"
     assert a.series() != b.series()

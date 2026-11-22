@@ -1,4 +1,5 @@
 """Validated wire and persistence models. No arbitrary executable actions."""
+
 from __future__ import annotations
 
 import hashlib
@@ -52,7 +53,19 @@ class Event(StrictModel):
     id: str = Field(min_length=1, max_length=160)
     schema_version: Literal["0.2"] = "0.2"
     timestamp: AwareDatetime = Field(default_factory=now)
-    source: Literal["prometheus", "loki", "tempo", "k8s", "deployment", "chaoslab", "ml", "ai", "policy", "executor", "registry"]
+    source: Literal[
+        "prometheus",
+        "loki",
+        "tempo",
+        "k8s",
+        "deployment",
+        "chaoslab",
+        "ml",
+        "ai",
+        "policy",
+        "executor",
+        "registry",
+    ]
     type: Literal["metric", "log", "deployment", "trace", "k8s_event", "health", "anomaly"]
     service: str = Field(min_length=1, max_length=63, pattern=r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?$")
     environment: str = Field(default="dev", min_length=1, max_length=40)
@@ -64,7 +77,11 @@ class Event(StrictModel):
 
     @model_validator(mode="after")
     def validate_payload(self) -> Event:
-        models: dict[str, type[BaseModel]] = {"metric": Metric, "log": Log, "deployment": Deployment}
+        models: dict[str, type[BaseModel]] = {
+            "metric": Metric,
+            "log": Log,
+            "deployment": Deployment,
+        }
         if self.type in models:
             models[self.type].model_validate(self.payload)
         if len(self.model_dump_json()) > 16000:
@@ -75,7 +92,13 @@ class Event(StrictModel):
 
     def series(self) -> str:
         metric = Metric.model_validate(self.payload)
-        key = [self.service, self.environment, metric.name, sorted(metric.labels.items()), metric.unit]
+        key = [
+            self.service,
+            self.environment,
+            metric.name,
+            sorted(metric.labels.items()),
+            metric.unit,
+        ]
         return hashlib.sha256(json.dumps(key).encode()).hexdigest()
 
 
@@ -130,7 +153,9 @@ class Incident(StrictModel):
     environment: str
     title: str
     severity: Literal["warning", "critical"] = "warning"
-    status: Literal["open", "investigating", "remediating", "verifying", "closed", "escalated"] = "open"
+    status: Literal["open", "investigating", "remediating", "verifying", "closed", "escalated"] = (
+        "open"
+    )
     created_at: datetime = Field(default_factory=now)
     updated_at: datetime = Field(default_factory=now)
     signals: list[Signal]

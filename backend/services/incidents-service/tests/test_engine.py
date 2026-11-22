@@ -15,10 +15,17 @@ def loop() -> ReliabilityLoop:
     return ReliabilityLoop(Repository("sqlite:///:memory:"), Settings(dev_mode=True))
 
 
-def sample(loop: ReliabilityLoop, key: str, value: float, seconds: float, **overrides: Any) -> dict[str, Any]:
-    body: dict[str, Any] = {"id": key, "source": "chaoslab", "type": "metric",
-                            "service": "catalog-service", "timestamp": now() + timedelta(seconds=seconds),
-                            "payload": {"name": "memory_bytes", "value": value, "unit": "bytes"}}
+def sample(
+    loop: ReliabilityLoop, key: str, value: float, seconds: float, **overrides: Any
+) -> dict[str, Any]:
+    body: dict[str, Any] = {
+        "id": key,
+        "source": "chaoslab",
+        "type": "metric",
+        "service": "catalog-service",
+        "timestamp": now() + timedelta(seconds=seconds),
+        "payload": {"name": "memory_bytes", "value": value, "unit": "bytes"},
+    }
     body.update(overrides)
     return loop.ingest(Event.model_validate(body))
 
@@ -26,9 +33,16 @@ def sample(loop: ReliabilityLoop, key: str, value: float, seconds: float, **over
 def open_incident(loop: ReliabilityLoop) -> str:
     for index in range(12):
         sample(loop, f"warm-{index}", 100.0, -30 + index)
-    loop.ingest(Event(id="log-1", source="loki", type="log", service="catalog-service",
-                      timestamp=now() - timedelta(seconds=2),
-                      payload={"level": "ERROR", "message": "Out of memory: OOMKilled"}))
+    loop.ingest(
+        Event(
+            id="log-1",
+            source="loki",
+            type="log",
+            service="catalog-service",
+            timestamp=now() - timedelta(seconds=2),
+            payload={"level": "ERROR", "message": "Out of memory: OOMKilled"},
+        )
+    )
     result = sample(loop, "fault-1", 900.0, -1)
     assert result["anomalous"]
     return str(result["incident_id"])
@@ -48,25 +62,48 @@ def test_baseline_incident_correlation_and_persistence(loop: ReliabilityLoop) ->
     sample(loop, "fault-2", 800.0, 0)
     with loop.repo.transaction() as tx:
         assert len(tx.list_incidents()) == 1
-        assert len(tx.baseline(Event(id="x", source="chaoslab", type="metric", service="catalog-service", payload={"name": "memory_bytes", "value": 1, "unit": "bytes"}).series())) == 12
+        assert (
+            len(
+                tx.baseline(
+                    Event(
+                        id="x",
+                        source="chaoslab",
+                        type="metric",
+                        service="catalog-service",
+                        payload={"name": "memory_bytes", "value": 1, "unit": "bytes"},
+                    ).series()
+                )
+            )
+            == 12
+        )
 
 
 def test_duplicate_content_and_out_of_order(loop: ReliabilityLoop) -> None:
-    event = Event(id="stable", source="prometheus", type="metric", service="catalog-service", payload={"name": "latency", "value": 1})
+    event = Event(
+        id="stable",
+        source="prometheus",
+        type="metric",
+        service="catalog-service",
+        payload={"name": "latency", "value": 1},
+    )
     assert not loop.ingest(event)["duplicate"]
     assert loop.ingest(event)["duplicate"]
     changed = event.model_copy(deep=True)
     changed.payload["value"] = 2
     with pytest.raises(DomainError, match="different content"):
         loop.ingest(changed)
-    older = event.model_copy(update={"id": "older", "timestamp": event.timestamp - timedelta(seconds=1)})
+    older = event.model_copy(
+        update={"id": "older", "timestamp": event.timestamp - timedelta(seconds=1)}
+    )
     with pytest.raises(DomainError, match="increasing"):
         loop.ingest(older)
     with loop.repo.transaction() as tx:
         assert tx.event("older") is None
 
 
-def test_approval_execution_recovery_requires_fresh_all_checks(loop: ReliabilityLoop, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_approval_execution_recovery_requires_fresh_all_checks(
+    loop: ReliabilityLoop, monkeypatch: pytest.MonkeyPatch
+) -> None:
     incident_id = open_incident(loop)
     denied = loop.execute(incident_id, "tester")
     assert denied.execution_output is not None and denied.execution_output.startswith("DENIED")
@@ -86,17 +123,41 @@ def test_approval_execution_recovery_requires_fresh_all_checks(loop: Reliability
     healthy_time = now() + timedelta(seconds=5)
     monkeypatch.setattr("incidents_service.engine.now", lambda: healthy_time)
     body = {"status": "healthy", "slo_ok": True, "errors_ok": True, "latency_ok": False}
-    loop.ingest(Event(id="bad-health", source="registry", type="health", service="catalog-service",
-                      timestamp=healthy_time, payload=body))
+    loop.ingest(
+        Event(
+            id="bad-health",
+            source="registry",
+            type="health",
+            service="catalog-service",
+            timestamp=healthy_time,
+            payload=body,
+        )
+    )
     with loop.repo.transaction() as tx:
         item = tx.incident(incident_id)
         assert item and item.status == "verifying"
     body["latency_ok"] = True
-    loop.ingest(Event(id="good-health", source="registry", type="health", service="catalog-service",
-                      timestamp=healthy_time + timedelta(microseconds=1), payload=body))
+    loop.ingest(
+        Event(
+            id="good-health",
+            source="registry",
+            type="health",
+            service="catalog-service",
+            timestamp=healthy_time + timedelta(microseconds=1),
+            payload=body,
+        )
+    )
     monkeypatch.setattr("incidents_service.engine.now", lambda: healthy_time + timedelta(seconds=1))
-    loop.ingest(Event(id="good-health-2", source="registry", type="health", service="catalog-service",
-                      timestamp=healthy_time + timedelta(microseconds=2), payload=body))
+    loop.ingest(
+        Event(
+            id="good-health-2",
+            source="registry",
+            type="health",
+            service="catalog-service",
+            timestamp=healthy_time + timedelta(microseconds=2),
+            payload=body,
+        )
+    )
     report = loop.postmortem(incident_id)
     assert report["simulation"] is True and report["incident"]["status"] == "closed"
 
@@ -123,7 +184,9 @@ def test_kill_switch_blocks_even_approved_action(loop: ReliabilityLoop) -> None:
         assert not tx.get_state("executions", [])
 
 
-def test_execution_error_is_not_blindly_retried(loop: ReliabilityLoop, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_execution_error_is_not_blindly_retried(
+    loop: ReliabilityLoop, monkeypatch: pytest.MonkeyPatch
+) -> None:
     key = open_incident(loop)
     loop.decide(key, "approved", Decision(actor="navin"))
     calls: list[int] = []
@@ -138,12 +201,16 @@ def test_execution_error_is_not_blindly_retried(loop: ReliabilityLoop, monkeypat
     assert calls == [1]
 
 
-def test_unrecovered_is_escalated_at_deadline(loop: ReliabilityLoop, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_unrecovered_is_escalated_at_deadline(
+    loop: ReliabilityLoop, monkeypatch: pytest.MonkeyPatch
+) -> None:
     key = open_incident(loop)
     loop.decide(key, "approved", Decision(actor="navin"))
     item = loop.execute(key, "navin")
     assert item.verification_deadline
-    monkeypatch.setattr("incidents_service.engine.now", lambda: item.verification_deadline + timedelta(seconds=1))
+    monkeypatch.setattr(
+        "incidents_service.engine.now", lambda: item.verification_deadline + timedelta(seconds=1)
+    )
     loop.sweep()
     with loop.repo.transaction() as tx:
         stored = tx.incident(key)
