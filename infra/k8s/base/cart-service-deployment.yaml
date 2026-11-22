@@ -17,6 +17,7 @@ spec:
         app.kubernetes.io/name: cart-service
         app.kubernetes.io/part-of: aegisshop
     spec:
+      automountServiceAccountToken: false
       containers:
         - name: cart-service
           image: aegisshop/cart-service:0.1.0

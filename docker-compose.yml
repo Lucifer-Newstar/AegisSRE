@@ -355,6 +355,7 @@ services:
     container_name: aegissre-console
     environment:
       PORT: "3030"
+      HOSTNAME: "0.0.0.0"
       REGISTRY_URL: http://registry-service:8101
       DEPLOYMENTS_URL: http://deployments-service:8701
     ports:

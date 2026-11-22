@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loki
+  labels: &id001
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/part-of: aegissre
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: loki
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - name: loki
+        image: grafana/loki:3.3.2
+        ports:
+        - name: http
+          containerPort: 3100
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+        args:
+        - -config.file=/etc/loki/loki-config.yaml
+        readinessProbe:
+          httpGet: &id002
+            path: /ready
+            port: 3100
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 30
+        startupProbe:
+          httpGet: *id002
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 60
+        livenessProbe:
+          httpGet:
+            path: /ready
+            port: 3100
+          periodSeconds: 15
+          timeoutSeconds: 3
+          failureThreshold: 5
+        volumeMounts:
+        - name: loki-data
+          mountPath: /loki
+        - name: platform-loki
+          mountPath: /etc/loki
+          readOnly: true
+      volumes:
+      - name: loki-data
+        persistentVolumeClaim:
+          claimName: loki-data
+      - name: platform-loki
+        configMap:
+          name: platform-loki
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault

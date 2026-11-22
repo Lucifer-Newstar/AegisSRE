@@ -17,6 +17,7 @@ spec:
         app.kubernetes.io/name: payment-service
         app.kubernetes.io/part-of: aegisshop
     spec:
+      automountServiceAccountToken: false
       containers:
         - name: payment-service
           image: aegisshop/payment-service:0.1.0

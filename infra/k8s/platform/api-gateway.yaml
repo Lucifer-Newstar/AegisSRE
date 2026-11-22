@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  labels: &id001
+    app.kubernetes.io/name: api-gateway
+    app.kubernetes.io/part-of: aegissre
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: api-gateway
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - name: api-gateway
+        image: aegissre/api-gateway:0.1.0
+        ports:
+        - name: http
+          containerPort: 8000
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+        env:
+        - name: AEGIS_GATEWAY_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: aegissre-operator
+              key: token
+        - name: AEGIS_GATEWAY_INCIDENTS_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: aegissre-operator
+              key: incidents-token
+        - name: AEGIS_GATEWAY_METADATA_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: aegissre-metadata
+              key: api-token
+        - name: AEGIS_GATEWAY_REDIS_URL
+          value: redis://redis:6379/0
+        - name: AEGIS_GATEWAY_REGISTRY_URL
+          value: http://registry-service:8101
+        - name: AEGIS_GATEWAY_DEPLOYMENTS_URL
+          value: http://deployments-service:8701
+        - name: AEGIS_GATEWAY_INCIDENTS_URL
+          value: http://incidents-service:8201
+        readinessProbe:
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 30
+          exec:
+            command:
+            - python
+            - -c
+            - import os,urllib.request; r=urllib.request.Request("http://localhost:8000/api/v1/ready",headers={"Authorization":"Bearer
+              "+os.environ["AEGIS_GATEWAY_API_TOKEN"]}); urllib.request.urlopen(r,timeout=2).close()
+        startupProbe:
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 60
+          exec:
+            command:
+            - python
+            - -c
+            - import os,urllib.request; r=urllib.request.Request("http://localhost:8000/api/v1/ready",headers={"Authorization":"Bearer
+              "+os.environ["AEGIS_GATEWAY_API_TOKEN"]}); urllib.request.urlopen(r,timeout=2).close()
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          periodSeconds: 15
+          timeoutSeconds: 3
+          failureThreshold: 5
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: scratch
+          mountPath: /tmp
+      volumes:
+      - name: scratch
+        emptyDir:
+          sizeLimit: 128Mi
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault

@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  labels: &id001
+    app.kubernetes.io/name: otel-collector
+    app.kubernetes.io/part-of: aegissre
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: otel-collector
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - name: otel-collector
+        image: otel/opentelemetry-collector-contrib:0.109.0
+        ports:
+        - name: http
+          containerPort: 13133
+        - name: otlp-grpc
+          containerPort: 4317
+        - name: otlp-http
+          containerPort: 4318
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 768Mi
+        args:
+        - --config=/etc/otel/config.yaml
+        readinessProbe:
+          httpGet: &id002
+            path: /
+            port: 13133
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 30
+        startupProbe:
+          httpGet: *id002
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 60
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 13133
+          periodSeconds: 15
+          timeoutSeconds: 3
+          failureThreshold: 5
+        volumeMounts:
+        - name: platform-otel
+          mountPath: /etc/otel
+          readOnly: true
+      volumes:
+      - name: platform-otel
+        configMap:
+          name: platform-otel
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
