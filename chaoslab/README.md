@@ -32,8 +32,9 @@ Supported runner operations so far:
 | `database-outage` | shop DB replicas 1 to 0, then back to 1 | controller restoration is not app-health recovery |
 | `dependency-failure` | shop Redis replicas 1 to 0, then back to 1 | same health limitation |
 
-Crash, actual OOM, configuration error, faulty deployment and traffic-spike
-experiments remain unimplemented. The final A11 ten-fault catalogue is not
+Actual OOM, configuration error, faulty deployment and traffic-spike
+experiments remain unimplemented. Container crash is implemented below, with
+real hosted proof required. The final A11 ten-fault catalogue is not
 complete. The current hook/runner set must not be reported as meeting it.
 
 Each unique JSONL journal is created exclusively, flushed and fsynced on every
