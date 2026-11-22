@@ -59,6 +59,7 @@ def create_app(
     config = settings or Settings()
     upstream = http or httpx.AsyncClient(
         timeout=httpx.Timeout(5, connect=3),
+        trust_env=False,
         follow_redirects=False,
         limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
     )
@@ -181,7 +182,7 @@ def create_app(
                 headers = (
                     {"Authorization": f"Bearer {config.incidents_token}"}
                     if name == "incidents"
-                    else {}
+                    else {"Authorization": f"Bearer {config.metadata_token}"}
                 )
                 async with upstream.stream(
                     "GET", origin.rstrip("/") + "/ready", headers=headers, follow_redirects=False
@@ -247,6 +248,8 @@ def create_app(
             }
             if route.upstream == "incidents":
                 headers["Authorization"] = f"Bearer {config.incidents_token}"
+            else:
+                headers["Authorization"] = f"Bearer {config.metadata_token}"
             path = route.path.format(**request.path_params)
             try:
                 async with (

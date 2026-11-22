@@ -33,7 +33,11 @@ def gateway() -> Iterator[tuple[TestClient, list[httpx.Request], Redis]]:
     transport = httpx.AsyncClient(transport=httpx.MockTransport(respond))
     redis = fakeredis.FakeRedis()
     app = create_app(
-        Settings(api_token="gateway-fixture", incidents_token="backend-fixture"),
+        Settings(
+            api_token="gateway-fixture",
+            incidents_token="backend-fixture",
+            metadata_token="metadata-fixture",
+        ),
         http=transport,
         redis_client=redis,
     )
@@ -73,7 +77,8 @@ def test_proxy_has_fixed_origins_queries_and_correlation(
     assert requests[-1].url.path == "/services"
     assert requests[-1].url.params["status"] == "healthy"
     assert requests[-1].headers["x-request-id"] == "request-123"
-    assert "cookie" not in requests[-1].headers and "authorization" not in requests[-1].headers
+    assert "cookie" not in requests[-1].headers
+    assert requests[-1].headers["authorization"] == "Bearer metadata-fixture"
     assert response.headers["x-request-id"] == "request-123"
     assert response.headers["cache-control"] == "no-store"
     count = len(requests)
@@ -159,7 +164,11 @@ def test_upstream_failure_is_bounded_and_does_not_leak(kind: str) -> None:
     transport = httpx.AsyncClient(transport=httpx.MockTransport(respond))
     with TestClient(
         create_app(
-            Settings(api_token="gateway-fixture", incidents_token="backend-fixture"),
+            Settings(
+                api_token="gateway-fixture",
+                incidents_token="backend-fixture",
+                metadata_token="metadata-fixture",
+            ),
             http=transport,
             redis_client=fakeredis.FakeRedis(),
         )
@@ -197,3 +206,12 @@ def test_gateway_rate_limit_response_and_failed_auth_are_independent(
     for key in redis.scan_iter():
         assert b"gateway-fixture" not in key and b"backend-fixture" not in key
     assert len(requests) == 1
+
+
+def test_metadata_operator_key_cannot_be_the_public_api_key() -> None:
+    with pytest.raises(ValueError, match="distinct"):
+        Settings(
+            api_token="external-fixture",
+            incidents_token="incident-fixture",
+            metadata_token="external-fixture",
+        )

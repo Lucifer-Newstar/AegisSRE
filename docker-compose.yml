@@ -242,6 +242,9 @@ services:
     image: aegissre/registry-service:0.1.0
     container_name: aegissre-registry
     environment:
+      AEGIS_METADATA_API_TOKEN: ${AEGIS_METADATA_API_TOKEN:-}
+      AEGIS_METADATA_READ_TOKEN: ${AEGIS_METADATA_READ_TOKEN:-}
+      AEGIS_METADATA_DEV_MODE: "false"
       DATABASE_URL: ${PLATFORM_DATABASE_URL:-postgresql+psycopg://aegis:aegis@postgres:5432/aegissre}
       SERVICE_NAME: registry-service
       SERVICE_PORT: "8101"
@@ -263,6 +266,9 @@ services:
     image: aegissre/deployments-service:0.1.0
     container_name: aegissre-deployments
     environment:
+      AEGIS_METADATA_API_TOKEN: ${AEGIS_METADATA_API_TOKEN:-}
+      AEGIS_METADATA_READ_TOKEN: ${AEGIS_METADATA_READ_TOKEN:-}
+      AEGIS_METADATA_DEV_MODE: "false"
       DATABASE_URL: ${PLATFORM_DATABASE_URL:-postgresql+psycopg://aegis:aegis@postgres:5432/aegissre}
       SERVICE_NAME: deployments-service
       SERVICE_PORT: "8701"
@@ -303,6 +309,7 @@ services:
       AEGIS_POLL_SECONDS: ${AEGIS_POLL_SECONDS:-15}
       AEGIS_ENVIRONMENT: dev
       AEGIS_PROMETHEUS_URL: http://prometheus:9090
+      AEGIS_METADATA_TOKEN: ${AEGIS_METADATA_READ_TOKEN:-}
       AEGIS_REGISTRY_URL: http://registry-service:8101
       AEGIS_DEPLOYMENTS_URL: http://deployments-service:8701
       AEGIS_LOKI_URL: http://loki:3100
@@ -326,6 +333,7 @@ services:
     container_name: aegissre-gateway
     environment:
       AEGIS_GATEWAY_API_TOKEN: ${AEGIS_API_TOKEN:-}
+      AEGIS_GATEWAY_METADATA_TOKEN: ${AEGIS_METADATA_API_TOKEN:-}
       AEGIS_GATEWAY_INCIDENTS_TOKEN: ${AEGIS_API_TOKEN:-}
       AEGIS_GATEWAY_REDIS_URL: redis://redis:6379/0
       AEGIS_GATEWAY_REGISTRY_URL: http://registry-service:8101

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Exercise the actual Compose metadata APIs before and after process restart.
 
-Only uses the local test stack. No cloud account, tokens or user data required.
+Only uses the local test stack. No cloud account or user data required; use disposable CI service credentials.
 Run `--seed`, restart registry/deployments, then run `--verify`.
 """
 
@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import time
 import urllib.error
 import urllib.request
@@ -16,13 +17,13 @@ from datetime import UTC, datetime
 from typing import Any
 
 
-def request(port: int, path: str, method: str = "GET", body: Any = None) -> Any:
+def request(port: int, path: str, method: str = "GET", body: Any = None, *, token: str | None = None) -> Any:
     raw = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(
         f"http://127.0.0.1:{port}{path}",
         data=raw,
         method=method,
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", "Authorization": "Bearer " + (os.environ["AEGIS_METADATA_API_TOKEN"] if token is None else token)},
     )
     with urllib.request.urlopen(req, timeout=10) as response:
         data = response.read()
@@ -43,6 +44,20 @@ def ready() -> None:
 
 def seed() -> None:
     ready()
+    for port, path in ((8101, "/services"), (8701, "/deployments")):
+        try:
+            request(port, path, token="")
+        except urllib.error.HTTPError as error:
+            assert error.code == 401
+        else:
+            raise AssertionError("Unauthenticated metadata read was accepted")
+        assert isinstance(request(port, path, token=os.environ["AEGIS_METADATA_READ_TOKEN"]), list)
+        try:
+            request(port, path, "POST", {}, token=os.environ["AEGIS_METADATA_READ_TOKEN"])
+        except urllib.error.HTTPError as error:
+            assert error.code == 403
+        else:
+            raise AssertionError("Read-only metadata credential accepted a write")
     request(
         8101,
         "/services",
