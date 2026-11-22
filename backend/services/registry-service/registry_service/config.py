@@ -9,7 +9,17 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """Runtime configuration for registry-service."""
 
-    model_config = SettingsConfigDict(env_prefix="", case_sensitive=False, extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="", case_sensitive=False, extra="ignore", hide_input_in_errors=True
+    )
+
+    api_token: str = Field(
+        default="", repr=False, max_length=512, validation_alias="AEGIS_METADATA_API_TOKEN"
+    )
+    read_token: str = Field(
+        default="", repr=False, max_length=512, validation_alias="AEGIS_METADATA_READ_TOKEN"
+    )
+    dev_mode: bool = Field(default=False, validation_alias="AEGIS_METADATA_DEV_MODE")
 
     service_name: str = "registry-service"
     service_port: int = 8101

@@ -27,6 +27,8 @@ def api(path: str, *, port: int = 8201, body: Any = None, authorized: bool = Tru
     headers = {"Content-Type": "application/json"}
     if authorized and port == 8201:
         headers["Authorization"] = f"Bearer {TOKEN}"
+    if authorized and port in (8101, 8701):
+        headers["Authorization"] = "Bearer " + os.environ["AEGIS_METADATA_API_TOKEN"]
     request = urllib.request.Request(
         f"http://127.0.0.1:{port}{path}",
         data=json.dumps(body).encode() if body is not None else None,

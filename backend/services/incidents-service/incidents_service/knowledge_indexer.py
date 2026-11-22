@@ -74,7 +74,9 @@ class KnowledgeIndexer:
         changed = 0
         if self.config.registry_url:
             try:
-                records = self.reader.get(self.config.registry_url, "/services")
+                records = self.reader.get(
+                    self.config.registry_url, "/services", token=self.config.metadata_token
+                )
                 if not isinstance(records, list) or len(records) > 1000:
                     raise ValueError("Invalid service catalogue")
                 present: set[str] = set()

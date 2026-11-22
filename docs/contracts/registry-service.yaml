@@ -1,4 +1,3 @@
-# Registry contract v1.1: persistent CRUD, real readiness and owner/SLO metadata.
 openapi: 3.1.0
 info:
   title: AegisSRE Registry Service (A2)
@@ -22,6 +21,7 @@ paths:
                   status:
                     type: string
                     const: healthy
+      security: []
   /ready:
     get:
       summary: Readiness of the configured durable catalogue store
@@ -34,6 +34,8 @@ paths:
                 $ref: '#/components/schemas/Ready'
         '503':
           description: a dependency is unreachable
+        '401':
+          description: Valid service token required
   /services:
     get:
       summary: List all registered services with live status
@@ -63,6 +65,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ServiceInfo'
+        '401':
+          description: Valid service token required
     post:
       summary: Register a service (called by a service on startup)
       requestBody:
@@ -80,6 +84,12 @@ paths:
                 $ref: '#/components/schemas/ServiceInfo'
         '422':
           description: invalid payload
+        '401':
+          description: Valid service token required
+        '403':
+          description: Read-only token cannot mutate metadata
+        '413':
+          description: Request exceeds 64KB
   /services/{service_id}:
     get:
       summary: Get one service
@@ -99,6 +109,8 @@ paths:
                 $ref: '#/components/schemas/ServiceInfo'
         '404':
           description: unknown service
+        '401':
+          description: Valid service token required
     put:
       summary: Update Service
       operationId: update_service_services__service_id__put
@@ -132,6 +144,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Valid service token required
+        '403':
+          description: Read-only token cannot mutate metadata
+        '413':
+          description: Request exceeds 64KB
     delete:
       summary: Delete Service
       operationId: delete_service_services__service_id__delete
@@ -153,6 +171,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Valid service token required
+        '403':
+          description: Read-only token cannot mutate metadata
+        '413':
+          description: Request exceeds 64KB
   /services/{service_id}/heartbeat:
     post:
       summary: Heartbeat (periodic liveness from the service)
@@ -171,6 +195,12 @@ paths:
                 $ref: '#/components/schemas/ServiceInfo'
         '404':
           description: unknown service (must register first)
+        '401':
+          description: Valid service token required
+        '403':
+          description: Read-only token cannot mutate metadata
+        '413':
+          description: Request exceeds 64KB
 components:
   schemas:
     Ready:
@@ -308,3 +338,10 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
+  securitySchemes:
+    HTTPBearer:
+      type: http
+      scheme: bearer
+      description: Distinct internal write and read-only credentials. Readers can only GET/HEAD.
+security:
+- HTTPBearer: []

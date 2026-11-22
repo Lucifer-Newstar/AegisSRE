@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     prometheus_url: str = ""
     loki_url: str = ""
     tempo_url: str = ""
+    metadata_token: str = Field(default="", repr=False, max_length=512)
     registry_url: str = ""
     deployments_url: str = ""
     llm_provider: Literal["disabled", "ollama", "openai"] = "disabled"
@@ -114,6 +115,14 @@ class Settings(BaseSettings):
                 raise ValueError("Kubernetes evidence requires authenticated non-dev mode")
             if parsed.port is not None and not 1 <= parsed.port <= 65535:
                 raise ValueError("Invalid Kubernetes API port")
+        if (
+            not self.dev_mode
+            and (self.registry_url or self.deployments_url)
+            and not self.metadata_token
+        ):
+            raise ValueError(
+                "Metadata reads require an explicitly configured read-only service token"
+            )
         if self.worker_enabled and not self.redis_url:
             raise ValueError("The worker requires AEGIS_REDIS_URL")
         if self.collector_enabled and not self.worker_enabled:

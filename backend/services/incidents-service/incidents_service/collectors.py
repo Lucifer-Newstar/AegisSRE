@@ -13,6 +13,7 @@ import json
 import math
 import time
 from datetime import UTC, datetime
+from http.cookiejar import DefaultCookiePolicy
 from typing import Any
 
 import httpx
@@ -22,20 +23,39 @@ from incidents_service.config import Settings
 from incidents_service.models import now
 
 
+class NoEvidenceCookies(DefaultCookiePolicy):
+    def set_ok(self, cookie: Any, request: Any) -> bool:
+        return False
+
+
 class ReadClient:
     def __init__(self, client: httpx.Client | None = None):
-        self.client = client or httpx.Client(timeout=3, follow_redirects=False)
+        self.client = client or httpx.Client(timeout=3, follow_redirects=False, trust_env=False)
         self.owned = client is None
+        self.client.cookies.clear()
+        self.client.cookies.jar.set_policy(NoEvidenceCookies())
 
-    def get(self, base: str, path: str, params: dict[str, str] | None = None) -> Any:
+    def get(
+        self, base: str, path: str, params: dict[str, str] | None = None, *, token: str = ""
+    ) -> Any:
         started = time.monotonic()
         chunks: list[bytes] = []
         size = 0
         with self.client.stream(
-            "GET", base.rstrip("/") + path, params=params, timeout=3, follow_redirects=False,
-            headers={"Accept": "application/json"},
+            "GET",
+            base.rstrip("/") + path,
+            params=params,
+            timeout=3,
+            follow_redirects=False,
+            headers={
+                "Accept": "application/json",
+                "Accept-Encoding": "identity",
+                **({"Authorization": "Bearer " + token} if token else {}),
+            },
         ) as response:
             response.raise_for_status()
+            if response.headers.get("content-encoding", "identity").lower() != "identity":
+                raise ValueError("Compressed evidence responses are not accepted")
             for chunk in response.iter_bytes():
                 size += len(chunk)
                 if size > 1_000_000 or time.monotonic() - started > 5:
@@ -49,8 +69,14 @@ class ReadClient:
 
 
 def _event(
-    kind: str, source: str, service: str, environment: str, at: datetime, payload: dict[str, Any],
-    *, trace_id: str | None = None,
+    kind: str,
+    source: str,
+    service: str,
+    environment: str,
+    at: datetime,
+    payload: dict[str, Any],
+    *,
+    trace_id: str | None = None,
 ) -> EventEnvelope:
     content = {
         "type": kind,
@@ -169,12 +195,18 @@ class Collector:
 
     def collect(self, at: datetime | None = None) -> list[EventEnvelope]:
         point = (at or now()).astimezone(UTC).replace(microsecond=0)
-        self.failures = {key: value for key, value in self.failures.items() if key.startswith(("loki:", "tempo:"))}
+        self.failures = {
+            key: value
+            for key, value in self.failures.items()
+            if key.startswith(("loki:", "tempo:"))
+        }
         collected: list[EventEnvelope] = []
         metadata: dict[str, dict[str, Any]] = {}
         if self.config.registry_url:
             try:
-                services = self.reader.get(self.config.registry_url, "/services")
+                services = self.reader.get(
+                    self.config.registry_url, "/services", token=self.config.metadata_token
+                )
                 if not isinstance(services, list) or len(services) > 1000:
                     raise ValueError("Invalid registry catalogue")
                 metadata = {
@@ -187,7 +219,10 @@ class Collector:
         if self.config.deployments_url:
             try:
                 deployments = self.reader.get(
-                    self.config.deployments_url, "/deployments", {"limit": "500"}
+                    self.config.deployments_url,
+                    "/deployments",
+                    {"limit": "500"},
+                    token=self.config.metadata_token,
                 )
                 if not isinstance(deployments, list) or len(deployments) > 500:
                     raise ValueError("Invalid deployment history")
@@ -263,7 +298,9 @@ class Collector:
         # the fast delivery loop's network work by the entire service catalogue.
         from incidents_service.signal_evidence import SignalEvidence
 
-        service = self.config.allowed_targets[self.evidence_cursor % len(self.config.allowed_targets)]
+        service = self.config.allowed_targets[
+            self.evidence_cursor % len(self.config.allowed_targets)
+        ]
         self.evidence_cursor += 1
         evidence = SignalEvidence(self.config, self.reader)
         self.failures.pop(f"loki:{service}", None)
@@ -276,7 +313,11 @@ class Collector:
             self.failures[f"loki:{service}"] = type(exc).__name__
         try:
             identity = next((event.trace_id for event in logs if event.trace_id), None)
-            collected.extend(evidence.trace(service, identity, point) if identity else evidence.traces(service, point))
+            collected.extend(
+                evidence.trace(service, identity, point)
+                if identity
+                else evidence.traces(service, point)
+            )
         except (httpx.HTTPError, ValueError, TypeError, KeyError, IndexError, OverflowError) as exc:
             self.failures[f"tempo:{service}"] = type(exc).__name__
         return collected

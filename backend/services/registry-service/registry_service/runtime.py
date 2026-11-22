@@ -4,8 +4,9 @@ import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from aegis_security import ServiceAuth
+from fastapi import Depends, FastAPI
+from fastapi.security import HTTPBearer
 from prometheus_client import (
     CONTENT_TYPE_LATEST,
     CollectorRegistry,
@@ -36,15 +37,6 @@ REQUEST_DURATION = Histogram(
     registry=METRIC_REGISTRY,
 )
 
-DEV_CORS_ORIGINS = (
-    "http://localhost:3000",
-    "http://localhost:3030",
-)
-
-
-
-
-
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -73,20 +65,35 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 
 def build_app(title: str) -> FastAPI:
-    application = FastAPI(title=title, version="0.1.0", lifespan=lifespan)
+    application = FastAPI(
+        title=title,
+        version="0.1.0",
+        lifespan=lifespan,
+        dependencies=[Depends(HTTPBearer(auto_error=False))],
+        responses={
+            401: {"description": "Service token required"},
+            403: {"description": "Read-only token cannot mutate metadata"},
+            413: {"description": "Request exceeds 64KB"},
+        },
+    )
+    ServiceAuth.validate(settings.api_token, settings.dev_mode, settings.read_token)
     application.add_middleware(
-        CORSMiddleware,
-        allow_origins=list(DEV_CORS_ORIGINS),
-        allow_methods=["*"],
-        allow_headers=["*"],
+        ServiceAuth,
+        token=settings.api_token,
+        read_token=settings.read_token,
+        dev_mode=settings.dev_mode,
     )
     return application
 
 
 def instrument_middleware(application: FastAPI) -> None:
     configure_observability(
-        application, settings.service_name, settings.environment,
-        settings.otel_exporter_otlp_endpoint, REQUESTS, REQUEST_DURATION,
+        application,
+        settings.service_name,
+        settings.environment,
+        settings.otel_exporter_otlp_endpoint,
+        REQUESTS,
+        REQUEST_DURATION,
     )
 
 
@@ -99,10 +106,10 @@ def health_routes(application: FastAPI) -> None:
             "status": "ok",
         }
 
-    @application.get("/health")
+    @application.get("/health", openapi_extra={"security": []})
     def health() -> dict[str, str]:
         return {"status": "healthy"}
 
-    @application.get("/metrics")
+    @application.get("/metrics", openapi_extra={"security": []})
     def metrics() -> Response:
         return Response(generate_latest(METRIC_REGISTRY), media_type=CONTENT_TYPE_LATEST)

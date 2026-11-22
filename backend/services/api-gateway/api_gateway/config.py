@@ -11,6 +11,7 @@ class Settings(BaseSettings):
         env_prefix="AEGIS_GATEWAY_", extra="ignore", hide_input_in_errors=True
     )
     api_token: str = Field(default="", repr=False, max_length=512)
+    metadata_token: str = Field(default="", repr=False, max_length=512)
     incidents_token: str = Field(default="", repr=False, max_length=512)
     redis_url: str = Field(default="redis://127.0.0.1:6379/0", repr=False)
     registry_url: str = "http://127.0.0.1:8101"
@@ -22,8 +23,14 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def bounded_configuration(self) -> Settings:
-        if not self.api_token or not self.incidents_token:
-            raise ValueError("Gateway and incidents bearer tokens must be explicitly configured")
+        if not self.api_token or not self.incidents_token or not self.metadata_token:
+            raise ValueError(
+                "Gateway, incidents and metadata bearer tokens must be explicitly configured"
+            )
+        if self.metadata_token in {self.api_token, self.incidents_token}:
+            raise ValueError(
+                "Metadata operator token must be distinct from external/incident credentials"
+            )
         for endpoint in (self.registry_url, self.deployments_url, self.incidents_url):
             parsed = urlsplit(endpoint)
             if (

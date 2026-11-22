@@ -222,3 +222,67 @@ def test_collector_configuration_rejects_unsafe_or_incomplete_scope(
 ) -> None:
     with pytest.raises(ValidationError):
         Settings(dev_mode=True, **override)
+
+
+def test_read_only_metadata_token_is_not_sent_to_observability_origins() -> None:
+    observed: list[httpx.Request] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        observed.append(request)
+        if request.url.host == "prometheus":
+            return httpx.Response(
+                200, json={"status": "success", "data": {"resultType": "vector", "result": []}}
+            )
+        return httpx.Response(200, json=[])
+
+    config = Settings(
+        dev_mode=True,
+        metadata_token="read-only-fixture",
+        registry_url="http://registry",
+        deployments_url="http://deployments",
+        prometheus_url="http://prometheus",
+        allowed_targets=["catalog-service"],
+    )
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        collector = Collector(config, ReadClient(client))
+        collector.collect()
+    assert {request.url.host for request in observed} == {"registry", "deployments", "prometheus"}
+    for request in observed:
+        if request.url.host in {"registry", "deployments"}:
+            assert request.headers["authorization"] == "Bearer read-only-fixture"
+        else:
+            assert "authorization" not in request.headers
+
+
+def test_evidence_reader_does_not_retain_response_cookies() -> None:
+    requests: list[httpx.Request] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(
+            200, json=[], headers={"Set-Cookie": "untrusted=never-retain; Path=/"}
+        )
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        reader = ReadClient(client)
+        reader.get("http://metadata", "/one", token="fixture")
+        reader.get("http://metadata", "/two", token="fixture")
+        assert not client.cookies
+    assert all("cookie" not in request.headers for request in requests)
+    assert all(request.headers["accept-encoding"] == "identity" for request in requests)
+
+
+def test_evidence_reader_rejects_compressed_bodies_before_iteration() -> None:
+    import gzip
+
+    with (
+        httpx.Client(
+            transport=httpx.MockTransport(
+                lambda _: httpx.Response(
+                    200, content=gzip.compress(b"[]"), headers={"Content-Encoding": "gzip"}
+                )
+            )
+        ) as client,
+        pytest.raises(ValueError, match="Compressed"),
+    ):
+        ReadClient(client).get("http://metadata", "/fixed", token="fixture")

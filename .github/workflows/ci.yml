@@ -126,7 +126,7 @@ jobs:
 
       - name: Types (mypy --strict)
         run: >
-          mypy scripts/ci backend/services/api-gateway backend/libs/telemetry backend/libs/eventbus backend/libs/storage
+          mypy backend/libs/security scripts/ci backend/services/api-gateway backend/libs/telemetry backend/libs/eventbus backend/libs/storage
           backend/services/_template
           backend/services/registry-service
           backend/services/deployments-service
@@ -138,7 +138,7 @@ jobs:
 
       - name: Tests (pytest)
         run: >
-          pytest backend/services/api-gateway backend/libs/telemetry backend/libs/eventbus backend/libs/storage
+          pytest backend/libs/security backend/services/api-gateway backend/libs/telemetry backend/libs/eventbus backend/libs/storage
           backend/services/_template
           backend/services/registry-service
           backend/services/deployments-service
@@ -248,6 +248,9 @@ jobs:
         run: pytest backend/services/incidents-service/tests/test_intelligence_postgres.py backend/services/incidents-service/tests/test_knowledge_postgres.py backend/services/incidents-service/tests/test_postgres.py backend/libs/storage/tests/test_postgres_storage.py backend/libs/eventbus/tests/test_redis_integration.py
 
   metadata-compose:
+    env:
+      AEGIS_METADATA_API_TOKEN: ci-disposable-metadata-operator
+      AEGIS_METADATA_READ_TOKEN: ci-disposable-metadata-reader
     name: Metadata APIs (Compose restart persistence)
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -282,6 +285,8 @@ jobs:
     env:
       # Disposable local CI fixture, never a deployment credential.
       AEGIS_API_TOKEN: ci-disposable-runtime-token
+      AEGIS_METADATA_API_TOKEN: ci-disposable-metadata-operator
+      AEGIS_METADATA_READ_TOKEN: ci-disposable-metadata-reader
       AEGIS_POLL_SECONDS: "5"
     steps:
       - uses: actions/checkout@v4
