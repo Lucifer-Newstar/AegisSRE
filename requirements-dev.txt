@@ -3,6 +3,7 @@ pyyaml
 -e backend/libs/telemetry[dev]
 -e backend/libs/eventbus[dev]
 -e backend/libs/storage[dev]
+-e backend/libs/security[dev]
 -e backend/services/_template[dev]
 -e backend/services/registry-service[dev]
 -e backend/services/deployments-service[dev]
