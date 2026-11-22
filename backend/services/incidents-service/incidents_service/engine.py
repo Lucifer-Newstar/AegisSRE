@@ -271,6 +271,7 @@ class ReliabilityLoop:
                 context = self.executor.policy_context(observed.plan)
             except Exception:
                 context_error = True
+        target_uid = context.pop("target_uid", None)
         with self.repo.transaction() as tx:
             incident = self._get(tx, incident_id)
             mode = str(tx.get_state("autonomy", {"mode": "recommend"})["mode"])
@@ -371,7 +372,7 @@ class ReliabilityLoop:
                 ):
                     raise DomainError("Kill switch enabled before execution")
             result = (
-                self.executor.run(incident.plan, automatic=True)
+                self.executor.run(incident.plan, automatic=True, expected_uid=target_uid)
                 if verdict.automatic
                 else self.executor.run(incident.plan)
             )

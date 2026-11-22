@@ -70,9 +70,11 @@ class Executor:
         replicas = spec.get("replicas")
         if isinstance(replicas, bool) or not isinstance(replicas, int) or not 1 <= replicas < 10:
             raise ExecutionError("Automatic scale requires a known bounded replica count")
-        return {"current_replicas": replicas}
+        return {"current_replicas": replicas, "target_uid": str(meta["uid"])}
 
-    def run(self, plan: Plan, *, automatic: bool = False) -> ExecutionResult:
+    def run(
+        self, plan: Plan, *, automatic: bool = False, expected_uid: str | None = None
+    ) -> ExecutionResult:
         if plan.target not in self.settings.allowed_targets:
             raise ExecutionError("Target not allowlisted")
         if plan.action not in {"restart", "rollback", "scale"}:
@@ -93,6 +95,8 @@ class Executor:
             raise ExecutionError(
                 "Deployment is not labelled aegissre.managed=true in the configured namespace"
             )
+        if automatic and (not expected_uid or meta.get("uid") != expected_uid):
+            raise ExecutionError("Automatic target identity changed after preflight")
         if obj.get("spec", {}).get("paused"):
             raise ExecutionError("Paused deployment cannot be remediated")
         revision = str(meta.get("annotations", {}).get("deployment.kubernetes.io/revision", ""))

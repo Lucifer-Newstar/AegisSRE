@@ -129,7 +129,7 @@ def test_live_context_is_read_from_managed_observed_object(monkeypatch: pytest.M
         "status": {"observedGeneration": 4},
     }
     monkeypatch.setattr(executor, "_kubectl", lambda _: json.dumps(obj))
-    assert executor.policy_context(item.plan) == {"current_replicas": 2}
+    assert executor.policy_context(item.plan) == {"current_replicas": 2, "target_uid": "actual"}
     obj["status"]["observedGeneration"] = 3
     with pytest.raises(ExecutionError):
         executor.policy_context(item.plan)
@@ -182,7 +182,7 @@ def test_executor_rechecks_scale_direction_at_dispatch(monkeypatch: pytest.Monke
 
     monkeypatch.setattr(executor, "_kubectl", read)
     with pytest.raises(ExecutionError):
-        executor.run(item.plan, automatic=True)
+        executor.run(item.plan, automatic=True, expected_uid="actual")
     assert len(calls) == 1 and calls[0][0] == "get"
 
 
