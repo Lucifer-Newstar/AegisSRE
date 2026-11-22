@@ -24,3 +24,8 @@ still requires the existing fresh health and affected-series evidence.
 owned disposable kind job. It checks recommend/observe blocks, one actual scale,
 no duplicate action, persisted automatic actor and exact replica restoration.
 It does not call this a detected fault or an evaluation success-rate sample.
+
+The packaged image includes checksum-pinned kubectl. Actual Kubernetes execution
+still requires an explicit mounted kubeconfig/context and separate scoped executor
+credentials. The evidence reader is read-only and never receives deployment patch
+permission. No default manifests enable execution or auto-safe mode.
