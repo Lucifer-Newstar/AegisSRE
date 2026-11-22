@@ -13,11 +13,10 @@ so conventions stay identical across the repo.
 
 from __future__ import annotations
 
-import time
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from prometheus_client import (
     CONTENT_TYPE_LATEST,
     CollectorRegistry,
@@ -27,6 +26,7 @@ from prometheus_client import (
     generate_latest,
 )
 from starlette.responses import Response
+from telemetry.instrumentation import configure_observability
 
 from catalog_service.catalog import CATALOG, Product
 from catalog_service.config import settings
@@ -57,58 +57,8 @@ CATALOG_SIZE = Counter("catalog_products_total", "Total products served", ["serv
 
 
 # ── OpenTelemetry tracing (same graceful pattern as the template) ────────────
-def _init_tracing() -> None:
-    """Wire OTLP trace export when an endpoint is configured; else no-op."""
-    from opentelemetry import trace
-    from opentelemetry.sdk.resources import Resource
-    from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import BatchSpanProcessor
-
-    if not settings.otel_exporter_otlp_endpoint:
-        trace.set_tracer_provider(TracerProvider())
-        return
-
-    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-
-    provider = TracerProvider(
-        resource=Resource.create({"service.name": settings.service_name, "deployment.environment": settings.environment})
-    )
-    provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=settings.otel_exporter_otlp_endpoint, insecure=True)))
-    trace.set_tracer_provider(provider)
-    FastAPIInstrumentor().instrument()
 
 
-def _init_otel_logs() -> None:
-    """Best-effort OTLP log export so Loki can query catalog logs (A1)."""
-    if not settings.otel_exporter_otlp_endpoint:
-        return
-    try:
-        import logging as _logging
-
-        from opentelemetry._logs import set_logger_provider
-        from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
-        from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
-        from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
-        from opentelemetry.sdk.resources import Resource
-
-        provider = LoggerProvider(
-            resource=Resource.create(
-                {
-                    "service.name": settings.service_name,
-                    "deployment.environment": settings.environment,
-                }
-            )
-        )
-        provider.add_log_record_processor(
-            BatchLogRecordProcessor(
-                OTLPLogExporter(endpoint=settings.otel_exporter_otlp_endpoint, insecure=True)
-            )
-        )
-        set_logger_provider(provider)
-        _logging.getLogger().addHandler(LoggingHandler(level=_logging.INFO, logger_provider=provider))
-    except Exception as exc:
-        logger.warning(f"otel log export unavailable: {exc}")
 
 
 # ── FaultHook stub (chaos readiness — implemented in A11) ────────────────────
@@ -134,8 +84,6 @@ fault_hook = FaultHook()
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     """Startup: wire tracing; seed catalog metrics."""
-    _init_tracing()
-    _init_otel_logs()
     CATALOG_SIZE.labels(settings.service_name).inc(len(CATALOG))
     logger.info("catalog-service starting", extra={"products": len(CATALOG)})
     yield
@@ -193,12 +141,7 @@ def list_faults() -> dict[str, list[str]]:
     return {"implemented": [], "planned": ["cpu-saturation", "latency", "http-5xx", "crash"]}
 
 
-@app.middleware("http")
-async def instrument_requests(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
-    """Count and time every request (per-service standard from the template)."""
-    start = time.perf_counter()
-    response = await call_next(request)
-    duration = time.perf_counter() - start
-    REQUESTS.labels(settings.service_name, request.method, request.url.path, str(response.status_code)).inc()
-    REQUEST_DURATION.labels(settings.service_name, request.method, request.url.path).observe(duration)
-    return response
+configure_observability(
+    app, settings.service_name, settings.environment,
+    settings.otel_exporter_otlp_endpoint, REQUESTS, REQUEST_DURATION,
+)

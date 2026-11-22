@@ -32,7 +32,8 @@ class ReadClient:
         chunks: list[bytes] = []
         size = 0
         with self.client.stream(
-            "GET", base.rstrip("/") + path, params=params, timeout=3, follow_redirects=False
+            "GET", base.rstrip("/") + path, params=params, timeout=3, follow_redirects=False,
+            headers={"Accept": "application/json"},
         ) as response:
             response.raise_for_status()
             for chunk in response.iter_bytes():
@@ -48,7 +49,8 @@ class ReadClient:
 
 
 def _event(
-    kind: str, source: str, service: str, environment: str, at: datetime, payload: dict[str, Any]
+    kind: str, source: str, service: str, environment: str, at: datetime, payload: dict[str, Any],
+    *, trace_id: str | None = None,
 ) -> EventEnvelope:
     content = {
         "type": kind,
@@ -58,6 +60,8 @@ def _event(
         "timestamp": at.isoformat(),
         "payload": payload,
     }
+    if trace_id is not None:
+        content["trace_id"] = trace_id
     event_id = "collect_" + hashlib.sha256(json.dumps(content, sort_keys=True).encode()).hexdigest()
     return EventEnvelope(
         id=event_id,
@@ -66,6 +70,7 @@ def _event(
         service=service,
         environment=environment,
         timestamp=at,
+        trace_id=trace_id,
         payload=payload,
     )
 
@@ -75,6 +80,7 @@ class Collector:
         self.config = settings
         self.reader = reader or ReadClient()
         self.failures: dict[str, str] = {}
+        self.evidence_cursor = 0
 
     def queries(self) -> dict[str, tuple[str, str]]:
         scope = f'environment="{self.config.environment}",service=~"{"|".join(self.config.allowed_targets)}"'
@@ -163,7 +169,7 @@ class Collector:
 
     def collect(self, at: datetime | None = None) -> list[EventEnvelope]:
         point = (at or now()).astimezone(UTC).replace(microsecond=0)
-        self.failures = {}
+        self.failures = {key: value for key, value in self.failures.items() if key.startswith(("loki:", "tempo:"))}
         collected: list[EventEnvelope] = []
         metadata: dict[str, dict[str, Any]] = {}
         if self.config.registry_url:
@@ -253,6 +259,26 @@ class Collector:
                     },
                 )
             )
+        # Stagger one service per tick so slow evidence stores do not multiply
+        # the fast delivery loop's network work by the entire service catalogue.
+        from incidents_service.signal_evidence import SignalEvidence
+
+        service = self.config.allowed_targets[self.evidence_cursor % len(self.config.allowed_targets)]
+        self.evidence_cursor += 1
+        evidence = SignalEvidence(self.config, self.reader)
+        self.failures.pop(f"loki:{service}", None)
+        self.failures.pop(f"tempo:{service}", None)
+        logs: list[EventEnvelope] = []
+        try:
+            logs = evidence.logs(service, point)
+            collected.extend(logs)
+        except (httpx.HTTPError, ValueError, TypeError, KeyError, IndexError, OverflowError) as exc:
+            self.failures[f"loki:{service}"] = type(exc).__name__
+        try:
+            identity = next((event.trace_id for event in logs if event.trace_id), None)
+            collected.extend(evidence.trace(service, identity, point) if identity else evidence.traces(service, point))
+        except (httpx.HTTPError, ValueError, TypeError, KeyError, IndexError, OverflowError) as exc:
+            self.failures[f"tempo:{service}"] = type(exc).__name__
         return collected
 
     def close(self) -> None:

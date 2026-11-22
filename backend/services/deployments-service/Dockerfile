@@ -4,7 +4,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /build
 COPY backend/services/deployments-service/requirements.txt .
 COPY backend/libs/storage /tmp/storage
-RUN pip install --no-cache-dir /tmp/storage -r requirements.txt
+COPY backend/libs/telemetry /tmp/telemetry
+RUN pip install --no-cache-dir "/tmp/telemetry[observability]" /tmp/storage -r requirements.txt
 
 FROM python:3.12-slim AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \

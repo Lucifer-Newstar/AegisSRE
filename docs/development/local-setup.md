@@ -141,5 +141,14 @@ is still a remaining acceptance item. See [Kubernetes notes](../../infra/k8s/REA
   that service's `/ready` response.
 - If imports fail, activate the virtual environment and reinstall
   `requirements-dev.txt`; the new storage library is a local package.
-- For manual image builds of registry/deployments, use the repository root as
-  context, for example `docker build -f backend/services/registry-service/Dockerfile .`.
+- For manual image builds of demo and metadata services, use the repository root
+  as context, for example `docker build -f demoapp/aegisshop/catalog-service/Dockerfile .`
+  or `docker build -f backend/services/registry-service/Dockerfile .`.
+- The shared telemetry library's `observability` extra owns each application's
+  OTLP providers and request-context log handler. Configure instrumentation before
+  startup. A blank OTLP endpoint disables exports without changing global providers.
+- Loki queries use `service_name` and `deployment_environment` labels. Logs include
+  `trace_id` in their JSON bodies when emitted in a request; collected events retain
+  it as a top-level envelope field. Collector failures are visible at `/runtime`.
+- `python3 scripts/check_observability_stack.py` checks actual OTLP, Loki, Tempo,
+  Redis and SQL delivery on a running disposable stack. It is not an RCA benchmark.

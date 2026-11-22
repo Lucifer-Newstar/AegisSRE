@@ -34,6 +34,12 @@ limits_config:
   # Keep local-dev ingestion permissive
   allow_structured_metadata: true
   volume_enabled: true
+  otlp_config:
+    resource_attributes:
+      ignore_defaults: true
+      attributes_config:
+        - action: index_label
+          attributes: [service.name, service.namespace, deployment.environment]
 
 compactor:
   working_directory: /loki/retention

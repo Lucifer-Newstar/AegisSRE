@@ -162,7 +162,9 @@ services:
   # (metrics + traces → OTLP collector → Prometheus/Tempo → Grafana) end to
   # end. More AegisShop services join in P2.
   catalog-service:
-    build: ./demoapp/aegisshop/catalog-service
+    build:
+      context: .
+      dockerfile: demoapp/aegisshop/catalog-service/Dockerfile
     image: aegisshop/catalog-service:0.1.0
     container_name: aegisshop-catalog
     environment:
@@ -178,7 +180,9 @@ services:
     logging: *default-logging
 
   cart-service:
-    build: ./demoapp/aegisshop/cart-service
+    build:
+      context: .
+      dockerfile: demoapp/aegisshop/cart-service/Dockerfile
     image: aegisshop/cart-service:0.1.0
     container_name: aegisshop-cart
     environment:
@@ -194,7 +198,9 @@ services:
     logging: *default-logging
 
   order-service:
-    build: ./demoapp/aegisshop/order-service
+    build:
+      context: .
+      dockerfile: demoapp/aegisshop/order-service/Dockerfile
     image: aegisshop/order-service:0.1.0
     container_name: aegisshop-order
     environment:
@@ -212,7 +218,9 @@ services:
     logging: *default-logging
 
   payment-service:
-    build: ./demoapp/aegisshop/payment-service
+    build:
+      context: .
+      dockerfile: demoapp/aegisshop/payment-service/Dockerfile
     image: aegisshop/payment-service:0.1.0
     container_name: aegisshop-payment
     environment:
