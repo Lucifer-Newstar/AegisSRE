@@ -49,6 +49,11 @@ def main() -> None:
             assert "Mock data" not in text and "mock payload" not in text
             assert "No data substituted" not in text and "API connection failed" not in text
             assert "API unavailable" not in text and "Incident unavailable" not in text
+    with opener.open(ORIGIN+"/services/catalog-service",timeout=30) as response:
+        content=response.read().decode()
+        assert "24h observed metric history" in content
+        assert "observed samples over 24 hours" in content
+        assert "API unavailable" not in content and "No data substituted" not in content
     try:
         opener.open(urllib.request.Request(
             ORIGIN + "/api/decision", data=b"id=fixture&decision=approve",
