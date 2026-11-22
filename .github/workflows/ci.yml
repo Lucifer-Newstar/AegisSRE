@@ -245,7 +245,7 @@ jobs:
           pip install -r backend/services/incidents-service/requirements.lock
           pip install --no-deps -e backend/services/incidents-service -e backend/libs/storage -e backend/libs/telemetry -e backend/libs/eventbus
       - name: Exercise real PostgreSQL and Redis delivery guarantees
-        run: pytest backend/services/incidents-service/tests/test_intelligence_postgres.py backend/services/incidents-service/tests/test_knowledge_postgres.py backend/services/incidents-service/tests/test_postgres.py backend/libs/storage/tests/test_postgres_storage.py backend/libs/eventbus/tests/test_redis_integration.py
+        run: pytest backend/services/incidents-service/tests/test_deployment_windows_postgres.py backend/services/incidents-service/tests/test_intelligence_postgres.py backend/services/incidents-service/tests/test_knowledge_postgres.py backend/services/incidents-service/tests/test_postgres.py backend/libs/storage/tests/test_postgres_storage.py backend/libs/eventbus/tests/test_redis_integration.py
 
   metadata-compose:
     env:
@@ -311,6 +311,12 @@ jobs:
         run: python3 scripts/check_knowledge_stack.py
       - name: Prove read-only Ask and citations against actually collected metrics
         run: python3 scripts/check_intelligence_stack.py
+      - name: Prove deployment windows through actual metadata, gateway and durable runtime
+        run: python3 scripts/check_deployment_windows_stack.py seed
+      - name: Restart the rollout evaluator without losing the observed result
+        run: docker compose restart incidents-service
+      - name: Verify persisted rollout summary and actual rollout.bad Redis publication
+        run: python3 scripts/check_deployment_windows_stack.py verify
       - name: Collect runtime diagnostics
         if: always()
         run: |
