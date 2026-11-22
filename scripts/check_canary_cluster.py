@@ -71,11 +71,12 @@ def main() -> None:
         for track, port in [("stable", 19101), ("canary", 19102)]:
             name = "ci-catalog-" + track
             # Never patch the actual catalog or reuse a preexisting resource.
-            check = fixture.kubectl(
-                "get", "deployment", name, "-n", ns, "--ignore-not-found", capture=True
-            )
-            if check.strip():
-                raise RuntimeError("Comparison resource already exists")
+            for resource in ("deployment", "service"):
+                check = fixture.kubectl(
+                    "get", resource, name, "-n", ns, "--ignore-not-found", capture=True
+                )
+                if check.strip():
+                    raise RuntimeError("Comparison resource already exists")
             spec = copy.deepcopy(original["spec"])
             spec["replicas"] = 1
             spec["selector"] = {"matchLabels": {"app": name}}
