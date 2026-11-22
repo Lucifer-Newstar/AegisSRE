@@ -631,7 +631,9 @@ def verify() -> None:
                 cwd=ROOT, env={**os.environ, **FIXTURE}, stdout=output, stderr=subprocess.STDOUT,
             )
             try:
+                forwarded_faulty_uid: str | None = None
                 def faulty_rollout_serving() -> Any:
+                    nonlocal forwarded_faulty_uid
                     pods = json.loads(kubectl("get", "pods", "--namespace", NS, "-l",
                         "app.kubernetes.io/name=catalog-service", "-o", "json", capture=True))["items"]
                     ready = [p for p in pods if not p["metadata"].get("deletionTimestamp") and
@@ -639,7 +641,9 @@ def verify() -> None:
                         any(c.get("ready") for c in p["status"].get("containerStatuses", []))]
                     if len(ready) != 1:
                         return None
-                    forwards.start("catalog-service", 9001, 9001)
+                    if forwarded_faulty_uid != ready[0]["metadata"]["uid"]:
+                        forwards.start("catalog-service", 9001, 9001)
+                        forwarded_faulty_uid = ready[0]["metadata"]["uid"]
                     if shop_request(9001, "/products")[0] == 503 and shop_request(9001, "/health")[0] == 200:
                         return {"pod_uid": ready[0]["metadata"]["uid"],
                                 "image": ready[0]["spec"]["containers"][0]["image"],
