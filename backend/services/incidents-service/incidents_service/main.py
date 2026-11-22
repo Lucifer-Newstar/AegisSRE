@@ -7,9 +7,10 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Annotated, Any, Literal
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from prometheus_client import CollectorRegistry, Counter, generate_latest
 from pydantic import Field
 from starlette.responses import Response
@@ -18,6 +19,8 @@ from incidents_service.config import Settings
 from incidents_service.engine import DomainError, ReliabilityLoop
 from incidents_service.models import Decision, Event, StrictModel
 from incidents_service.repository import Repository
+
+bearer = HTTPBearer(auto_error=False)
 
 
 class ModeIn(Decision):
@@ -56,10 +59,12 @@ def create_app(settings: Settings | None = None, repository: Repository | None =
         allow_headers=["Authorization", "Content-Type"],
     )
 
-    def authorized(authorization: Annotated[str | None, Header()] = None) -> None:
+    def authorized(
+        credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)] = None,
+    ) -> None:
         if config.dev_mode and not config.api_token:
             return
-        supplied = authorization.removeprefix("Bearer ") if authorization else ""
+        supplied = credentials.credentials if credentials else ""
         if not supplied or not hmac.compare_digest(supplied, config.api_token):
             raise HTTPException(status_code=401, detail="Valid bearer token required")
 

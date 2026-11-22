@@ -100,3 +100,11 @@ def test_aware_nonfuture_timestamp_required() -> None:
         Event.model_validate({**base, "timestamp": "2026-11-22T12:00:00"})
     with pytest.raises(ValidationError):
         Event.model_validate({**base, "timestamp": now() + timedelta(minutes=2)})
+
+
+def test_openapi_exposes_bearer_security_without_secrets() -> None:
+    with client() as http:
+        schema = http.get("/openapi.json").json()
+        assert schema["components"]["securitySchemes"]["HTTPBearer"]["scheme"] == "bearer"
+        assert schema["paths"]["/events"]["post"]["security"] == [{"HTTPBearer": []}]
+        assert "test-token" not in http.get("/openapi.json").text
