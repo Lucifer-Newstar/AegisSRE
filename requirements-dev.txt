@@ -1,0 +1,13 @@
+-c backend/services/incidents-service/requirements.lock
+pyyaml
+-e backend/libs/telemetry[dev]
+-e backend/libs/eventbus[dev]
+-e backend/libs/storage[dev]
+-e backend/services/_template[dev]
+-e backend/services/registry-service[dev]
+-e backend/services/deployments-service[dev]
+-e backend/services/incidents-service[dev]
+-e demoapp/aegisshop/catalog-service[dev]
+-e demoapp/aegisshop/cart-service[dev]
+-e demoapp/aegisshop/order-service[dev]
+-e demoapp/aegisshop/payment-service[dev]
