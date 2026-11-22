@@ -251,6 +251,14 @@ class Transaction:
     def emit(self, document: dict[str, Any]) -> None:
         self.conn.execute(insert(outbox).values(document=document))
 
+    def queued_event(self, event_id: str) -> dict[str, Any] | None:
+        row = self.conn.execute(
+            select(outbox.c.document)
+            .where(outbox.c.document["id"].as_string() == event_id)
+            .limit(1)
+        ).scalar_one_or_none()
+        return dict(row) if row is not None else None
+
     def pending(self, limit: int = 100) -> list[tuple[int, dict[str, Any]]]:
         return [
             (row.seq, dict(row.document))

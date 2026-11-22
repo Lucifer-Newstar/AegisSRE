@@ -18,8 +18,10 @@ click==8.5.1
     # via uvicorn
 cloudpickle==3.1.3
     # via joblib
+fakeredis==2.40.0
+    # via aegissre-incidents-service
 fastapi==0.165.0
-    # via aegissre-incidents-service (backend/services/incidents-service/pyproject.toml)
+    # via aegissre-incidents-service
 h11==0.16.0
     # via
     #   httpcore
@@ -29,7 +31,7 @@ httpcore==1.0.9
 httptools==0.9.0
     # via uvicorn
 httpx==0.28.1
-    # via aegissre-incidents-service (backend/services/incidents-service/pyproject.toml)
+    # via aegissre-incidents-service
 idna==3.20
     # via
     #   anyio
@@ -41,7 +43,7 @@ joblib==1.6.0
 librt==0.17.0
     # via mypy
 mypy==2.4.1
-    # via aegissre-incidents-service (backend/services/incidents-service/pyproject.toml)
+    # via aegissre-incidents-service
 mypy-extensions==1.2.0
     # via
     #   librt
@@ -61,47 +63,53 @@ pathspec==1.1.1
 pluggy==1.7.0
     # via pytest
 prometheus-client==0.26.0
-    # via aegissre-incidents-service (backend/services/incidents-service/pyproject.toml)
+    # via aegissre-incidents-service
 psycopg==3.3.9
-    # via aegissre-incidents-service (backend/services/incidents-service/pyproject.toml)
+    # via aegissre-incidents-service
 psycopg-binary==3.3.9
     # via psycopg
 pydantic==2.14.4
     # via
+    #   aegissre-telemetry
     #   fastapi
     #   pydantic-settings
 pydantic-core==2.50.5
     # via pydantic
 pydantic-settings==2.16.3
-    # via aegissre-incidents-service (backend/services/incidents-service/pyproject.toml)
+    # via aegissre-incidents-service
 pygments==2.21.0
     # via pytest
 pytest==9.2.0
-    # via aegissre-incidents-service (backend/services/incidents-service/pyproject.toml)
+    # via aegissre-incidents-service
 python-dotenv==1.2.4
     # via
     #   pydantic-settings
     #   uvicorn
 pyyaml==6.0.4
     # via
-    #   aegissre-incidents-service (backend/services/incidents-service/pyproject.toml)
+    #   aegissre-incidents-service
     #   uvicorn
 redis==8.1.0
-    # via aegissre-incidents-service (backend/services/incidents-service/pyproject.toml)
+    # via
+    #   aegissre-eventbus
+    #   aegissre-incidents-service
+    #   fakeredis
 ruff==0.17.6
-    # via aegissre-incidents-service (backend/services/incidents-service/pyproject.toml)
+    # via aegissre-incidents-service
 scikit-learn==1.9.1
-    # via aegissre-incidents-service (backend/services/incidents-service/pyproject.toml)
+    # via aegissre-incidents-service
 scipy==1.18.1
     # via scikit-learn
+sortedcontainers==2.4.0
+    # via fakeredis
 sqlalchemy==2.1.9
-    # via aegissre-incidents-service (backend/services/incidents-service/pyproject.toml)
+    # via aegissre-incidents-service
 starlette==1.10.0
     # via fastapi
 threadpoolctl==3.8.0
     # via scikit-learn
 types-pyyaml==6.0.12.20261122
-    # via aegissre-incidents-service (backend/services/incidents-service/pyproject.toml)
+    # via aegissre-incidents-service
 typing-extensions==4.16.0
     # via
     #   anyio
@@ -121,10 +129,15 @@ typing-inspection==0.4.5
     #   pydantic
     #   pydantic-settings
 uvicorn==0.54.0
-    # via aegissre-incidents-service (backend/services/incidents-service/pyproject.toml)
+    # via aegissre-incidents-service
 uvloop==0.23.0
     # via uvicorn
 watchfiles==1.3.0
     # via uvicorn
 websockets==17.4
     # via uvicorn
+
+# The following packages were excluded from the output:
+# aegissre-telemetry
+# aegissre-eventbus
+# aegissre-incidents-service
