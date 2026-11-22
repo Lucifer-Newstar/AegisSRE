@@ -62,3 +62,9 @@ def test_pair_mismatch_and_duplicates_rejected() -> None:
 def test_sample_standard_deviation_and_no_data() -> None:
     assert describe([]) == {"n": 0, "mean": None, "sample_std": None}
     assert describe([1, 3]) == {"n": 2, "mean": 2, "sample_std": pytest.approx(2**0.5)}
+
+
+def test_unpaired_experiments_are_reported_not_hidden() -> None:
+    result = summarize(Dataset(partition="held_out", records=[row()], review_reference="unit"))
+    assert result["unpaired_experiment_ids"] == ["example-pair"]
+    assert result["cohort_complete"] is False

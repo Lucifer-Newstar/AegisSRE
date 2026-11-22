@@ -126,23 +126,26 @@ def summarize(dataset: Dataset) -> dict[str, Any]:
                 "autonomy_unobserved_results": sum(r.autonomous_succeeded is None for r in executed),
                 "safety_violations": sum(r.safety_violations for r in rows)})
     paired = []
+    unpaired_ids = []
     for pair in sorted({r.pair_id for r in dataset.records}):
         workflows = {r.workflow: r for r in dataset.records if r.pair_id == pair}
         if set(workflows) != {"manual", "aegis"}:
+            unpaired_ids.append(pair)
             continue
         for metric, field in (("mttd", "detected_at"), ("mttr", "recovered_at")):
             manual, aegis = workflows["manual"], workflows["aegis"]
             m, a = seconds(getattr(manual, field), manual.onset_at), seconds(getattr(aegis, field), aegis.onset_at)
             paired.append({"pair_id": pair, "fault": manual.fault, "metric": metric,
                            "manual_minus_aegis_seconds": m-a if m is not None and a is not None else None})
-    return {"schema_version": "1", "cohort_complete": adequate,
+    return {"schema_version": "1", "cohort_complete": adequate and not unpaired_ids,
+            "unpaired_experiment_ids": unpaired_ids,
             "record_count": len(dataset.records), "groups": groups, "paired_differences": paired,
             "review_reference": dataset.review_reference,
             "limitations": ["Input references/digests are declarations, not verified by this offline reporter.",
                 "Means/std use observed intervals only; missing/censored outcomes remain in counts and coverage.",
                 "Repetition counts alone do not prove detector precision/recall, causal correctness, RAG recall, DI accuracy or model quality.",
                 "Manual inputs must be observed by the named human, never inferred from an assumed response delay.",
-                "cohort_complete checks ten completed runs per fault/workflow only, not all project acceptance thresholds."]}
+                "cohort_complete checks pairing and ten completed runs per fault/workflow only, not all project acceptance thresholds."]}
 
 
 def main() -> None:
