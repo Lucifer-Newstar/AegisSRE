@@ -18,13 +18,16 @@ from sqlalchemy import (
     JSON,
     Boolean,
     Column,
+    DateTime,
     Float,
     Integer,
     MetaData,
     String,
     Table,
+    cast,
     create_engine,
     delete,
+    func,
     insert,
     select,
     text,
@@ -32,6 +35,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.engine import Connection
 from sqlalchemy.pool import StaticPool
+from sqlalchemy.sql.elements import ColumnElement
 
 from incidents_service.models import Event, Incident, Metric
 
@@ -83,6 +87,14 @@ class Transaction:
     def __init__(self, connection: Connection):
         self.conn = connection
 
+    @property
+    def event_time(self) -> ColumnElement[Any]:
+        # Older records can carry equivalent timestamps with different offsets.
+        # Compare instants, not lexicographic ISO strings. No data rewrite needed.
+        if self.conn.dialect.name == "sqlite":
+            return func.julianday(events.c.timestamp)
+        return cast(events.c.timestamp, DateTime(timezone=True))
+
     def event(self, event_id: str) -> dict[str, Any] | None:
         row = self.conn.execute(
             select(events.c.document).where(events.c.id == event_id)
@@ -90,6 +102,7 @@ class Transaction:
         return dict(row) if row is not None else None
 
     def add_event(self, event: Event, normal: bool = False) -> None:
+        event = event.model_copy(update={"timestamp": event.timestamp.astimezone(UTC)})
         metric = Metric.model_validate(event.payload) if event.type == "metric" else None
         self.conn.execute(
             insert(events).values(
@@ -109,7 +122,7 @@ class Transaction:
         rows = self.conn.execute(
             select(events.c.timestamp, events.c.value)
             .where(events.c.series == series, events.c.normal.is_(True))
-            .order_by(events.c.timestamp.desc())
+            .order_by(self.event_time.desc(), events.c.id.desc())
             .limit(limit)
         ).all()
         return [(str(row.timestamp), float(row.value)) for row in reversed(rows)]
@@ -121,7 +134,7 @@ class Transaction:
         row = self.conn.execute(
             select(events.c.document)
             .where(events.c.series == series)
-            .order_by(events.c.timestamp.desc())
+            .order_by(self.event_time.desc(), events.c.id.desc())
             .limit(1)
         ).scalar_one_or_none()
         return dict(row) if row is not None else None
@@ -132,6 +145,9 @@ class Transaction:
         environment: str | None = None,
         event_type: str | None = None,
         limit: int = 100,
+        *,
+        not_before: datetime | None = None,
+        not_after: datetime | None = None,
     ) -> list[dict[str, Any]]:
         query = select(events.c.document)
         if service is not None:
@@ -140,10 +156,21 @@ class Transaction:
             query = query.where(events.c.environment == environment)
         if event_type is not None:
             query = query.where(events.c.type == event_type)
+        for bound, lower in ((not_before, True), (not_after, False)):
+            if bound is not None:
+                if bound.tzinfo is None:
+                    raise ValueError("Evidence window bounds require timezones")
+                instant = bound.astimezone(UTC)
+                value = (
+                    func.julianday(instant.isoformat())
+                    if self.conn.dialect.name == "sqlite"
+                    else instant
+                )
+                query = query.where(self.event_time >= value if lower else self.event_time <= value)
         return [
             dict(row)
             for row in self.conn.execute(
-                query.order_by(events.c.timestamp.desc()).limit(limit)
+                query.order_by(self.event_time.desc(), events.c.id.desc()).limit(limit)
             ).scalars()
         ]
 
