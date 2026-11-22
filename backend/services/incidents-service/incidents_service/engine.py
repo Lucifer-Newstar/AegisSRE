@@ -273,6 +273,7 @@ class ReliabilityLoop:
                 context_error = True
         target_uid = context.pop("target_uid", None)
         template_digest = context.pop("target_template_digest", None)
+        current_template_digest = context.pop("current_template_digest", None)
         live_revision = context.pop("live_revision", None)
         with self.repo.transaction() as tx:
             incident = self._get(tx, incident_id)
@@ -417,6 +418,7 @@ class ReliabilityLoop:
                     expected_uid=target_uid,
                     expected_template_digest=template_digest,
                     expected_revision=live_revision,
+                    expected_current_template_digest=current_template_digest,
                     dispatch_allowed=dispatch_allowed,
                 )
                 if verdict.automatic

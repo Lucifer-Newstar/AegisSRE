@@ -96,6 +96,7 @@ class Executor:
                 "rollback_distance": distance,
                 "live_revision": current,
                 "target_template_digest": self._template_digest(target),
+                "current_template_digest": self._template_digest(spec["template"]),
             }
         replicas = spec.get("replicas")
         if isinstance(replicas, bool) or not isinstance(replicas, int) or not 1 <= replicas < 10:
@@ -142,6 +143,7 @@ class Executor:
         expected_uid: str | None = None,
         expected_template_digest: str | None = None,
         expected_revision: str | None = None,
+        expected_current_template_digest: str | None = None,
         dispatch_allowed: Callable[[], bool] | None = None,
     ) -> ExecutionResult:
         if plan.target not in self.settings.allowed_targets:
@@ -179,6 +181,12 @@ class Executor:
             "action": plan.action,
         }
         if plan.action == "rollback":
+            if automatic and (
+                not expected_current_template_digest
+                or self._template_digest(obj.get("spec", {}).get("template", {}))
+                != expected_current_template_digest
+            ):
+                raise ExecutionError("Current workload template changed after preflight")
             if automatic and (not expected_revision or revision != expected_revision):
                 raise ExecutionError("Current rollout revision changed after preflight")
             if not plan.revision or not plan.revision.isdigit() or not revision.isdigit():

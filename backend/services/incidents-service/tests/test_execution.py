@@ -190,6 +190,7 @@ def test_live_rollback_preflight_rejects_config_changes_and_changed_current_revi
             automatic=True,
             expected_uid="owned",
             expected_revision="5",
+            expected_current_template_digest=context["current_template_digest"],
             expected_template_digest=context["target_template_digest"],
             dispatch_allowed=lambda: True,
         )
