@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tempo
+  labels: &id001
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/part-of: aegissre
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tempo
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - name: tempo
+        image: grafana/tempo:2.6.1
+        ports:
+        - name: http
+          containerPort: 3200
+        - name: otlp-grpc
+          containerPort: 4317
+        - name: otlp-http
+          containerPort: 4318
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+        args:
+        - -config.file=/etc/tempo/tempo.yaml
+        readinessProbe:
+          httpGet: &id002
+            path: /ready
+            port: 3200
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 30
+        startupProbe:
+          httpGet: *id002
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 60
+        livenessProbe:
+          httpGet:
+            path: /ready
+            port: 3200
+          periodSeconds: 15
+          timeoutSeconds: 3
+          failureThreshold: 5
+        volumeMounts:
+        - name: tempo-data
+          mountPath: /var/tempo
+        - name: platform-tempo
+          mountPath: /etc/tempo
+          readOnly: true
+      volumes:
+      - name: tempo-data
+        persistentVolumeClaim:
+          claimName: tempo-data
+      - name: platform-tempo
+        configMap:
+          name: platform-tempo
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault

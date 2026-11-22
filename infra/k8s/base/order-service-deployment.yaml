@@ -17,6 +17,7 @@ spec:
         app.kubernetes.io/name: order-service
         app.kubernetes.io/part-of: aegisshop
     spec:
+      automountServiceAccountToken: false
       containers:
         - name: order-service
           image: aegisshop/order-service:0.1.0
@@ -30,10 +31,10 @@ spec:
               value: "9003"
             - name: ENVIRONMENT
               value: dev
+            - name: CART_SERVICE_URL
+              value: http://cart-service:9002
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: http://otel-collector:4317
-            - name: CART_SERVICE_URL
-              value: "http://cart-service:9002" 
           readinessProbe:
             httpGet:
               path: /ready

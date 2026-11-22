@@ -46,7 +46,7 @@ relationships are retained, never Pod specs or environment values.
 
 ## Collection and attribution
 
-Four bounded HTTPS list calls collect Deployments, ReplicaSets, Pods and events.
+Four bounded HTTPS resource lists collect Deployments, ReplicaSets, Pods and events.
 Workload ownership uses controller UID references from Deployment to ReplicaSet
 to Pod. A matching Pod name alone cannot attribute an event: a recreated Pod has
 a different UID. Event namespace and regarding-object namespace must both match.
@@ -55,10 +55,11 @@ observed time and aggregate count. `series.lastObservedTime` takes precedence
 over first occurrence time, so repeated event series preserve their observation
 time rather than being stamped as newly observed on every poll.
 
-The reader caps each response at 1MB and each resource list at 100 items. A
-continuation token is reported as an incomplete-list failure, not silently
-accepted as a complete scan. Redirects, compressed responses, malformed lists,
-wrong namespaces, invalid credentials and oversized data fail closed. Network collection
+Each resource list permits up to five pages of 100 items with a shared 1MB byte
+budget. Pagination stays on the same fixed origin/path and namespace. Repeated
+or invalid cursors, an unfinished fifth page and oversized data fail closed,
+rather than accepting a partial ownership snapshot. Redirects, compressed responses, malformed lists,
+wrong namespaces and invalid credentials also fail closed. Network collection
 has a ten-second deadline. Throttling or access denial stops the background
 reader until operator intervention/restart rather than repeatedly hitting the
 account.
@@ -109,7 +110,11 @@ A passing hosted run is the evidence for those narrow claims. This job does not
 prove full platform bootstrap on kind, Redis dispatch inside Kubernetes, model
 quality, remediation, ten fault types, or the numerical evaluation thresholds.
 Actual PostgreSQL/Redis and full Compose runtime checks are separate CI jobs.
-The broader D1/A11/A12 acceptance gates remain open.
+This narrow job does not close D1/A11/A12 on its own.
+
+The separate [complete local-demo kind assembly](kind-platform.md) and its hosted
+gate cover full-platform startup and in-cluster Redis/SQL transport. They remain
+separate from real-fault, model-quality and numerical evaluation acceptance.
 
 Sources checked for the protocol and permission model:
 

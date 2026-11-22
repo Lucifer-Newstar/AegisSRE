@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  labels: &id001
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/part-of: aegissre
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grafana
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - name: grafana
+        image: grafana/grafana:11.3.0
+        ports:
+        - name: http
+          containerPort: 3000
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 384Mi
+        env:
+        - name: GF_SECURITY_ADMIN_USER
+          valueFrom:
+            secretKeyRef:
+              name: aegissre-grafana
+              key: username
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: aegissre-grafana
+              key: password
+        - name: GF_USERS_ALLOW_SIGN_UP
+          value: 'false'
+        readinessProbe:
+          httpGet: &id002
+            path: /api/health
+            port: 3000
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 30
+        startupProbe:
+          httpGet: *id002
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 60
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          periodSeconds: 15
+          timeoutSeconds: 3
+          failureThreshold: 5
+        volumeMounts:
+        - name: grafana-data
+          mountPath: /var/lib/grafana
+        - name: platform-grafana-datasources
+          mountPath: /etc/grafana/provisioning/datasources
+          readOnly: true
+        - name: platform-grafana-provisioning
+          mountPath: /etc/grafana/provisioning/dashboards
+          readOnly: true
+        - name: platform-grafana-dashboards
+          mountPath: /var/lib/grafana/dashboards
+          readOnly: true
+      volumes:
+      - name: grafana-data
+        persistentVolumeClaim:
+          claimName: grafana-data
+      - name: platform-grafana-datasources
+        configMap:
+          name: platform-grafana-datasources
+      - name: platform-grafana-provisioning
+        configMap:
+          name: platform-grafana-provisioning
+      - name: platform-grafana-dashboards
+        configMap:
+          name: platform-grafana-dashboards
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 472
+        runAsGroup: 472
+        fsGroup: 472
+        seccompProfile:
+          type: RuntimeDefault

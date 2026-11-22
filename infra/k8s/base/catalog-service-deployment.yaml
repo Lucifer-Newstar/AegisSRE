@@ -19,6 +19,7 @@ spec:
         app.kubernetes.io/name: catalog-service
         app.kubernetes.io/part-of: aegisshop
     spec:
+      automountServiceAccountToken: false
       containers:
         - name: catalog-service
           image: aegisshop/catalog-service:0.1.0

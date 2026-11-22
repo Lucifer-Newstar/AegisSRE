@@ -130,10 +130,13 @@ def seed() -> None:
         for kind in ("anomaly", "incident", "audit"):
 
             def output_seen(event_type: str = kind) -> bool:
-                return any(
-                    json.loads(fields["envelope"])["service"] == "ci-runtime"
-                    for _, fields in redis.xrange(f"st:{event_type}", count=1000)
-                )
+                entries = redis.xrange(f"st:{event_type}", count=1000)
+                assert isinstance(entries, list), "Redis returned an invalid stream response"
+                for _, fields in entries:
+                    assert isinstance(fields, dict), "Redis returned a stream entry without fields"
+                    if json.loads(fields["envelope"])["service"] == "ci-runtime":
+                        return True
+                return False
 
             wait_for(output_seen, f"transactional {kind} outbox dispatch")
         redis.xadd("st:metric", {"envelope": "ci malformed-envelope fixture"})

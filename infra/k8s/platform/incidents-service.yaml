@@ -1,0 +1,128 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: incidents-service
+  labels: &id001
+    app.kubernetes.io/name: incidents-service
+    app.kubernetes.io/part-of: aegissre
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: incidents-service
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      automountServiceAccountToken: true
+      containers:
+      - name: incidents-service
+        image: aegissre/incidents-service:0.1.0
+        ports:
+        - name: http
+          containerPort: 8201
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+        env:
+        - name: AEGIS_DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: aegissre-database
+              key: url
+        - name: AEGIS_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: aegissre-operator
+              key: incidents-token
+        - name: AEGIS_DEV_MODE
+          value: 'false'
+        - name: AEGIS_EXECUTOR
+          value: simulation
+        - name: AEGIS_REDIS_URL
+          value: redis://redis:6379/0
+        - name: AEGIS_WORKER_ENABLED
+          value: 'true'
+        - name: AEGIS_COLLECTOR_ENABLED
+          value: 'true'
+        - name: AEGIS_KNOWLEDGE_ENABLED
+          value: 'true'
+        - name: AEGIS_LLM_PROVIDER
+          value: disabled
+        - name: AEGIS_POLL_SECONDS
+          value: '15'
+        - name: AEGIS_ENVIRONMENT
+          value: dev
+        - name: AEGIS_PROMETHEUS_URL
+          value: http://prometheus:9090
+        - name: AEGIS_METADATA_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: aegissre-metadata
+              key: read-token
+        - name: AEGIS_REGISTRY_URL
+          value: http://registry-service:8101
+        - name: AEGIS_DEPLOYMENTS_URL
+          value: http://deployments-service:8701
+        - name: AEGIS_LOKI_URL
+          value: http://loki:3100
+        - name: AEGIS_TEMPO_URL
+          value: http://tempo:3200
+        - name: AEGIS_KUBE_EVIDENCE_ENABLED
+          value: 'true'
+        - name: AEGIS_KUBE_API_URL
+          value: https://kubernetes.default.svc
+        - name: AEGIS_KUBE_NAMESPACE
+          value: aegissre-demo
+        readinessProbe:
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 30
+          exec:
+            command:
+            - python
+            - -c
+            - import os,urllib.request; r=urllib.request.Request("http://localhost:8201/ready",headers={"Authorization":"Bearer
+              "+os.environ["AEGIS_API_TOKEN"]}); urllib.request.urlopen(r,timeout=2).close()
+        startupProbe:
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 60
+          exec:
+            command:
+            - python
+            - -c
+            - import os,urllib.request; r=urllib.request.Request("http://localhost:8201/ready",headers={"Authorization":"Bearer
+              "+os.environ["AEGIS_API_TOKEN"]}); urllib.request.urlopen(r,timeout=2).close()
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8201
+          periodSeconds: 15
+          timeoutSeconds: 3
+          failureThreshold: 5
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: scratch
+          mountPath: /tmp
+      volumes:
+      - name: scratch
+        emptyDir:
+          sizeLimit: 128Mi
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: aegissre-evidence

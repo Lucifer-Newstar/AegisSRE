@@ -17,6 +17,7 @@ spec:
         app.kubernetes.io/name: console
         app.kubernetes.io/part-of: aegissre
     spec:
+      automountServiceAccountToken: false
       containers:
         - name: console
           image: aegissre/console:0.1.0
@@ -30,6 +31,12 @@ spec:
               value: "3030"
             - name: ENVIRONMENT
               value: dev
+            - name: REGISTRY_URL
+              value: http://registry-service:8101
+            - name: DEPLOYMENTS_URL
+              value: http://deployments-service:8701
+            - name: HOSTNAME
+              value: 0.0.0.0
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: http://otel-collector:4317
           readinessProbe:
