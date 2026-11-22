@@ -128,7 +128,7 @@ jobs:
 
       - name: Types (mypy --strict)
         run: >
-          mypy backend/libs/security scripts/ci backend/services/api-gateway backend/libs/telemetry backend/libs/eventbus backend/libs/storage
+          mypy demoapp/libs/fault-hooks backend/libs/security scripts/ci backend/services/api-gateway backend/libs/telemetry backend/libs/eventbus backend/libs/storage
           backend/services/_template
           backend/services/registry-service
           backend/services/deployments-service
@@ -140,7 +140,7 @@ jobs:
 
       - name: Tests (pytest)
         run: >
-          pytest backend/libs/security backend/services/api-gateway backend/libs/telemetry backend/libs/eventbus backend/libs/storage
+          pytest demoapp/libs/fault-hooks backend/libs/security backend/services/api-gateway backend/libs/telemetry backend/libs/eventbus backend/libs/storage
           backend/services/_template
           backend/services/registry-service
           backend/services/deployments-service

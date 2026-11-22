@@ -1,5 +1,6 @@
 -c backend/services/incidents-service/requirements.lock
 pyyaml
+-e demoapp/libs/fault-hooks[dev]
 -e backend/libs/telemetry[dev]
 -e backend/libs/eventbus[dev]
 -e backend/libs/storage[dev]
