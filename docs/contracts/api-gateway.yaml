@@ -1324,6 +1324,88 @@ paths:
         schema:
           type: string
           pattern: '[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}'
+  /api/v1/deployment-intelligence/rollouts:
+    get:
+      summary: Get Incidents /Deployment-Intelligence/Rollouts
+      operationId: GET_incidents__deployment_intelligence_rollouts_api_v1_deployment_intelligence_rollouts_get
+      security:
+      - HTTPBearer: []
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '400':
+          description: Invalid request
+        '404':
+          description: Unknown resource or route
+        '413':
+          description: Request too large
+        '415':
+          description: JSON required
+        '422':
+          description: Validation failed
+        '401':
+          description: Authentication required
+        '429':
+          description: Rate limit exceeded
+        '502':
+          description: Upstream failure
+        '503':
+          description: Required dependency unavailable
+      parameters:
+      - name: service
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+  /api/v1/deployment-intelligence/summary:
+    get:
+      summary: Get Incidents /Deployment-Intelligence/Summary
+      operationId: GET_incidents__deployment_intelligence_summary_api_v1_deployment_intelligence_summary_get
+      security:
+      - HTTPBearer: []
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '400':
+          description: Invalid request
+        '404':
+          description: Unknown resource or route
+        '413':
+          description: Request too large
+        '415':
+          description: JSON required
+        '422':
+          description: Validation failed
+        '401':
+          description: Authentication required
+        '429':
+          description: Rate limit exceeded
+        '502':
+          description: Upstream failure
+        '503':
+          description: Required dependency unavailable
+      parameters:
+      - name: service
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: since
+        in: query
+        required: false
+        schema:
+          type: string
 components:
   securitySchemes:
     HTTPBearer:

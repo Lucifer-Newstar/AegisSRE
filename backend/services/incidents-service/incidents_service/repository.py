@@ -24,11 +24,14 @@ from sqlalchemy import (
     MetaData,
     String,
     Table,
+    and_,
+    case,
     cast,
     create_engine,
     delete,
     func,
     insert,
+    or_,
     select,
     text,
     update,
@@ -80,6 +83,28 @@ outbox = Table(
     metadata,
     Column("seq", Integer, primary_key=True, autoincrement=True),
     Column("document", JSON, nullable=False),
+)
+
+
+rollouts = Table(
+    "aegis_rollouts",
+    metadata,
+    Column("id", String(80), primary_key=True),
+    Column("service", String(63), index=True, nullable=False),
+    Column("environment", String(40), index=True, nullable=False),
+    Column("started_at", DateTime(timezone=True), index=True, nullable=False),
+    Column("window_end", DateTime(timezone=True), nullable=False),
+    Column("outcome", String(20), index=True, nullable=False),
+    Column("phase", String(20), nullable=False),
+    Column("ambiguous", Boolean, nullable=False),
+    Column("identity_explicit", Boolean, nullable=False),
+    Column("document", JSON, nullable=False),
+)
+rollout_events = Table(
+    "aegis_rollout_events",
+    metadata,
+    Column("event_id", String(160), primary_key=True),
+    Column("rollout_id", String(80), nullable=False),
 )
 
 
@@ -173,6 +198,132 @@ class Transaction:
                 query.order_by(self.event_time.desc(), events.c.id.desc()).limit(limit)
             ).scalars()
         ]
+
+    def rollout(self, rollout_id: str) -> dict[str, Any] | None:
+        row = self.conn.execute(
+            select(rollouts.c.document).where(rollouts.c.id == rollout_id)
+        ).scalar_one_or_none()
+        return dict(row) if row is not None else None
+
+    def save_rollout(self, document: dict[str, Any]) -> None:
+        values = {
+            name: document[name]
+            for name in (
+                "service",
+                "environment",
+                "outcome",
+                "phase",
+                "ambiguous",
+                "identity_explicit",
+            )
+        }
+        values.update(
+            {
+                name: datetime.fromisoformat(document[name]).astimezone(UTC)
+                for name in ("started_at", "window_end")
+            }
+        )
+        values["document"] = document
+        if self.rollout(str(document["id"])) is None:
+            self.conn.execute(insert(rollouts).values(id=document["id"], **values))
+        else:
+            self.conn.execute(
+                update(rollouts).where(rollouts.c.id == document["id"]).values(**values)
+            )
+
+    def map_rollout_event(self, event_id: str, rollout_id: str) -> None:
+        self.conn.execute(insert(rollout_events).values(event_id=event_id, rollout_id=rollout_id))
+
+    def list_rollouts(
+        self,
+        *,
+        service: str | None = None,
+        environment: str | None = None,
+        outcome: str | None = None,
+        limit: int = 100,
+        active_at: datetime | None = None,
+        ended_before: datetime | None = None,
+        overlap_start: datetime | None = None,
+        overlap_end: datetime | None = None,
+    ) -> list[dict[str, Any]]:
+        query = select(rollouts.c.document)
+        for column, value in (
+            (rollouts.c.service, service),
+            (rollouts.c.environment, environment),
+            (rollouts.c.outcome, outcome),
+        ):
+            if value is not None:
+                query = query.where(column == value)
+        if active_at is not None:
+            point = active_at.astimezone(UTC)
+            query = query.where(rollouts.c.started_at <= point, rollouts.c.window_end >= point)
+        if ended_before is not None:
+            query = query.where(rollouts.c.window_end <= ended_before.astimezone(UTC))
+        if overlap_start is not None and overlap_end is not None:
+            query = query.where(
+                rollouts.c.started_at <= overlap_end.astimezone(UTC),
+                rollouts.c.window_end >= overlap_start.astimezone(UTC),
+            )
+        return [
+            dict(row)
+            for row in self.conn.execute(
+                query.order_by(rollouts.c.started_at.desc(), rollouts.c.id.desc()).limit(
+                    max(1, min(limit, 5001))
+                )
+            ).scalars()
+        ]
+
+    def rollout_counts(self, service: str, environment: str, since: datetime) -> dict[str, int]:
+        known_bad = and_(
+            rollouts.c.outcome == "bad",
+            or_(rollouts.c.ambiguous.is_(False), rollouts.c.phase == "failed"),
+        )
+        known_healthy = and_(rollouts.c.outcome == "healthy", rollouts.c.ambiguous.is_(False))
+        identified = rollouts.c.identity_explicit.is_(True)
+        expressions = {
+            "identified": identified,
+            "unidentified": rollouts.c.identity_explicit.is_(False),
+            "bad": and_(identified, known_bad),
+            "healthy": and_(identified, known_healthy),
+        }
+        result = (
+            self.conn.execute(
+                select(
+                    *(
+                        func.sum(case((expression, 1), else_=0)).label(name)
+                        for name, expression in expressions.items()
+                    )
+                ).where(
+                    rollouts.c.service == service,
+                    rollouts.c.environment == environment,
+                    rollouts.c.started_at >= since.astimezone(UTC),
+                )
+            )
+            .mappings()
+            .one()
+        )
+        counts = {name: int(result[name] or 0) for name in expressions}
+        bound = (
+            func.julianday(since.astimezone(UTC).isoformat())
+            if self.conn.dialect.name == "sqlite"
+            else since.astimezone(UTC)
+        )
+        missing = self.conn.execute(
+            select(func.count())
+            .select_from(events)
+            .where(
+                events.c.service == service,
+                events.c.environment == environment,
+                events.c.type == "deployment",
+                events.c.document["payload"]["action"].as_string() == "deploy",
+                self.event_time >= bound,
+                ~select(rollout_events.c.event_id)
+                .where(rollout_events.c.event_id == events.c.id)
+                .exists(),
+            )
+        ).scalar_one()
+        counts["unmapped_events"] = int(missing)
+        return counts
 
     def incident(self, incident_id: str) -> Incident | None:
         row = self.conn.execute(

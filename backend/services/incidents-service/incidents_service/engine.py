@@ -7,6 +7,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
+from incidents_service import deployment_intelligence as deploy_intel
 from incidents_service.config import Settings
 from incidents_service.detection import detect, upper_bound_metric
 from incidents_service.execution import Executor
@@ -108,6 +109,11 @@ class ReliabilityLoop:
                         isolation_score=verdict.isolation_score,
                     )
             tx.add_event(event, normal=normal)
+            if event.type == "deployment":
+                try:
+                    deploy_intel.register(tx, event)
+                except deploy_intel.DeploymentConflict as exc:
+                    raise DomainError(str(exc)) from exc
             active = tx.active_incident(event.service, event.environment)
             if signal is not None:
                 active = self._on_anomaly(tx, event, signal, active, window_start)
@@ -115,6 +121,7 @@ class ReliabilityLoop:
                 self._verify(tx, active, event)
             if active:
                 tx.save_incident(active)
+            deploy_intel.observe(tx, event, signal, ready, active.id if active else None)
             return {
                 "event_id": event.id,
                 "duplicate": False,
@@ -386,6 +393,7 @@ class ReliabilityLoop:
 
     def sweep(self, *, recover_interrupted: bool = False) -> None:
         with self.repo.transaction() as tx:
+            deploy_intel.finalize(tx)
             for incident in tx.list_incidents(limit=10000):
                 reason = None
                 if recover_interrupted and incident.status == "remediating":

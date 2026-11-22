@@ -21,6 +21,7 @@ from incidents_service.engine import DomainError, ReliabilityLoop
 logger = logging.getLogger(__name__)
 INPUT_TYPES = ("deployment", "log", "trace", "k8s_event", "metric", "health")
 RETENTION = {
+    "st:rollout.bad": 2592000,
     "st:metric": 3600,
     "st:health": 3600,
     "st:log": 86400,
