@@ -146,6 +146,7 @@ class Incident(StrictModel):
     undo: dict[str, Any] | None = None
     change_correlation: str | None = None
     fault_started_at: datetime | None = None
+    detected_event_at: datetime | None = None
     verification_deadline: datetime | None = None
 
 
