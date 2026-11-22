@@ -117,3 +117,23 @@ def test_config_error_restores_exact_prior_environment_entry(tmp_path: Path, mon
     patch = json.loads(patch_call.args[patch_call.args.index("--patch") + 1])
     entry = patch["spec"]["template"]["spec"]["containers"][0]["env"][0]
     assert entry == (existing or {"name": "CATALOG_MAX_PRODUCTS", "$patch": "delete"})
+def test_opt_in_lifespan_really_terminates_its_own_process() -> None:
+    import os
+    import subprocess
+    import sys
+
+    # A fresh child, never the pytest process. No server/port or fake os.kill.
+    program = '''
+import asyncio, os, signal
+from fastapi import FastAPI
+from aegisshop_faults import configure_fault_hooks
+app = FastAPI()
+configure_fault_hooks(app)
+async def check():
+    async with app.router.lifespan_context(app):
+        os.kill(os.getpid(), signal.SIGUSR1)
+asyncio.run(check())
+'''
+    result = subprocess.run([sys.executable, "-c", program],
+        env={**os.environ, "AEGIS_SHOP_FAULTS_ENABLED": "true"}, timeout=10)
+    assert result.returncode == -9
