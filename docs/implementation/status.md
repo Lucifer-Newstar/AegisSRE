@@ -334,3 +334,33 @@ See [metadata authentication](../operations/metadata-auth.md).
 The target is November 25, with quality taking priority over the date. External
 LLM credentials/model choice and authorization for any real cluster are separate
 configuration decisions. No real infrastructure action is assumed.
+
+## Milestone 3a: observed deployment windows and honest CFR
+
+Deployment lifecycle events can now carry an explicit logical identity and an
+aware producer start without breaking replay of older stored envelopes. The
+reliability transaction persists 180-second windows, source-event mappings,
+observations and one idempotent `rollout.bad` domain event. Separate actual
+flag/source clocks avoid presenting a historical fixture as fast detection.
+Missing baselines, health, identity or unambiguous attribution cannot manufacture
+healthy deployments or a complete CFR denominator. Late evidence invalidates
+stale healthy results. Counts use SQL aggregates instead of bounded history.
+
+Protected gateway reads expose rollout state and a scoped summary. This is an
+observed-outcome foundation for DI-4/DI-7, not predictive risk/canary scoring,
+causal proof or authority to execute a rollback. Detailed rules and proof limits
+are in [deployment windows](../operations/deployment-windows.md).
+
+Local checks: 263 passing tests, seven actual-server tests deliberately skipped
+without their external services, strict mypy across 116 files and Ruff/contracts.
+Hosted gates must pass before merge: actual PostgreSQL grouping, counts and
+reopen; actual metadata-to-runtime collection, authenticated gateway reads,
+application restart and Redis `rollout.bad` publication from labelled synthetic
+CI inputs. These gates do not establish real-fault accuracy or three-minute
+acceptance. DI-2/DI-6, remaining correlation/rollback integration, the complete
+console, kind bootstrap and measured full acceptance remain open.
+
+Project positioning now names the existing security controls as DevSecOps and
+keeps the small planned MLOps scope to risk/canary scoring. Full training,
+registries and drift pipelines are v2 ideas. Model selection, downloads, remote
+inference disclosure and spending remain unapproved.
