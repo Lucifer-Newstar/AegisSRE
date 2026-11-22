@@ -23,3 +23,11 @@ Validation is deliberately separate:
   budget calculation remain. D6 is not complete from these fixtures or panels.
 
 No alert authorizes remediation, and no missing series is treated as healthy.
+
+The first actual SLO gate verified rule health, observed catalog burn and Grafana
+provisioning, then failed platform reconnection after a separate Postgres Pod
+replacement. Runtime diagnostics showed an OperationalError and stalled worker
+ticks, with no collector failure. Socket/connection/pool/statement/lock waits
+were unbounded in platform storage. These are now explicitly bounded; a full
+rerun is required. This evidence identifies a missing resilience control, not
+proof that every earlier readiness failure had the same cause.
