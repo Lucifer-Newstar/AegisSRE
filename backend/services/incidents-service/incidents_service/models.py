@@ -41,6 +41,7 @@ class Deployment(StrictModel):
     previous_revision: str | None = Field(default=None, max_length=200)
     triggered_by: str = Field(default="operator", max_length=100)
     status: Literal["in_progress", "succeeded", "failed"]
+    change_attributes: dict[str, Any] | None = None
     risk_score: float | None = Field(default=None, ge=0, le=1)
     risk_factors: list[str] = Field(default_factory=list, max_length=30)
     canary: dict[str, Any] | None = None
