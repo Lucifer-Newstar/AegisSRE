@@ -1,0 +1,57 @@
+# Checks the actual projected reader identity, without cluster-admin access.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: evidence-check
+  namespace: aegissre-demo
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 240
+  template:
+    spec:
+      restartPolicy: Never
+      serviceAccountName: aegis-evidence-reader
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: reader
+        image: aegissre/evidence:ci
+        imagePullPolicy: Never
+        command: [python, /fixture/check.py]
+        env:
+        - name: AEGIS_ISOLATED_KIND_FIXTURE
+          value: 'true'
+        - name: OPENBLAS_NUM_THREADS
+          value: '1'
+        - name: OMP_NUM_THREADS
+          value: '1'
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: '1'
+            memory: 768Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: [ALL]
+        volumeMounts:
+        - name: fixture
+          mountPath: /fixture
+          readOnly: true
+        - name: scratch
+          mountPath: /tmp
+      volumes:
+      - name: fixture
+        configMap:
+          name: evidence-check
+      - name: scratch
+        emptyDir:
+          sizeLimit: 64Mi

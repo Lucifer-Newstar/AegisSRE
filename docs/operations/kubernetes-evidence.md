@@ -80,9 +80,36 @@ history. Messages are untrusted data and cannot grant permission for an action.
 Native tests use explicit HTTP mock transports and a fake delivery worker for
 background wiring. They cover UID ownership, namespace bounds, rotated token
 reads, pagination/refusal, response limits, failure visibility, auth and readiness.
-They do not prove a live Kubernetes connection or the full kind/fault acceptance
-suite. No existing cluster was contacted to validate this feature. Actual kind
-and least-privilege behavior checks remain acceptance work.
+Unit tests alone do not prove a live connection.
+
+The separate `Kubernetes evidence (isolated kind + real RBAC)` CI job runs the
+[bounded fixture driver](../../scripts/ci/kind_evidence_gate.py). It downloads
+checksum-pinned kind/kubectl and a digest-pinned node image from
+[reviewable release pins](../../infra/kind/ci-versions.json), builds the actual
+incidents image, and creates a new disposable runner-local cluster. Every kubectl
+call names an isolated kubeconfig and context. The driver refuses to reuse an
+existing named cluster, and cleanup requires this CI run/attempt/job's ownership
+marker. No existing user context or production cluster is selected.
+
+The [reader Job](../../infra/kind/evidence-check-job.yaml) runs non-root with the
+example reader account, restricted Pod Security, bounded resources, and a
+read-only root filesystem. A deliberately crashing Deployment uses the same
+loaded image and exits with code 42. The
+[in-Pod check](../../scripts/ci/check_cluster_evidence.py) requires an actual
+restart and warning for the same Pod UID, captured through the production reader
+with verified TLS and its projected token. It also requires RBAC denials for
+Secret listing, Pod listing in another namespace, and deployment creation. The
+write probe is server-side dry-run only and distinguishes RBAC denial from an
+admission rejection. It does not persist a probe deployment even if permissions
+are accidentally broadened. SQL staging must deduplicate the captured event and
+survive closing/reopening the SQLite repository. Diagnostics contain only this
+disposable fixture, never its kubeconfig, token or certificate.
+
+A passing hosted run is the evidence for those narrow claims. This job does not
+prove full platform bootstrap on kind, Redis dispatch inside Kubernetes, model
+quality, remediation, ten fault types, or the numerical evaluation thresholds.
+Actual PostgreSQL/Redis and full Compose runtime checks are separate CI jobs.
+The broader D1/A11/A12 acceptance gates remain open.
 
 Sources checked for the protocol and permission model:
 
