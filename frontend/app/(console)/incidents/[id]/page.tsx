@@ -1,14 +1,18 @@
 import { Envelope, Incident, identifier, load } from "@/lib/data";
 import Link from "next/link";
+import { MetricChart } from "../../metric-chart";
 export const dynamic = "force-dynamic";
 export default async function IncidentDetail({ params }: { params: { id: string } }) {
-  const { items: i, error } = await load<Incident>(`/api/v1/incidents/${identifier(params.id)}`);
+  const [record,context]=await Promise.all([load<Incident>(`/api/v1/incidents/${identifier(params.id)}`),load<{knowledge:{document_id:string;title:string;kind:string}[]}>(`/api/v1/incidents/${identifier(params.id)}/context`)]);
+  const {items:i,error}=record;
   if (!i) return <><h1>Incident unavailable</h1><p role="alert">{error}</p></>;
   return <><p className="muted">{i.id} / {i.environment}</p><div className="topbar"><h1>{i.title}</h1><span className={`pill ${i.severity}`}>{i.severity} / {i.status}</span></div>
     <div className="grid"><div className="card"><h3>Affected service</h3>{i.service}</div><div className="card"><h3>Created</h3>{i.created_at}</div><div className="card"><h3>Ground-truth fault onset</h3>{i.fault_started_at || "Not recorded"}</div><div className="card"><h3>Recovery</h3>{i.resolved_at || "Not verified"}</div></div>
     <div className="columns"><div className="card"><h2>Incident timeline</h2>{i.audit.map((a,n) => <article className="timeline" key={n}><small>{a.at}</small><h3>{a.action}</h3><p>{a.detail}</p><small>{a.actor}</small></article>)}</div>
     <div className="card"><span className="badge">AI · evidence-cited</span><h2>Reasoning</h2><p>{i.analysis.summary}</p><p className="muted">{i.analysis.engine} / confidence {i.analysis.confidence}</p>{i.analysis.hypotheses.map((h,n) => <pre key={n}>{JSON.stringify(h,null,2)}</pre>)}<p className="muted">{i.analysis.caveat}</p><h3>Evidence citations</h3>{i.evidence_ids.map(id => <Evidence key={id} id={id} />)}</div></div>
     <div className="card" style={{marginTop:20}}><h2>Recommended action</h2><p>{i.plan.action} / {i.plan.target} / {i.plan.risk} risk</p><p>{i.plan.reason}</p><p>{i.plan.impact || "No impact estimate supplied"}</p><p className="muted">Executor: {i.plan.executor}. Approval: {i.approval}. Reversible: {String(i.plan.reversible)}.</p>{i.execution_output && <pre>{i.execution_output}</pre>}<Link href="/approvals">Review in approval queue</Link></div>
+    <h2>Observed metric context</h2><div className="columns">{["latency_p95","error_rate"].map(metric=><MetricChart key={metric} service={i.service} metric={metric} bands={[{start:i.created_at,end:i.resolved_at,label:i.title}]} />)}</div>
+    <h2>Related runbooks</h2><div className="card"><p className="muted">Retrieved references, not confirmation of the cause or permission to act.</p>{context.error&&<p>{context.error}</p>}{context.items?.knowledge?.filter(r=>r.kind==="runbook").map((r,n)=><p key={n}><Link href={`/runbooks?id=${identifier(r.document_id)}`}>{r.title}</Link></p>)}{!context.error&&!context.items?.knowledge?.some(r=>r.kind==="runbook")&&<p>No related runbook in current retrieval.</p>}</div>
     <h2>Qualifying signals</h2><div className="card"><table className="table"><thead><tr><th>Metric</th><th>Observed</th><th>Baseline</th><th>Z-score</th></tr></thead><tbody>{i.signals.map((s,n) => <tr key={n}><td>{s.metric}</td><td>{s.observed}</td><td>{s.baseline_mean}</td><td>{s.z_score}</td></tr>)}</tbody></table></div>
   </>;
 }

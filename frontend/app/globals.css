@@ -60,3 +60,14 @@ textarea { display:block; width:100%; }
 .critical { background:#3a1520; color:var(--sev1); }
 .warning { background:#3a2e12; color:var(--warn); }
 @media(max-width:1000px) { .grid{grid-template-columns:repeat(2,1fr)} .columns{grid-template-columns:1fr} }
+
+.sev1 { background:#3a1520; color:var(--sev1); }
+.sev2 { background:#3c2516; color:var(--sev2); }
+.sev3 { background:#3a2e12; color:var(--sev3); }
+
+.telemetry-scroll { max-height: 520px; overflow: auto; }
+.telemetry-scroll th { position: sticky; top: 0; background: var(--bg-elev); }
+.table td { overflow-wrap: anywhere; }
+.main { min-width: 0; }
+
+.pill { white-space: nowrap; overflow-wrap: normal; }

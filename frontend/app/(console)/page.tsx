@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { MetricChart } from "./metric-chart";
 import { Incident, load, loadServices } from "@/lib/data";
 export const dynamic = "force-dynamic";
 export default async function CommandCenterPage() {
@@ -9,5 +10,6 @@ export default async function CommandCenterPage() {
     <div className="grid"><div className="card"><h3>Services healthy</h3><div className="val">{services.error ? "Unknown" : `${services.items.filter(s => s.status === "healthy").length}/${services.items.length}`}</div></div><div className="card"><h3>Active incidents</h3><div className="val">{incidents.error ? "Unknown" : open.length}</div></div><div className="card"><h3>Research MTTD</h3><div className="val">Not measured</div></div><div className="card"><h3>Research MTTR</h3><div className="val">Not measured</div></div></div>
     <div className="card"><h2>Service health</h2><div className="grid">{services.items.map(s => <Link className="card" key={s.id} href={`/services/${encodeURIComponent(s.id)}`}><h3>{s.name}</h3><span className={`pill ${s.status}`}>{s.status}</span><p className="muted">{s.version}</p></Link>)}</div>{!services.error && !services.items.length && <p>No services registered.</p>}</div>
     <div className="card" style={{ marginTop: 20 }}><h2>Incident feed</h2><table className="table"><thead><tr><th>Incident</th><th>Service</th><th>Status</th><th>Severity</th></tr></thead><tbody>{rows.map(i => <tr key={i.id}><td><Link href={`/incidents/${encodeURIComponent(i.id)}`}>{i.title}</Link></td><td>{i.service}</td><td>{i.status}</td><td><span className={`pill ${i.severity}`}>{i.severity}</span></td></tr>)}</tbody></table>{!rows.length && !incidents.error && <p>No incidents in the current API window.</p>}</div>
+    <h2>24h latency history</h2><div className="columns">{services.items.map(s=><div key={s.id}><Link href={`/services/${encodeURIComponent(s.id)}`}>{s.name}</Link><MetricChart service={s.id} metric="latency_p95" compact /></div>)}</div>
     <p><Link href="/ask">Ask Aegis about the evidence →</Link></p><p className="muted">Limited to the latest 100 incidents. Missing ground-truth timing is never shown as zero.</p></>;
 }
