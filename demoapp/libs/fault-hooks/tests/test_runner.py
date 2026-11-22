@@ -81,3 +81,78 @@ def test_bad_fault_or_duration_never_loads_driver(tmp_path: Path, monkeypatch: p
         with pytest.raises(ValueError):
             runner.run(fault, seconds, tmp_path)
     load.assert_not_called()
+
+
+def test_fixed_container_crash_tolerates_only_expected_killed_exec(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import subprocess
+
+    api=fixture_driver()
+    original=api.kubectl.return_value
+    api.kubectl.side_effect=[original, subprocess.CalledProcessError(137,["kubectl"]), original, ""]
+    api.directory=lambda:tmp_path
+    monkeypatch.setattr(runner,"driver",lambda:api)
+    monkeypatch.setattr(time,"sleep",Mock())
+    runner.run("container-crash",1,tmp_path)
+    calls=api.kubectl.call_args_list
+    assert any("import os,signal;os.kill(1,signal.SIGUSR1)" in call.args for call in calls)
+    assert any("rollout" in call.args and "status" in call.args for call in calls)
+    assert not (tmp_path/"chaos-active").exists()
+
+
+@pytest.mark.parametrize("existing", [None, {"name": "CATALOG_MAX_PRODUCTS", "value": "20"},
+    {"name": "CATALOG_MAX_PRODUCTS", "valueFrom": {"configMapKeyRef": {"name": "catalog", "key": "limit"}}}])
+def test_config_error_restores_exact_prior_environment_entry(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, existing: Any) -> None:
+    api = fixture_driver()
+    original = json.loads(api.kubectl.return_value)
+    if existing:
+        original["spec"]["template"]["spec"]["containers"][0]["env"].append(existing)
+    api.kubectl.return_value = json.dumps(original)
+    api.directory = lambda: tmp_path
+    monkeypatch.setattr(runner, "driver", lambda: api)
+    monkeypatch.setattr(time, "sleep", Mock())
+    runner.run("config-error", 1, tmp_path)
+    calls = api.kubectl.call_args_list
+    assert any("CATALOG_MAX_PRODUCTS=0" in call.args for call in calls)
+    patch_call = next(call for call in calls if "--patch" in call.args)
+    patch = json.loads(patch_call.args[patch_call.args.index("--patch") + 1])
+    entry = patch["spec"]["template"]["spec"]["containers"][0]["env"][0]
+    assert entry == (existing or {"name": "CATALOG_MAX_PRODUCTS", "$patch": "delete"})
+def test_opt_in_lifespan_really_terminates_its_own_process() -> None:
+    import os
+    import subprocess
+    import sys
+
+    # A fresh child, never the pytest process. No server/port or fake os.kill.
+    program = '''
+import asyncio, os, signal
+from fastapi import FastAPI
+from aegisshop_faults import configure_fault_hooks
+app = FastAPI()
+configure_fault_hooks(app)
+async def check():
+    async with app.router.lifespan_context(app):
+        os.kill(os.getpid(), signal.SIGUSR1)
+asyncio.run(check())
+'''
+    result = subprocess.run([sys.executable, "-c", program],
+        env={**os.environ, "AEGIS_SHOP_FAULTS_ENABLED": "true"}, timeout=10)
+    assert result.returncode == 70
+
+
+def test_oom_requires_fixed_application_memory_limit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    api = fixture_driver()
+    api.directory = lambda: tmp_path
+    monkeypatch.setattr(runner, "driver", lambda: api)
+    with pytest.raises(RuntimeError, match="fixed 256Mi"):
+        runner.run("memory-exhaustion", 1, tmp_path)
+    assert len(api.kubectl.call_args_list) == 1
+    assert not list(tmp_path.glob("*.jsonl"))
+
+
+
+def test_traffic_program_has_fixed_local_destination_and_worker_bound() -> None:
+    from chaoslab.traffic import TRAFFIC_PROGRAM
+    assert 'http://127.0.0.1:9001/products' in TRAFFIC_PROGRAM
+    assert 'max_workers=8' in TRAFFIC_PROGRAM
+    assert '1<=seconds<=120' in TRAFFIC_PROGRAM
+    compile(TRAFFIC_PROGRAM, '<fixed-traffic-program>', 'exec')

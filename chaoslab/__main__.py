@@ -10,6 +10,7 @@ import argparse
 import importlib.util
 import json
 import signal
+import subprocess
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -18,11 +19,12 @@ from typing import Any
 from uuid import uuid4
 
 from chaoslab.journal import Journal
+from chaoslab.traffic import TRAFFIC_PROGRAM
 
 ROOT = Path(__file__).resolve().parents[1]
-HOOKS = {"http-5xx", "network-latency", "cpu-saturation", "memory-pressure"}
+HOOKS = {"http-5xx", "network-latency", "cpu-saturation", "memory-pressure", "memory-exhaustion"}
 DATABASES = {"database-outage": "shop-postgres", "dependency-failure": "shop-redis"}
-FAULTS = HOOKS | set(DATABASES)
+FAULTS = HOOKS | set(DATABASES) | {"container-crash", "config-error", "traffic-spike"}
 WRITE_CONTROL = (
     "import os,sys;from pathlib import Path;"
     "p=Path('/tmp/aegisshop-fault.json');"
@@ -65,11 +67,15 @@ def _run(api: ModuleType, fault: str, seconds: int, output: Path) -> Path:
     if original["spec"].get("replicas", 1) != 1:
         raise RuntimeError("The disposable experiment requires exactly one replica")
     env = original["spec"]["template"]["spec"]["containers"][0].get("env", [])
-    if fault in HOOKS and not any(
+    if fault in HOOKS | {"container-crash"} and not any(
         item.get("name") == "AEGIS_SHOP_FAULTS_ENABLED" and item.get("value") == "true"
         for item in env
     ):
         raise RuntimeError("Fault hooks are not explicitly enabled on the owned fixture")
+    if fault == "memory-exhaustion":
+        container = original["spec"]["template"]["spec"]["containers"][0]
+        if container.get("resources", {}).get("limits", {}).get("memory") != "256Mi":
+            raise RuntimeError("OOM experiment requires the fixed 256Mi application cgroup")
     journal = Journal(output, "run-" + uuid4().hex)
     attempted = False
     try:
@@ -84,16 +90,39 @@ def _run(api: ModuleType, fault: str, seconds: int, output: Path) -> Path:
             api.kubectl("scale", kind + "/" + target, "--replicas=0", "--namespace", api.NS)
             api.kubectl("wait", "--for=delete", "pod/" + target + "-0", "--namespace", api.NS,
                         "--timeout=90s", timeout=100)
+        elif fault == "traffic-spike":
+            counts = json.loads(api.kubectl(
+                "exec", "deployment/" + target, "--namespace", api.NS, "-i", "--",
+                "python", "-c", TRAFFIC_PROGRAM, body=str(seconds),
+                capture=True, timeout=seconds + 30,
+            ))
+            journal.record("load_completed", **counts,
+                           independently_verified_rate=False)
+        elif fault == "config-error":
+            # Invalid real application setting, not a synthetic failure flag.
+            api.kubectl("set", "env", "deployment/" + target,
+                        "CATALOG_MAX_PRODUCTS=0", "--namespace", api.NS)
+        elif fault == "container-crash":
+            # Fixed opt-in signal makes the namespace init process self-terminate.
+            # Fixed process in one explicitly owned shop Deployment. No caller
+            # command, signal, PID, namespace or target is accepted.
+            try:
+                api.kubectl("exec", "deployment/" + target, "--namespace", api.NS, "--",
+                            "python", "-c", "import os,signal;os.kill(1,signal.SIGUSR1)")
+            except subprocess.CalledProcessError as error:
+                if error.returncode != 137:
+                    raise
         else:
             magnitude = {"http-5xx": 100, "network-latency": 1000,
-                         "cpu-saturation": 500, "memory-pressure": 32}[fault]
+                         "cpu-saturation": 500, "memory-pressure": 32, "memory-exhaustion": 384}[fault]
             control = json.dumps({"kind": fault, "until": time.time() + seconds + 15,
                                   "magnitude": magnitude})
             api.kubectl("exec", "deployment/" + target, "--namespace", api.NS, "-i", "--",
                         "python", "-c", WRITE_CONTROL, body=control)
         journal.record("injection_applied", fault=fault,
                        onset_semantics="control applied; not independently observed symptom onset")
-        time.sleep(seconds)
+        if fault != "traffic-spike":
+            time.sleep(seconds)
     except BaseException as error:
         journal.record("run_failed", error_type=type(error).__name__)
         raise
@@ -108,7 +137,27 @@ def _run(api: ModuleType, fault: str, seconds: int, output: Path) -> Path:
                     api.kubectl("scale", kind + "/" + target, "--replicas=1", "--namespace", api.NS)
                     api.kubectl("rollout", "status", kind + "/" + target,
                                 "--namespace", api.NS, "--timeout=180s", timeout=200)
+                elif fault == "traffic-spike":
+                    # The bounded child exits before restoration. No workload
+                    # configuration or persistent background process remains.
+                    pass
+                elif fault == "config-error":
+                    entry = next((item for item in env if item.get("name") == "CATALOG_MAX_PRODUCTS"),
+                                 {"name": "CATALOG_MAX_PRODUCTS", "$patch": "delete"})
+                    patch = {"spec": {"template": {"spec": {"containers": [{
+                        "name": "catalog-service", "env": [entry]
+                    }]}}}}
+                    api.kubectl("patch", "deployment/" + target, "--type=strategic",
+                                "--namespace", api.NS, "--patch", json.dumps(patch))
+                    api.kubectl("rollout", "status", "deployment/" + target,
+                                "--namespace", api.NS, "--timeout=180s", timeout=200)
+                elif fault == "container-crash":
+                    api.kubectl("rollout", "status", kind + "/" + target,
+                                "--namespace", api.NS, "--timeout=180s", timeout=200)
                 else:
+                    if fault == "memory-exhaustion":
+                        api.kubectl("rollout", "status", "deployment/" + target,
+                                    "--namespace", api.NS, "--timeout=180s", timeout=200)
                     api.kubectl("exec", "deployment/" + target, "--namespace", api.NS, "--",
                                 "python", "-c", REMOVE_CONTROL)
                 journal.record("restored_control_state", independently_verified_health=False,
