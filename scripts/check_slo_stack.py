@@ -37,6 +37,12 @@ def main() -> None:
         time.sleep(1)
     else:
         raise AssertionError("No actual catalog request-SLO series observed")
+    from check_runtime_stack import api
+    observed = api("/slo?service=catalog-service")
+    assert observed["objective"] == "request-success-99.9-v1"
+    assert observed["budget_remaining_fraction"] is None
+    assert observed["status"] == "partial_or_missing_window"
+    assert observed["measurements"]["burn_5m"] is not None
     dashboard=read(13000,"/api/dashboards/uid/aegisshop-slo",True)["dashboard"]
     assert len(dashboard["panels"])==5
     assert any("Missing/zero traffic" in p.get("options",{}).get("content","") for p in dashboard["panels"])

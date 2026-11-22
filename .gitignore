@@ -54,6 +54,7 @@ data/
 .DS_Store
 Thumbs.db
 
+/scripts/visual/node_modules
 node_modules/
 
 /scripts/visual/node_modules
