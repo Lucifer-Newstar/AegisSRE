@@ -16,7 +16,7 @@ same routes under `/api/v1`, using its separate operator token.
 | POST | `/ask` | Body: `service`, `question`. Return answer, engine, inference status, citations and tool snapshot. |
 | GET | `/intelligence/tools?service=catalog-service` | Inspect the fixed tools and persisted evidence without inference. Optional `question` steers knowledge retrieval. |
 | GET | `/intelligence/status` | Provider/model, configured request limits, dated reservations, zero retries and empty write-tool list. No API key is returned. |
-| POST | `/incidents/{id}/investigate` | Gather a current scoped service snapshot, optionally infer, and save a read-only sidecar if the incident revision still matches. |
+| POST | `/incidents/{id}/investigate` | Gather an incident-time scoped snapshot, optionally infer, and save a read-only sidecar if the incident revision still matches. |
 | GET | `/incidents/{id}/investigation` | Read the saved snapshot and whether its incident revision still matches. |
 
 A snapshot returns the exact source event reference or knowledge document ID,
@@ -30,9 +30,19 @@ observations, and index time is not source observation time.
 Tools return at most two persisted events per source type and three knowledge
 chunks. This is a bounded investigation readout, not an exhaustive log query.
 Inspect `/knowledge/status` and `/runtime` separately for index and collector
-failures. Investigations currently use current service evidence, not an arbitrary
-historical incident window. Their capture time and per-source freshness remain
-part of the result, including when investigating an old incident.
+failures. Ask uses current evidence. Incident investigation instead anchors at
+the recorded detection-event time (incident creation if absent), with a window
+from 30 minutes before the anchor through at most three minutes after it, never
+past capture time. It prioritizes qualifying incident event IDs within each
+bounded tool result, so later normal samples cannot crowd out the anomaly.
+
+Historical snapshots identify `temporal_scope=incident_window`, the anchor and
+window bounds separately from actual `captured_at`. Freshness is relative to the
+anchor. Such evidence cannot establish current service health. Self-incident
+knowledge, later-indexed closed cases and current service metadata are excluded
+before ranking. Runbooks and failure-pattern guides remain reference material,
+not claims about what was available at the historical time. A frozen corpus and
+held-out manifests are still required for honest evaluation.
 
 ## Disabled mode and failures
 
@@ -95,7 +105,8 @@ the same ledger. No question or provider response is written to the quota audit.
 - Model output never modifies the executable plan, approval, incident state or
   autonomy policy. Investigation writes only its sidecar. A changed incident or
   snapshot older than 120 seconds rejects the write with HTTP 409. A later read
-  reports whether the saved incident revision still matches.
+  reports whether the saved incident revision still matches. An older in-flight
+  result cannot overwrite a snapshot captured more recently.
 - Prompt-like instructions in logs, traces and documents are untrusted data.
   No write tool is exposed even if a model asks for one.
 
