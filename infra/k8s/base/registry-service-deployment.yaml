@@ -59,6 +59,7 @@ spec:
             - -c
             - import os,urllib.request; r=urllib.request.Request("http://localhost:8101/ready",headers={"Authorization":"Bearer
               "+os.environ["AEGIS_METADATA_READ_TOKEN"]}); urllib.request.urlopen(r,timeout=2).close()
+          timeoutSeconds: 3
         livenessProbe:
           httpGet:
             path: /health
