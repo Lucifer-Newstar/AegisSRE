@@ -30,7 +30,7 @@ def main() -> None:
         assert "ci-runtime" in text and "simulation" in text
     assert any(cookie.name == "aegis_session" and cookie.has_nonstandard_attr("HttpOnly")
                for cookie in jar)
-    from scripts.check_runtime_stack import api
+    from check_runtime_stack import api
     incidents=api("/incidents?service=ci-runtime")
     assert incidents, "Expected persisted transport-fixture incident"
     identity=incidents[0]["id"]
