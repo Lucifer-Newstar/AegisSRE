@@ -165,7 +165,7 @@ jobs:
       - name: Build the catalog-service image
         uses: docker/build-push-action@v6
         with:
-          context: ./demoapp/aegisshop/catalog-service
+          context: .
           file: ./demoapp/aegisshop/catalog-service/Dockerfile
           tags: aegisshop/catalog-service:ci-${{ github.sha }}
           push: false

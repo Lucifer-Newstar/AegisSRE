@@ -15,10 +15,10 @@ for every new platform service.
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from prometheus_client import (
     CONTENT_TYPE_LATEST,
     CollectorRegistry,
@@ -27,6 +27,7 @@ from prometheus_client import (
     generate_latest,
 )
 from starlette.responses import Response
+from telemetry.instrumentation import configure_observability
 
 from template_service.config import settings
 from template_service.logging import setup_logging
@@ -55,36 +56,11 @@ REQUEST_DURATION = Histogram(
 )
 
 # ── OpenTelemetry (tracing) ───────────────────────────────────────────────────
-def _init_tracing() -> None:
-    """Wire OTLP trace export when an endpoint is configured; else no-op.
-
-    No-op fallback keeps the service runnable in bare `uvicorn` dev mode
-    without the observability stack (graceful degradation).
-    """
-    from opentelemetry import trace
-    from opentelemetry.sdk.resources import Resource
-    from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import BatchSpanProcessor
-
-    if not settings.otel_exporter_otlp_endpoint:
-        trace.set_tracer_provider(TracerProvider())  # no-op exporter
-        return
-
-    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-
-    provider = TracerProvider(
-        resource=Resource.create({"service.name": settings.service_name, "deployment.environment": settings.environment})
-    )
-    provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=settings.otel_exporter_otlp_endpoint, insecure=True)))
-    trace.set_tracer_provider(provider)
-    FastAPIInstrumentor().instrument()
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    """Startup/shutdown hooks — tracing init happens here (after uvicorn boots)."""
-    _init_tracing()
+    """Application startup/shutdown hooks, wrapped by per-app telemetry ownership."""
     logger.info("service starting", extra={"port": settings.service_port})
     yield
     logger.info("service stopped")
@@ -102,7 +78,6 @@ def root() -> dict[str, str]:
 @app.get("/health")
 def health() -> dict[str, str]:
     """Liveness probe: the process is up. No dependencies checked."""
-    REQUESTS.labels(settings.service_name, "GET", "/health", "200").inc()
     return {"status": "healthy"}
 
 
@@ -113,7 +88,6 @@ def ready() -> dict[str, str]:
     Services extend this with real dependency checks (e.g. Postgres ping);
     the template checks nothing besides process liveness.
     """
-    REQUESTS.labels(settings.service_name, "GET", "/ready", "200").inc()
     return {"status": "ready"}
 
 
@@ -123,15 +97,4 @@ def metrics() -> Response:
     return Response(generate_latest(METRIC_REGISTRY), media_type=CONTENT_TYPE_LATEST)
 
 
-@app.middleware("http")
-async def instrument_requests(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
-    """Count and time every request (prometheus_client) — per-service standard."""
-    import time
-
-    start = time.perf_counter()
-    response = await call_next(request)
-    duration = time.perf_counter() - start
-    method, path = request.method, request.url.path
-    REQUESTS.labels(settings.service_name, method, path, str(response.status_code)).inc()
-    REQUEST_DURATION.labels(settings.service_name, method, path).observe(duration)
-    return response
+configure_observability(app, settings.service_name, settings.environment, settings.otel_exporter_otlp_endpoint, REQUESTS, REQUEST_DURATION)

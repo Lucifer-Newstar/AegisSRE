@@ -2,8 +2,9 @@
 FROM python:3.12-slim AS builder
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /build
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY demoapp/aegisshop/cart-service/requirements.txt .
+COPY backend/libs/telemetry /tmp/telemetry
+RUN pip install --no-cache-dir "/tmp/telemetry[observability]" -r requirements.txt
 
 FROM python:3.12-slim AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
@@ -11,7 +12,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
     SERVICE_PORT=9002
 WORKDIR /app
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY cart_service ./cart_service
+COPY demoapp/aegisshop/cart-service/cart_service ./cart_service
 EXPOSE 9002
 HEALTHCHECK --interval=10s --timeout=3s --retries=5 \
     CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:9002/health', timeout=3).status==200 else 1)"

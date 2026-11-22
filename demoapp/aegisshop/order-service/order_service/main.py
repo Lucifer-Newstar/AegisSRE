@@ -7,6 +7,7 @@ from typing import Any
 from uuid import uuid4
 
 from fastapi import HTTPException
+from opentelemetry.propagate import inject
 from pydantic import BaseModel
 
 from order_service.config import settings
@@ -35,7 +36,10 @@ def _items_for(user_id: str) -> list[dict[str, Any]]:
 
         url = f"{settings.cart_service_url.rstrip('/')}/cart/{user_id}"
         try:
-            with urllib.request.urlopen(url, timeout=3) as resp:
+            headers: dict[str, str] = {}
+            inject(headers)
+            request = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(request, timeout=3) as resp:
                 import json
 
                 payload = json.loads(resp.read().decode())
@@ -69,6 +73,7 @@ def place_order(body: PlaceOrder) -> dict[str, Any]:
         "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
     }
     _ORDERS[order_id] = order
+    logger.info("order created")
     return order
 
 
