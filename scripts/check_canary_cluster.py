@@ -196,6 +196,9 @@ def main() -> None:
             json.dumps({"data": original_data}),
         )
         fixture.kubectl("rollout", "restart", "deployment/prometheus", "-n", ns)
+        fixture.kubectl(
+            "rollout", "status", "deployment/prometheus", "-n", ns, "--timeout=180s", timeout=200
+        )
         for name in created:
             fixture.kubectl(
                 "delete",
