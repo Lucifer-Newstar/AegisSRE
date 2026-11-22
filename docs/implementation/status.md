@@ -413,3 +413,19 @@ and a real isolated shop database outage/restoration, while checking the platfor
 stays ready. Hosted proof must pass on the exact PR head before merge. This does
 not complete the chaos CLI, its ten fault types, Redis carts, or any measured
 accuracy/autonomy/MTTR acceptance threshold.
+
+
+## Shop cart persistence foundation
+
+Cart-service now uses its own Redis server/PVC, distinct from platform transport,
+in Compose and kind. Atomic hash increments avoid read/modify/write lost updates;
+AOF/always is configured in both runtimes. Dependency failure is readiness/domain
+503 with no local/empty-cart fallback; process liveness remains independent.
+The default empty-URL local store is development-only. No Redis authentication,
+network tenant isolation or idempotent retry contract is implied.
+
+The kind gate must prove cart retention after app restart and real shop Redis
+outage/restoration while platform and saved order reads remain healthy. Native
+checks alone do not establish the hosted proof. These two isolated dependencies
+are prerequisites for honest fault experiments, not completion of A11/A12 or any
+accuracy/MTTR/autonomy acceptance target.

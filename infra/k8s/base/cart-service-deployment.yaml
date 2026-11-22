@@ -25,6 +25,8 @@ spec:
             - containerPort: 9002
               name: http
           env:
+            - name: SHOP_REDIS_URL
+              value: redis://shop-redis:6379/0
             - name: SERVICE_NAME
               value: cart-service
             - name: SERVICE_PORT

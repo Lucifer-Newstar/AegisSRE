@@ -121,7 +121,7 @@ def test_full_platform_has_compose_image_parity_and_only_internal_services() -> 
         for doc in documents
         if doc["kind"] in {"Deployment", "StatefulSet"}
     }
-    assert set(workloads) == set(services) and len(workloads) == 17
+    assert set(workloads) == set(services) and len(workloads) == 18
     for name, doc in workloads.items():
         image = services[name]["image"]
         if image.startswith("${AEGIS_POSTGRES_IMAGE:-"):
@@ -145,7 +145,7 @@ def test_persistent_stores_and_shared_configs_are_not_silently_ephemeral() -> No
         doc["metadata"]["name"] for doc in documents if doc["kind"] == "PersistentVolumeClaim"
     }
     assert claims == {
-        name + "-data" for name in ("postgres", "shop-postgres", "redis", "prometheus", "grafana", "loki", "tempo")
+        name + "-data" for name in ("postgres", "shop-postgres", "shop-redis", "redis", "prometheus", "grafana", "loki", "tempo")
     }
     for doc in documents:
         if doc["kind"] not in {"Deployment", "StatefulSet"}:
@@ -215,3 +215,18 @@ def test_shop_order_database_is_not_the_platform_evidence_dependency() -> None:
                for volume in pod["volumes"])
     assert all(entry.get("valueFrom", {}).get("secretKeyRef", {}).get("name") != "aegissre-postgres"
                for entry in pod["containers"][0]["env"])
+
+
+def test_shop_cart_redis_is_separate_from_platform_transport() -> None:
+    services = yaml.safe_load((ROOT / "docker-compose.yml").read_text())["services"]
+    shop = services["shop-redis"]
+    assert "ports" not in shop
+    assert shop["volumes"] != services["redis"]["volumes"]
+    assert shop["command"][-2:] == ["--appendfsync", "always"]
+    assert services["cart-service"]["environment"]["SHOP_REDIS_URL"] == "redis://shop-redis:6379/0"
+    redis = next(doc for doc in manifests() if doc["kind"] == "StatefulSet"
+                 and doc["metadata"]["name"] == "shop-redis")
+    pod = redis["spec"]["template"]["spec"]
+    assert pod["containers"][0]["args"][-2:] == ["--appendfsync", "always"]
+    assert not pod["automountServiceAccountToken"]
+    assert pod["volumes"][0]["persistentVolumeClaim"]["claimName"] == "shop-redis-data"
