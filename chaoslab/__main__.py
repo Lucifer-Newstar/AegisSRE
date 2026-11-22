@@ -23,7 +23,7 @@ from chaoslab.journal import Journal
 ROOT = Path(__file__).resolve().parents[1]
 HOOKS = {"http-5xx", "network-latency", "cpu-saturation", "memory-pressure"}
 DATABASES = {"database-outage": "shop-postgres", "dependency-failure": "shop-redis"}
-FAULTS = HOOKS | set(DATABASES) | {"container-crash"}
+FAULTS = HOOKS | set(DATABASES) | {"container-crash", "config-error"}
 WRITE_CONTROL = (
     "import os,sys;from pathlib import Path;"
     "p=Path('/tmp/aegisshop-fault.json');"
@@ -85,6 +85,10 @@ def _run(api: ModuleType, fault: str, seconds: int, output: Path) -> Path:
             api.kubectl("scale", kind + "/" + target, "--replicas=0", "--namespace", api.NS)
             api.kubectl("wait", "--for=delete", "pod/" + target + "-0", "--namespace", api.NS,
                         "--timeout=90s", timeout=100)
+        elif fault == "config-error":
+            # Invalid real application setting, not a synthetic failure flag.
+            api.kubectl("set", "env", "deployment/" + target,
+                        "CATALOG_MAX_PRODUCTS=0", "--namespace", api.NS)
         elif fault == "container-crash":
             # Fixed opt-in signal makes the namespace init process self-terminate.
             # Fixed process in one explicitly owned shop Deployment. No caller
@@ -118,6 +122,16 @@ def _run(api: ModuleType, fault: str, seconds: int, output: Path) -> Path:
                 if fault in DATABASES:
                     api.kubectl("scale", kind + "/" + target, "--replicas=1", "--namespace", api.NS)
                     api.kubectl("rollout", "status", kind + "/" + target,
+                                "--namespace", api.NS, "--timeout=180s", timeout=200)
+                elif fault == "config-error":
+                    entry = next((item for item in env if item.get("name") == "CATALOG_MAX_PRODUCTS"),
+                                 {"name": "CATALOG_MAX_PRODUCTS", "$patch": "delete"})
+                    patch = {"spec": {"template": {"spec": {"containers": [{
+                        "name": "catalog-service", "env": [entry]
+                    }]}}}}
+                    api.kubectl("patch", "deployment/" + target, "--type=strategic",
+                                "--namespace", api.NS, "--patch", json.dumps(patch))
+                    api.kubectl("rollout", "status", "deployment/" + target,
                                 "--namespace", api.NS, "--timeout=180s", timeout=200)
                 elif fault == "container-crash":
                     api.kubectl("rollout", "status", kind + "/" + target,

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,6 +14,7 @@ class Settings(BaseSettings):
     service_name: str = "catalog-service"
     service_port: int = 9001
     environment: str = "dev"
+    catalog_max_products: int = Field(default=100, ge=1, le=1000)
     otel_exporter_otlp_endpoint: str = ""  # e.g. http://otel-collector:4317
 
 

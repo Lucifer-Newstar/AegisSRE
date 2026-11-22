@@ -99,6 +99,24 @@ def test_fixed_container_crash_tolerates_only_expected_killed_exec(tmp_path: Pat
     assert not (tmp_path/"chaos-active").exists()
 
 
+@pytest.mark.parametrize("existing", [None, {"name": "CATALOG_MAX_PRODUCTS", "value": "20"},
+    {"name": "CATALOG_MAX_PRODUCTS", "valueFrom": {"configMapKeyRef": {"name": "catalog", "key": "limit"}}}])
+def test_config_error_restores_exact_prior_environment_entry(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, existing: Any) -> None:
+    api = fixture_driver()
+    original = json.loads(api.kubectl.return_value)
+    if existing:
+        original["spec"]["template"]["spec"]["containers"][0]["env"].append(existing)
+    api.kubectl.return_value = json.dumps(original)
+    api.directory = lambda: tmp_path
+    monkeypatch.setattr(runner, "driver", lambda: api)
+    monkeypatch.setattr(time, "sleep", Mock())
+    runner.run("config-error", 1, tmp_path)
+    calls = api.kubectl.call_args_list
+    assert any("CATALOG_MAX_PRODUCTS=0" in call.args for call in calls)
+    patch_call = next(call for call in calls if "--patch" in call.args)
+    patch = json.loads(patch_call.args[patch_call.args.index("--patch") + 1])
+    entry = patch["spec"]["template"]["spec"]["containers"][0]["env"][0]
+    assert entry == (existing or {"name": "CATALOG_MAX_PRODUCTS", "$patch": "delete"})
 def test_opt_in_lifespan_really_terminates_its_own_process() -> None:
     import os
     import subprocess

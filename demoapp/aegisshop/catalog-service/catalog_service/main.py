@@ -124,7 +124,7 @@ def metrics() -> Response:
 def list_products() -> list[Product]:
     """List all products in the catalog."""
     logger.info("listing products")
-    return list(CATALOG.values())
+    return list(CATALOG.values())[:settings.catalog_max_products]
 
 
 @app.get("/products/{product_id}", response_model=Product, responses={404: {"description": "unknown product"}})

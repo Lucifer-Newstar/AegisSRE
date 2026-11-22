@@ -32,9 +32,9 @@ Supported runner operations so far:
 | `database-outage` | shop DB replicas 1 to 0, then back to 1 | controller restoration is not app-health recovery |
 | `dependency-failure` | shop Redis replicas 1 to 0, then back to 1 | same health limitation |
 
-Actual OOM, configuration error, faulty deployment and traffic-spike
-experiments remain unimplemented. Container crash is implemented below, with
-real hosted proof required. The final A11 ten-fault catalogue is not
+Actual OOM, faulty deployment and traffic-spike experiments remain
+unimplemented. Container crash and invalid configuration are implemented
+below, with real hosted proof required. The final A11 ten-fault catalogue is not
 complete. The current hook/runner set must not be reported as meeting it.
 
 Each unique JSONL journal is created exclusively, flushed and fsynced on every
@@ -65,3 +65,16 @@ claimed until this hosted gate passes. It is not OOM, node deletion, detection
 accuracy or an A12 trial. Other missing faults/evaluation remain.
 
 PID-namespace signal behavior: https://man7.org/linux/man-pages/man7/pid_namespaces.7.html
+
+## Invalid configuration rollout
+
+`config-error` changes the real bounded `CATALOG_MAX_PRODUCTS` setting to zero.
+Pydantic rejects this out-of-range value when the new catalog process starts.
+Restoration puts back the exact prior explicit environment entry (including
+valueFrom) or removes it if absent, then waits for the Deployment rollout.
+The rolling strategy can keep the previous healthy replica serving, so this
+experiment claims a failed configuration rollout, not a guaranteed outage.
+The owned-kind proof independently checks a failed new process, validation log,
+non-ready container, exact Pod-template restoration and domain response. It is
+not a fabricated HTTP failure switch or an evaluation accuracy result. Hosted
+proof is required before merge; only local tests have passed so far.

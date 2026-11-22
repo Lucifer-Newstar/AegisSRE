@@ -498,6 +498,59 @@ def verify() -> None:
                  "domain_recovery_observed":True, "not_evaluation_accuracy":True}
         (crash_dir / "independent-proof.json").write_text(json.dumps(proof, indent=2))
         print("Actual immediate process-exit crash, same-Pod restart/70 and domain recovery verified independently of runner journal")
+        config_dir = experiment_dir / "config-error"
+        config_dir.mkdir(exist_ok=True)
+        before_config = json.loads(kubectl("get", "deployment", "catalog-service",
+            "--namespace", NS, "-o", "json", capture=True))["spec"]["template"]
+        with (config_dir / "runner.log").open("w") as output:
+            experiment = subprocess.Popen(
+                [sys.executable, "-m", "chaoslab", "config-error", "--seconds", "60",
+                 "--output", str(config_dir)],
+                cwd=ROOT, env={**os.environ, **FIXTURE}, stdout=output, stderr=subprocess.STDOUT,
+            )
+            def rejected_configuration() -> Any:
+                pods = json.loads(kubectl("get", "pods", "--namespace", NS, "-l",
+                    "app.kubernetes.io/name=catalog-service", "-o", "json", capture=True))["items"]
+                for pod in pods:
+                    values = pod["spec"]["containers"][0].get("env", [])
+                    if not any(e.get("name") == "CATALOG_MAX_PRODUCTS" and e.get("value") == "0" for e in values):
+                        continue
+                    for status in pod["status"].get("containerStatuses", []):
+                        ended = status.get("lastState", {}).get("terminated") or status.get("state", {}).get("terminated")
+                        if ended and ended["exitCode"] != 0 and not status["ready"]:
+                            try:
+                                logs = kubectl("logs", pod["metadata"]["name"], "--namespace", NS,
+                                               "--tail=80", *( ["--previous"] if status["restartCount"] else []),
+                                               capture=True)
+                            except subprocess.CalledProcessError:
+                                continue
+                            if "catalog_max_products" in logs and "ValidationError" in logs:
+                                return {"pod_uid": pod["metadata"]["uid"], "exit": ended,
+                                        "startup_configuration_rejected": True}
+                return None
+            try:
+                config_proof = wait_for(rejected_configuration,
+                    "actual invalid configuration rejected by new process", 55)
+                # RollingUpdate normally preserves the healthy prior replica.
+                # This fault is failed rollout, not assumed service outage.
+                config_proof["old_replica_domain_status"] = shop_request(9001, "/products")[0]
+                assert experiment.wait(timeout=210) == 0
+            finally:
+                if experiment.poll() is None:
+                    experiment.terminate()
+                    experiment.wait(timeout=210)
+        after_config = json.loads(kubectl("get", "deployment", "catalog-service",
+            "--namespace", NS, "-o", "json", capture=True))["spec"]["template"]
+        assert before_config == after_config
+        forwards.start("catalog-service", 9001, 9001)
+        wait_for(lambda: shop_request(9001, "/products")[0] == 200,
+                 "domain ready after exact configuration restoration", 120)
+        config_proof["exact_template_restored"] = True
+        config_proof["domain_recovery_observed"] = True
+        config_proof["not_evaluation_accuracy"] = True
+        (config_dir / "independent-proof.json").write_text(json.dumps(config_proof, indent=2))
+        print("Actual invalid catalog setting rejected on startup; exact Pod template restored and domain ready, no outage assumed")
+
         run([sys.executable, str(ROOT / "scripts/check_console_stack.py")], timeout=240)
         with urllib.request.urlopen("http://127.0.0.1:3030/login", timeout=15) as response:
             assert response.status == 200
