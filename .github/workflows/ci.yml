@@ -124,11 +124,11 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: Style (ruff)
-        run: ruff check backend demoapp scripts/ci
+        run: ruff check backend demoapp scripts/ci chaoslab
 
       - name: Types (mypy --strict)
         run: >
-          mypy backend/libs/security scripts/ci backend/services/api-gateway backend/libs/telemetry backend/libs/eventbus backend/libs/storage
+          mypy chaoslab demoapp/libs/fault-hooks backend/libs/security scripts/ci backend/services/api-gateway backend/libs/telemetry backend/libs/eventbus backend/libs/storage
           backend/services/_template
           backend/services/registry-service
           backend/services/deployments-service
@@ -140,7 +140,7 @@ jobs:
 
       - name: Tests (pytest)
         run: >
-          pytest backend/libs/security backend/services/api-gateway backend/libs/telemetry backend/libs/eventbus backend/libs/storage
+          pytest demoapp/libs/fault-hooks backend/libs/security backend/services/api-gateway backend/libs/telemetry backend/libs/eventbus backend/libs/storage
           backend/services/_template
           backend/services/registry-service
           backend/services/deployments-service

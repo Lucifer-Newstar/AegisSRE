@@ -429,3 +429,26 @@ outage/restoration while platform and saved order reads remain healthy. Native
 checks alone do not establish the hosted proof. These two isolated dependencies
 are prerequisites for honest fault experiments, not completion of A11/A12 or any
 accuracy/MTTR/autonomy acceptance target.
+
+## Chaos hook and journal foundation, not ten-fault acceptance
+
+The four shop images now include a separate opt-in fault-hook package. Normal
+manifests leave it disabled. No HTTP controls are exposed; the owned runner
+writes bounded expiring regular-file state. Native checks reject symlinks,
+FIFOs, malformed/oversized/unknown control data. HTTP error and request delay,
+bounded CPU and memory-pressure primitives are implemented; bounded pressure is
+not actual memory exhaustion, and application delay is not packet shaping.
+
+The initial CLI is restricted to the current newly owned CI kind fixture. It
+uses explicit context/namespace, fixed shop targets, UID/label checks, exclusive
+experiment markers and separate fsynced ground-truth journals. Restoration runs
+on exceptions and handled termination, while unresolved runs retain their lock.
+It records control application and restoration honestly, never inferred symptom
+onset, verified recovery or invented evaluation metrics. Its fixed DB/Redis
+operations use the isolated shop dependencies, not platform stores.
+
+The actual kind gate must run and independently observe one HTTP fault/restore
+through this CLI before merge. The other hook/runner operations still need real
+cluster proof; crash, actual OOM, config error, faulty deployment and traffic-spike
+experiments remain. A11/A12, measured accuracy/MTTR/autonomy and the full project
+are not complete. Details and current operation matrix: [chaos CLI](../../chaoslab/README.md).

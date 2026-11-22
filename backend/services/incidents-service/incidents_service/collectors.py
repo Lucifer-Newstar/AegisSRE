@@ -319,7 +319,7 @@ class Collector:
                 else evidence.traces(service, point)
             )
         except (httpx.HTTPError, ValueError, TypeError, KeyError, IndexError, OverflowError) as exc:
-            self.failures[f"tempo:{service}"] = type(exc).__name__
+            self.failures[f"tempo:{service}"] = f"{type(exc).__module__}.{type(exc).__name__}"
         return collected
 
     def close(self) -> None:

@@ -96,8 +96,18 @@ def seed() -> None:
         } <= names
 
     wait_for(observed_metrics, "actual scoped Prometheus rates, histogram and process metrics", 120)
+    # Evidence reads rotate across services. A single snapshot can retain a
+    # prior startup failure until that service is polled again. Require actual
+    # convergence, not a weakened assertion or an assumed healthy backend.
+    def collectors_converged() -> bool:
+        runtime = api("/runtime")
+        failures = runtime.get("collector_failures", {})
+        if failures:
+            print("Awaiting collector convergence:", json.dumps(failures), flush=True)
+        return bool(runtime["collector_enabled"] and not failures)
+
+    wait_for(collectors_converged, "all enabled collectors reporting success", 120)
     runtime = api("/runtime")
-    assert runtime["collector_enabled"] and not runtime["collector_failures"]
 
     redis = Redis.from_url("redis://127.0.0.1:6379/0", decode_responses=True)
     try:
