@@ -36,3 +36,8 @@ guessed replica count. Live reads run outside the decision lock, so a slow read
 cannot delay an operator's kill-switch write. The unchanged plan and mode are
 checked again before saving live plan preconditions. The versioned policy remains
 the authority for risk/approval, and dispatch rechecks current replicas again.
+
+A dispatch callback also checks the current mode, incident reservation and plan
+after the executor's last live Deployment read, immediately before the mutation
+subprocess. This closes the potentially slow network-read gap after the engine's
+mode check. A command already submitted remains non-retractable.
