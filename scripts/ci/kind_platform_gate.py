@@ -281,6 +281,8 @@ def verify() -> None:
             ("console", 3030, 3030),
             ("order-service", 9003, 9003),
             ("cart-service", 9002, 9002),
+            ("prometheus", 19090, 9090),
+            ("grafana", 13000, 3000),
         ]:
             forwards.start(name, local, remote)
         wait_for(
@@ -315,6 +317,7 @@ def verify() -> None:
             ("check_observability_stack.py",),
             ("check_knowledge_stack.py",),
             ("check_intelligence_stack.py",),
+            ("check_slo_stack.py",),
             ("check_deployment_windows_stack.py", "seed"),
         ]
         for command in scripts:
