@@ -469,6 +469,8 @@ def verify() -> None:
                           "restoration_requested", "restored_control_state"]
         print("Actual opt-in HTTP fault CLI injected/restored with durable ground truth; not ten-fault acceptance")
         run([sys.executable, str(ROOT / "scripts/check_console_stack.py")], timeout=240)
+        run(["env", "AEGIS_VISUAL_OUTPUT=" + str(directory() / "diagnostics" / "visual"),
+             "node", str(ROOT / "scripts/visual/console.mjs")], timeout=180)
         with urllib.request.urlopen("http://127.0.0.1:3030/login", timeout=15) as response:
             assert response.status == 200
         print(
