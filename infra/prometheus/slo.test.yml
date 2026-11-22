@@ -1,0 +1,47 @@
+rule_files:
+- alerts.yml
+evaluation_interval: 15s
+tests:
+- interval: 15s
+  input_series:
+  - series: http_server_requests_total{service="catalog-service",environment="dev",status="200"}
+    values: 0+100x300
+  promql_expr_test:
+  - expr: aegisshop:slo_burn_rate:5m
+    eval_time: 10m
+    exp_samples:
+    - labels: '{__name__="aegisshop:slo_burn_rate:5m",service="catalog-service",environment="dev"}'
+      value: 0
+  alert_rule_test:
+  - eval_time: 10m
+    alertname: AegisShopRequestErrorBudgetFastBurn
+    exp_alerts: []
+- interval: 15s
+  input_series:
+  - series: http_server_requests_total{service="catalog-service",environment="dev",status="503"}
+    values: 0+100x300
+  alert_rule_test:
+  - eval_time: 10m
+    alertname: AegisShopRequestErrorBudgetFastBurn
+    exp_alerts:
+    - exp_labels:
+        severity: critical
+        objective: request-success-99.9-v1
+        service: catalog-service
+        environment: dev
+      exp_annotations:
+        summary: catalog-service request-error budget is burning quickly
+        description: 5m and 1h request-error burn exceed 14.4x the demo 99.9% objective.
+          Missing/zero traffic is not healthy. Inspect evidence before acting.
+- interval: 15s
+  input_series:
+  - series: http_server_requests_total{service="catalog-service",environment="dev",status="200"}
+    values: 0+0x100
+  promql_expr_test:
+  - expr: aegisshop:slo_burn_rate:5m
+    eval_time: 10m
+    exp_samples: []
+  alert_rule_test:
+  - eval_time: 10m
+    alertname: AegisShopRequestErrorBudgetFastBurn
+    exp_alerts: []

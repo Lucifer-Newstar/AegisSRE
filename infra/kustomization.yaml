@@ -29,3 +29,4 @@ configMapGenerator:
   - grafana/dashboards/aegisshop-catalog.json
   - grafana/dashboards/aegisshop-logs.json
   - grafana/dashboards/aegisshop-overview.json
+  - grafana/dashboards/aegisshop-slo.json

@@ -20,3 +20,26 @@ groups:
           severity: critical
         annotations:
           summary: "AegisShop catalog-service is unreachable"
+
+  # Demo request-based availability objective, not a time-based uptime claim.
+  # This versioned objective is independent of editable registry settings.
+  - name: aegisshop-request-slo
+    interval: 15s
+    rules:
+      - record: aegisshop:slo_error_ratio:5m
+        expr: ((sum by (service, environment) (rate(http_server_requests_total{service=~"catalog-service|cart-service|order-service|payment-service",status=~"5.."}[5m])) or on (service, environment) (sum by (service, environment) (rate(http_server_requests_total{service=~"catalog-service|cart-service|order-service|payment-service"}[5m])) * 0)) / sum by (service, environment) (rate(http_server_requests_total{service=~"catalog-service|cart-service|order-service|payment-service"}[5m]))) and on (service, environment) (sum by (service, environment) (rate(http_server_requests_total{service=~"catalog-service|cart-service|order-service|payment-service"}[5m])) > 0)
+      - record: aegisshop:slo_burn_rate:5m
+        expr: aegisshop:slo_error_ratio:5m / 0.001
+      - record: aegisshop:slo_error_ratio:1h
+        expr: ((sum by (service, environment) (rate(http_server_requests_total{service=~"catalog-service|cart-service|order-service|payment-service",status=~"5.."}[1h])) or on (service, environment) (sum by (service, environment) (rate(http_server_requests_total{service=~"catalog-service|cart-service|order-service|payment-service"}[1h])) * 0)) / sum by (service, environment) (rate(http_server_requests_total{service=~"catalog-service|cart-service|order-service|payment-service"}[1h]))) and on (service, environment) (sum by (service, environment) (rate(http_server_requests_total{service=~"catalog-service|cart-service|order-service|payment-service"}[1h])) > 0)
+      - record: aegisshop:slo_burn_rate:1h
+        expr: aegisshop:slo_error_ratio:1h / 0.001
+      - alert: AegisShopRequestErrorBudgetFastBurn
+        expr: (aegisshop:slo_burn_rate:5m > 14.4) and on (service, environment) (aegisshop:slo_burn_rate:1h > 14.4)
+        for: 2m
+        labels:
+          severity: critical
+          objective: request-success-99.9-v1
+        annotations:
+          summary: "{{ $labels.service }} request-error budget is burning quickly"
+          description: "5m and 1h request-error burn exceed 14.4x the demo 99.9% objective. Missing/zero traffic is not healthy. Inspect evidence before acting."

@@ -1,1 +1,1 @@
-{"private":true,"type":"module","scripts":{"check":"node console-fixture.mjs"},"devDependencies":{"playwright":"1.65.1"}}
+{"private":true,"type":"module","scripts":{"check":"node console-fixture.mjs","grafana":"node grafana.mjs"},"devDependencies":{"playwright":"1.65.1"}}
