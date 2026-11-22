@@ -156,3 +156,17 @@ def test_traffic_program_has_fixed_local_destination_and_worker_bound() -> None:
     assert 'max_workers=8' in TRAFFIC_PROGRAM
     assert '1<=seconds<=120' in TRAFFIC_PROGRAM
     compile(TRAFFIC_PROGRAM, '<fixed-traffic-program>', 'exec')
+
+
+def test_faulty_release_changes_fixed_image_and_restores_original(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    api = fixture_driver()
+    value = json.loads(api.kubectl.return_value)
+    value["spec"]["template"]["spec"]["containers"][0]["image"] = "original-catalog:verified"
+    api.kubectl.return_value = json.dumps(value)
+    api.directory = lambda: tmp_path
+    monkeypatch.setattr(runner, "driver", lambda: api)
+    monkeypatch.setattr(time, "sleep", Mock())
+    runner.run("faulty-deployment", 1, tmp_path)
+    calls = api.kubectl.call_args_list
+    assert any("catalog-service=aegisshop/catalog-service:ci-faulty" in c.args for c in calls)
+    assert any("catalog-service=original-catalog:verified" in c.args for c in calls)

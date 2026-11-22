@@ -133,6 +133,8 @@ def images() -> dict[str, str]:
 def build() -> None:
     directory()
     run(["docker", "compose", "build", *APPS], timeout=1200)
+    run(["docker", "build", "-f", "chaoslab/images/catalog-faulty.Dockerfile",
+         "-t", "aegisshop/catalog-service:ci-faulty", "."], timeout=240)
 
 
 def create() -> None:
@@ -165,6 +167,8 @@ def create() -> None:
         [binary, "load", "docker-image", *(selected[name] for name in APPS), "--name", NAME],
         timeout=600,
     )
+    run([binary, "load", "docker-image", "aegisshop/catalog-service:ci-faulty",
+         "--name", NAME], timeout=120)
     kubectl("create", "namespace", NS)
     secrets = {
         "aegissre-console": {"session-secret": "ci-disposable-console-session-secret-value"},
@@ -621,6 +625,53 @@ def verify() -> None:
             "caveat": "Counter difference includes background traffic and scrape timing, not an exact generator RPS measurement",
         }, indent=2))
         print("Actual bounded traffic CLI and independent Prometheus counter growth verified; not sustained capacity or detection acceptance")
+        release_dir = experiment_dir / "faulty-deployment"
+        release_dir.mkdir(exist_ok=True)
+        original_template = json.loads(kubectl("get", "deployment", "catalog-service",
+            "--namespace", NS, "-o", "json", capture=True))["spec"]["template"]
+        with (release_dir / "runner.log").open("w") as output:
+            experiment = subprocess.Popen(
+                [sys.executable, "-m", "chaoslab", "faulty-deployment", "--seconds", "30",
+                 "--output", str(release_dir)],
+                cwd=ROOT, env={**os.environ, **FIXTURE}, stdout=output, stderr=subprocess.STDOUT,
+            )
+            try:
+                forwarded_faulty_uid: str | None = None
+                def faulty_rollout_serving() -> Any:
+                    nonlocal forwarded_faulty_uid
+                    pods = json.loads(kubectl("get", "pods", "--namespace", NS, "-l",
+                        "app.kubernetes.io/name=catalog-service", "-o", "json", capture=True))["items"]
+                    ready = [p for p in pods if not p["metadata"].get("deletionTimestamp") and
+                        p["spec"]["containers"][0]["image"] == "aegisshop/catalog-service:ci-faulty" and
+                        any(c.get("ready") for c in p["status"].get("containerStatuses", []))]
+                    if len(ready) != 1:
+                        return None
+                    if forwarded_faulty_uid != ready[0]["metadata"]["uid"]:
+                        forwards.start("catalog-service", 9001, 9001)
+                        forwarded_faulty_uid = ready[0]["metadata"]["uid"]
+                    if shop_request(9001, "/products")[0] == 503 and shop_request(9001, "/health")[0] == 200:
+                        return {"pod_uid": ready[0]["metadata"]["uid"],
+                                "image": ready[0]["spec"]["containers"][0]["image"],
+                                "container_status": ready[0]["status"]["containerStatuses"][0]}
+                    return None
+                release_proof = wait_for(faulty_rollout_serving,
+                    "actual separately built faulty revision serving domain503 with liveness200", 180)
+                assert experiment.wait(timeout=240) == 0
+            finally:
+                if experiment.poll() is None:
+                    experiment.terminate()
+                    experiment.wait(timeout=210)
+        restored_template = json.loads(kubectl("get", "deployment", "catalog-service",
+            "--namespace", NS, "-o", "json", capture=True))["spec"]["template"]
+        assert original_template == restored_template
+        forwards.start("catalog-service", 9001, 9001)
+        wait_for(lambda: shop_request(9001, "/products")[0] == 200,
+                 "original image business response restored", 120)
+        release_proof.update({"faulty_domain_status": 503, "faulty_liveness_status": 200,
+                              "exact_template_restored": True, "restored_domain_status": 200,
+                              "not_evaluation_accuracy": True})
+        (release_dir / "independent-proof.json").write_text(json.dumps(release_proof, indent=2))
+        print("Actual separately built faulty release503 and original-image restoration200 independently verified")
         run([sys.executable, str(ROOT / "scripts/check_console_stack.py")], timeout=240)
         with urllib.request.urlopen("http://127.0.0.1:3030/login", timeout=15) as response:
             assert response.status == 200

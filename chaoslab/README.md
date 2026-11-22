@@ -32,7 +32,7 @@ Supported runner operations so far:
 | `database-outage` | shop DB replicas 1 to 0, then back to 1 | controller restoration is not app-health recovery |
 | `dependency-failure` | shop Redis replicas 1 to 0, then back to 1 | same health limitation |
 
-Faulty deployment remains unimplemented. Container crash and invalid configuration are implemented
+The named fault primitives below remain subject to real hosted proof. Container crash and invalid configuration are implemented
 below, with real hosted proof required. The final A11 ten-fault catalogue is not
 complete. The current hook/runner set must not be reported as meeting it.
 
@@ -104,3 +104,18 @@ of at least100 during a ten-second CLI trial and a subsequent200 response.
 The counter includes background traffic and scrape timing; it is not an exact
 RPS measurement, sustained load claim or detection-accuracy acceptance.
 Hosted proof is pending.
+
+## Faulty release
+
+`faulty-deployment` replaces the fixed catalog container image with a separately
+built defective revision. Its `/products` implementation returns503 while
+liveness remains200; normal images have no setting to enable this defect.
+The fixed faulty tag is built and loaded only in the newly owned fixture.
+Restoration returns the exact previous image and waits for rollout. The hosted
+gate must independently observe the actual faulty image/Pod,503 domain response,
+200 liveness, exact restored Pod template and200 domain recovery. It does not
+claim deployment-event collection, bad-rollout detection, automated policy
+rollback or DI accuracy merely because the CLI restored the image.
+Hosted acceptance is pending. All ten named primitives now have code paths,
+but bounded CPU is not sustained saturation, and measurements/evaluation plus
+hosted proof of the newly added operations remain required.
