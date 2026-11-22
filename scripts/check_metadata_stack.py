@@ -35,7 +35,7 @@ def ready() -> None:
             try:
                 assert request(port, "/ready")["status"] == "ready"
                 break
-            except (urllib.error.URLError, AssertionError):
+            except (OSError, AssertionError):
                 if attempt == 59:
                     raise
                 time.sleep(1)
