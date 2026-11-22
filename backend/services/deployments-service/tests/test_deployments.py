@@ -83,6 +83,7 @@ def test_old_stored_envelope_replays_without_new_null_fields() -> None:
     old = DeploymentEnvelopeIn.model_validate(ENVELOPE).model_dump(mode="json")
     old["payload"].pop("deployment_id")
     old["payload"].pop("started_at")
+    old["payload"].pop("change_attributes")
     store.put(
         DeploymentRecord(
             event_id=old["id"],

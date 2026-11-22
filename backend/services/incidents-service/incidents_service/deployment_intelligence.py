@@ -197,7 +197,10 @@ def register(tx: Transaction, event: Event) -> None:
         _bad(tx, row, event, "Producer reported an actual rollout failure", None)
     _save(tx, row)
     tx.map_rollout_event(event.id, row.id)
+    from incidents_service.change_risk import bind
     from incidents_service.deployment_risk import score
+
+    bind(tx, row, payload.change_attributes)
 
     if tx.get_state("risk:" + row.id, None) is None:
         tx.put_state("risk:" + row.id, score(tx, row))
