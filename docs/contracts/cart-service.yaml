@@ -22,12 +22,12 @@ paths:
 
   /ready:
     get:
-      summary: Readiness probe (needs Postgres)
+      summary: Readiness probe (needs shop Redis)
       responses:
         "200":
           description: ready
         "503":
-          description: Postgres unreachable
+          description: cart Redis unavailable
 
   /cart/{user_id}:
     get:
@@ -46,6 +46,9 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Cart"
+
+        "503":
+          description: cart Redis unavailable
 
   /cart/{user_id}/items:
     post:
@@ -69,6 +72,7 @@ paths:
                 quantity:
                   type: integer
                   minimum: 1
+                  maximum: 10000
       responses:
         "200":
           description: updated cart
@@ -78,6 +82,8 @@ paths:
                 $ref: "#/components/schemas/Cart"
         "404":
           description: unknown product
+        "503":
+          description: cart Redis unavailable
 
 components:
   schemas:

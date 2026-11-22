@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     service_name: str = "cart-service"
     service_port: int = 9002
     environment: str = "dev"
+    shop_redis_url: str = ""
     otel_exporter_otlp_endpoint: str = ""
 
 
