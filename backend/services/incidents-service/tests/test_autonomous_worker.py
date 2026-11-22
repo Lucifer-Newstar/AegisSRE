@@ -271,3 +271,38 @@ def test_live_plan_fill_cannot_refresh_a_stale_incident(monkeypatch: pytest.Monk
     with loop.repo.transaction() as tx:
         item = tx.incident(key)
         assert item and item.plan.replicas is None
+
+
+def test_executor_checks_kill_switch_after_its_last_network_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    loop, key = configured()
+    with loop.repo.transaction() as tx:
+        item = tx.incident(key)
+        assert item
+    executor = Executor(Settings(api_token="test", executor="kubernetes", kube_context="owned"))
+    obj = {
+        "metadata": {
+            "namespace": "aegissre-demo",
+            "uid": "actual",
+            "labels": {"aegissre.managed": "true"},
+        },
+        "spec": {"replicas": 2},
+    }
+    calls: list[list[str]] = []
+
+    def read(args: list[str]) -> str:
+        calls.append(args)
+        assert args[0] == "get", "Must not submit a command after observe mode"
+        loop.set_mode("observe", "operator-during-dispatch-read")
+        return json.dumps(obj)
+
+    monkeypatch.setattr(executor, "_kubectl", read)
+
+    def allowed() -> bool:
+        with loop.repo.transaction() as tx:
+            return bool(tx.get_state("autonomy", {})["mode"] == "auto-safe")
+
+    with pytest.raises(ExecutionError, match="kill switch"):
+        executor.run(item.plan, automatic=True, expected_uid="actual", dispatch_allowed=allowed)
+    assert len(calls) == 1
