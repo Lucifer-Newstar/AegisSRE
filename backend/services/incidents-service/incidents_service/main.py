@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import hmac
+import logging
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from typing import Annotated, Any, Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
@@ -19,6 +21,9 @@ from incidents_service.config import Settings
 from incidents_service.engine import DomainError, ReliabilityLoop
 from incidents_service.models import Decision, Event, StrictModel
 from incidents_service.repository import Repository
+from incidents_service.runtime import Runtime
+
+logger = logging.getLogger(__name__)
 
 bearer = HTTPBearer(auto_error=False)
 
@@ -43,15 +48,44 @@ def create_app(settings: Settings | None = None, repository: Repository | None =
         "aegis_domain_errors_total", "Rejected reliability API operations", registry=metrics
     )
 
+    runtime = Runtime(loop) if config.worker_enabled else None
+
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         loop.sweep(recover_interrupted=True)
-        yield
-        if repository is None:
-            repo.close()
+        stop = asyncio.Event()
+
+        async def work() -> None:
+            assert runtime is not None
+            failures = 0
+            while not stop.is_set():
+                try:
+                    await asyncio.to_thread(runtime.tick)
+                    failures = 0
+                except Exception as exc:
+                    failures += 1
+                    runtime.last_error = type(exc).__name__
+                    logger.error("Reliability worker tick failed (%s)", type(exc).__name__)
+                delay = min(30, 2 ** min(failures, 5)) if failures else 1
+                with suppress(TimeoutError):
+                    await asyncio.wait_for(stop.wait(), timeout=delay)
+
+        task = asyncio.create_task(work()) if runtime else None
+        try:
+            yield
+        finally:
+            stop.set()
+            if task is not None:
+                # Wait for in-flight I/O before closing shared connections.
+                await task
+            if runtime:
+                runtime.close()
+            if repository is None:
+                repo.close()
 
     application = FastAPI(title="AegisSRE Reliability API", version="0.1.0", lifespan=lifespan)
     application.state.loop = loop
+    application.state.runtime = runtime
     application.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:3030", "http://127.0.0.1:3030"],
@@ -99,9 +133,20 @@ def create_app(settings: Settings | None = None, repository: Repository | None =
 
     @application.get("/ready", dependencies=[Depends(authorized)])
     def ready() -> dict[str, str]:
-        with repo.transaction() as tx:
-            tx.get_state("autonomy", {})
+        try:
+            with repo.transaction() as tx:
+                tx.get_state("autonomy", {})
+            if runtime is not None and not runtime.ready():
+                raise HTTPException(503, "Delivery worker or evidence sources not ready")
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(503, "A required dependency is unavailable") from exc
         return {"status": "ready"}
+
+    @application.get("/runtime", dependencies=[Depends(authorized)])
+    def runtime_status() -> dict[str, Any]:
+        return runtime.snapshot() if runtime else {"enabled": False, "collector_enabled": False}
 
     @application.get("/metrics", dependencies=[Depends(authorized)])
     def scrape() -> Response:
