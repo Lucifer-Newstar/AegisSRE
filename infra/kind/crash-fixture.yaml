@@ -1,0 +1,45 @@
+# Deliberately fails only in the disposable CI cluster. Not part of the base.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: evidence-crash-fixture
+  namespace: aegissre-demo
+  labels:
+    app.kubernetes.io/part-of: aegisshop
+    app.kubernetes.io/name: catalog-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: evidence-crash-fixture
+  template:
+    metadata:
+      labels:
+        app: evidence-crash-fixture
+        app.kubernetes.io/part-of: aegisshop
+        app.kubernetes.io/name: catalog-service
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: crash-fixture
+        image: aegissre/evidence:ci
+        imagePullPolicy: Never
+        command: [python, -c, 'raise SystemExit(42)']
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: [ALL]

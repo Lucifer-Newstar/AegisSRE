@@ -71,7 +71,7 @@ jobs:
       - name: Validate manifests against k8s schemas
         run: |
           # kustomization.yaml is not a k8s schema — it is validated by `kustomize build` below
-          find infra/k8s -name '*.yaml' ! -name 'kustomization.yaml' -print0 \
+          find infra/k8s infra/kind -name '*.yaml' ! -name 'kustomization.yaml' -print0 \
             | xargs -0 -r kubeconform -strict -summary
 
       - name: Kustomize bases assemble
@@ -122,11 +122,11 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: Style (ruff)
-        run: ruff check backend demoapp
+        run: ruff check backend demoapp scripts/ci
 
       - name: Types (mypy --strict)
         run: >
-          mypy backend/services/api-gateway backend/libs/telemetry backend/libs/eventbus backend/libs/storage
+          mypy scripts/ci backend/services/api-gateway backend/libs/telemetry backend/libs/eventbus backend/libs/storage
           backend/services/_template
           backend/services/registry-service
           backend/services/deployments-service
@@ -319,3 +319,32 @@ jobs:
       - name: Clean up the isolated CI runtime
         if: always()
         run: docker compose down -v
+
+  kubernetes-evidence:
+    name: Kubernetes evidence (isolated kind + real RBAC)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install checksum-verified pinned kind and kubectl
+        run: python3 scripts/ci/kind_evidence_gate.py install
+      - name: Build the actual packaged incidents image for the isolated fixture
+        run: docker build -f backend/services/incidents-service/Dockerfile -t aegissre/evidence:ci .
+      - name: Create a new runner-local cluster with its own kubeconfig
+        run: python3 scripts/ci/kind_evidence_gate.py create
+      - name: Verify real warning capture, ownership, TLS, RBAC and SQL staging
+        run: python3 scripts/ci/kind_evidence_gate.py verify
+      - name: Collect only disposable fixture diagnostics
+        if: always()
+        run: python3 scripts/ci/kind_evidence_gate.py diagnostics
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kind-evidence-diagnostics
+          path: ${{ runner.temp }}/aegis-kind-evidence/diagnostics
+      - name: Delete only the cluster created by this fixture
+        if: always()
+        run: python3 scripts/ci/kind_evidence_gate.py cleanup
