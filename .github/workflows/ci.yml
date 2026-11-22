@@ -391,6 +391,8 @@ jobs:
         run: python3 scripts/ci/kind_platform_gate.py create
       - name: Prove actual telemetry, gateway, persistence and projected-SA evidence
         run: python3 scripts/ci/kind_platform_gate.py verify
+      - name: Prove actual HTTP fault produces scraped error burn and a firing alert
+        run: python3 scripts/check_live_slo_burn.py
       - name: Collect scoped cluster diagnostics without secrets
         if: always()
         run: python3 scripts/ci/kind_platform_gate.py diagnostics
