@@ -209,10 +209,17 @@ jobs:
           cd frontend && npm ci && npm run build
 
   reliability-storage:
-    name: Reliability storage (PostgreSQL)
+    name: Reliability storage (PostgreSQL + Redis)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 16379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
       postgres:
         image: postgres:16-alpine
         env:
@@ -225,6 +232,7 @@ jobs:
           --health-cmd "pg_isready -U aegis_test"
           --health-interval 5s --health-timeout 3s --health-retries 10
     env:
+      AEGIS_TEST_REDIS_URL: redis://127.0.0.1:16379/15
       AEGIS_TEST_DATABASE_URL: postgresql+psycopg://aegis_test:aegis_test@127.0.0.1:15432/aegis_test
     steps:
       - uses: actions/checkout@v4
@@ -235,9 +243,9 @@ jobs:
       - name: Install locked reliability dependencies
         run: |
           pip install -r backend/services/incidents-service/requirements.lock
-          pip install --no-deps -e backend/services/incidents-service -e backend/libs/storage
-      - name: Exercise real PostgreSQL transactions and concurrent ingestion
-        run: pytest backend/services/incidents-service/tests/test_postgres.py backend/libs/storage/tests/test_postgres_storage.py
+          pip install --no-deps -e backend/services/incidents-service -e backend/libs/storage -e backend/libs/telemetry -e backend/libs/eventbus
+      - name: Exercise real PostgreSQL and Redis delivery guarantees
+        run: pytest backend/services/incidents-service/tests/test_postgres.py backend/libs/storage/tests/test_postgres_storage.py backend/libs/eventbus/tests/test_redis_integration.py
 
   metadata-compose:
     name: Metadata APIs (Compose restart persistence)

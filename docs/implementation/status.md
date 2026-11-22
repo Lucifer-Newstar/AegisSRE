@@ -58,6 +58,15 @@ links are checked. Hosted PostgreSQL and Compose results must pass before merge.
 The complete telemetry worker, gateway, LLM/RAG, console and kind bootstrap remain
 subsequent work. This does not declare milestone 2 as a whole complete.
 
+## Milestone 2b: transport reliability (worker integration still ahead)
+
+The Redis library now has real server-clock retention, pending-entry reclamation
+for crashed consumers, bounded reads and explicit poison-message quarantine.
+The original count-based approximation of a seconds TTL has been removed.
+Housekeeping can trim idle streams too. Unit regressions and a fresh actual-Redis
+CI gate cover this behavior. The telemetry worker and transactional outbox delivery
+are not yet wired by this library-only step.
+
 ## Feature-by-feature status
 
 | ID | Implementation state | Acceptance still required |
