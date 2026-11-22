@@ -429,3 +429,20 @@ outage/restoration while platform and saved order reads remain healthy. Native
 checks alone do not establish the hosted proof. These two isolated dependencies
 are prerequisites for honest fault experiments, not completion of A11/A12 or any
 accuracy/MTTR/autonomy acceptance target.
+
+## Authenticated console foundation
+
+The console now uses encrypted HttpOnly sessions and the fixed authenticated
+gateway instead of unauthenticated metadata calls or mock fallbacks. Missing
+operator configuration fails closed. Mutations use exact-origin+CSRF checks;
+approval decisions are distinct from execution. Tokens are never sent to client
+components or browser storage. UI routes expose current API records and visible
+errors/unknown data, with no fabricated research timers.
+
+Session tests and actual Next build pass. Local browser checks exercised login,
+protected routes, cookie properties, token non-disclosure and cross-origin
+rejection against a synthetic HTTP fixture. [Inspected screenshots](../screenshots/console-foundation/README.md)
+are explicitly fixture-only visual evidence. The actual owned-kind gateway/page
+proof must pass before merge. Charts/anomaly shading, structured reports/export,
+24h history, SLO panels, risk/canary views and full interaction/visual acceptance
+remain. Route presence alone does not establish C1 completion.
