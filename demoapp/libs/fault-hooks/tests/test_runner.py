@@ -97,3 +97,25 @@ def test_fixed_container_crash_tolerates_only_expected_killed_exec(tmp_path: Pat
     assert any("import os,signal;os.kill(1,signal.SIGUSR1)" in call.args for call in calls)
     assert any("rollout" in call.args and "status" in call.args for call in calls)
     assert not (tmp_path/"chaos-active").exists()
+
+
+def test_opt_in_lifespan_really_terminates_its_own_process() -> None:
+    import os
+    import subprocess
+    import sys
+
+    # A fresh child, never the pytest process. No server/port or fake os.kill.
+    program = '''
+import asyncio, os, signal
+from fastapi import FastAPI
+from aegisshop_faults import configure_fault_hooks
+app = FastAPI()
+configure_fault_hooks(app)
+async def check():
+    async with app.router.lifespan_context(app):
+        os.kill(os.getpid(), signal.SIGUSR1)
+asyncio.run(check())
+'''
+    result = subprocess.run([sys.executable, "-c", program],
+        env={**os.environ, "AEGIS_SHOP_FAULTS_ENABLED": "true"}, timeout=10)
+    assert result.returncode == -9
