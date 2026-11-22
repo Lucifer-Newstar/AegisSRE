@@ -36,14 +36,16 @@ using `AEGIS_TEST_DATABASE_URL` and an isolated test database.
 
 ```bash
 cp .env.example .env
+# Fill the three distinct blank API/token settings through your secret workflow.
 make infra-up
 ```
 
 The example credentials are **development fixtures**, not suitable for a network
 or production installation. The catalogue and deployment APIs bind to host
 loopback. Other existing stack ports are still development ports; do not expose
-this stack to an untrusted network. An authenticated gateway and further network
-hardening belong to the remaining runtime integration.
+this stack to an untrusted network. The authenticated gateway is available on host port 8080. Direct metadata access
+requires separate internal read/write keys; see [metadata auth](../operations/metadata-auth.md).
+Further network isolation remains acceptance work.
 
 `PLATFORM_DATABASE_URL` must match `POSTGRES_USER`, `POSTGRES_PASSWORD` and
 `POSTGRES_DB`. URL-encode special characters in URL credentials. Compose passes
@@ -55,21 +57,22 @@ persist metadata to PostgreSQL. Do not commit `.env` or any real credentials.
 | Console | http://localhost:3030 |
 | Grafana | http://localhost:3000 |
 | Prometheus | http://localhost:9090 |
-| Registry | http://localhost:8101/services |
-| Deployment history | http://localhost:8701/deployments |
+| Registry, service key required | http://localhost:8101/services |
+| Deployment history, service key required | http://localhost:8701/deployments |
 | Catalog app | http://localhost:9001/products |
 | Loki | http://localhost:3100 |
 | Tempo | http://localhost:3200 |
 
-The reliability-core API can currently be run separately using its
-[README](../../backend/services/incidents-service/README.md). Its Compose/collector
-integration is a subsequent milestone; a mock incident list in the existing
-console is not proof of that integration.
+The reliability API/background collector and gateway are included in Compose;
+see its [README](../../backend/services/incidents-service/README.md). Hosted checks
+prove selected actual collection, transport and restart behavior. A mock incident
+list in the existing console is not proof of live console integration.
 
 ### Metadata persistence check
 
 On an isolated development stack only, this command creates controlled fixture
-records and deletes the seeded cart entry:
+records and deletes the seeded cart entry. Export the two metadata credential
+variables into the helper shell first; Compose reads `.env`, Python helpers do not:
 
 ```bash
 python scripts/check_metadata_stack.py --seed
@@ -98,7 +101,9 @@ step.
 Outside Compose, the metadata services use ignored local SQLite files by default:
 `aegis-registry.db` and `aegis-deployments.db`. Set `DATABASE_URL` to an explicit
 SQLite file or a PostgreSQL URL to select another database. The services do not
-read the Compose `.env` file themselves.
+read the Compose `.env` file themselves. Configure the two distinct metadata
+keys, or explicitly use `AEGIS_METADATA_DEV_MODE=true` with both keys absent for
+local unauthenticated development. Compose does not allow that bypass.
 
 Registry probing is enabled with `REGISTRY_PROBE=true`. Registered probe URLs must
 have a host in `REGISTRY_ALLOWED_HOSTS` (a JSON array of allowed service DNS names).
@@ -119,7 +124,9 @@ npm ci
 npm run dev
 ```
 
-The console uses `REGISTRY_URL` and `DEPLOYMENTS_URL` for server-side reads.
+The current scaffold uses `REGISTRY_URL` and `DEPLOYMENTS_URL` for server-side
+reads, without a metadata key. Do not give it a service key to bypass its missing
+login/session boundary. These reads are not the finished authenticated console.
 Unconfigured or unreachable APIs in the existing scaffold still show labelled
 mock fallback. Live intelligence and the remaining pages are tracked in the
 acceptance ledger.
@@ -129,7 +136,10 @@ acceptance ledger.
 The registry and deployment manifests now read `DATABASE_URL` from the
 `aegissre-database` Secret, key `url`, in their namespace. Create that Secret
 through the target environment's secret workflow before applying the workloads.
-No real credentials are committed. The complete kind dependency/bootstrap path
+The `aegissre-metadata` Secret must also supply distinct `api-token` and
+`read-token` keys. Authenticated readiness uses a local exec probe that reads
+the key from its environment, not a literal HTTP probe header. No real
+credentials are committed. The complete kind dependency/bootstrap path
 is still a remaining acceptance item. See [Kubernetes notes](../../infra/k8s/README.md).
 
 ## Troubleshooting

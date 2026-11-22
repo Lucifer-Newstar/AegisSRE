@@ -39,8 +39,10 @@ measured checks and remaining work. Code presence is not an acceptance result.
   Redis Streams event bus (`backend/libs/eventbus`), both tested.
 - FastAPI service template (`backend/services/_template`) used as the copy-paste pattern
   for every service.
-- **registry-service** — service catalogue + health aggregation API (:8101, live).
-- **deployments-service** — DI-1 deployment history API (:8701, live).
+- **registry-service**: protected service catalogue and health API (:8101).
+- **deployments-service**: protected DI-1 deployment history API (:8701).
+  Distinct internal read/write keys protect direct metadata access; collectors
+  receive only the read key. See [metadata auth](docs/operations/metadata-auth.md).
 - **Reliability API and background runtime** (`backend/services/incidents-service`, :8201):
   live scoped metric/health/deployment collection, durable Redis processing and
   incident/audit outbox delivery, statistical + Isolation Forest detection, cited
@@ -63,8 +65,9 @@ measured checks and remaining work. Code presence is not an acceptance result.
 **Remaining scope** (see [docs/planning/](docs/planning/) and
 [docs/architecture/](docs/architecture/)):
 
-- Log/trace evidence tools, trace joins and measured anomaly/incident acceptance;
-  LLM reasoning, pgvector RAG knowledge base and Ask Aegis assistant.
+- Measured anomaly/incident and real-model acceptance. Scoped log/trace joins,
+  pgvector retrieval and cited evidence-only Ask already have hosted integration
+  proof; the configurable model adapter has not yet had a real-model run.
 - Console approvals, scheduled safe autonomy, live executor verification and
   complete evaluation of the implemented policy/recovery core.
 - Chaos lab (`chaoslab/` — planned), DI-2…DI-7 deployment-intelligence capabilities
@@ -195,7 +198,8 @@ Python **3.12+** and Node.js 22.
 ```bash
 # 1. Configure local credentials (preserve an existing .env)
 test -f .env || cp .env.example .env
-# Set AEGIS_API_TOKEN to a long random value in .env or your secret manager.
+# Set AEGIS_API_TOKEN plus distinct AEGIS_METADATA_API_TOKEN and
+# AEGIS_METADATA_READ_TOKEN in .env through your secret workflow.
 # No default API token is supplied. Without one the reliability service fails closed.
 
 # 2. Bring up the local stack
@@ -210,8 +214,8 @@ docker compose ps
 #    Prometheus    → http://localhost:9090
 #    Loki          → http://localhost:3100
 #    Tempo         → http://localhost:3200
-#    Registry      → http://localhost:8101/services
-#    Deployments   → http://localhost:8701/deployments
+#    Registry      → http://localhost:8101/services (service bearer key required)
+#    Deployments   → http://localhost:8701/deployments (service bearer key required)
 #    Incidents API → http://localhost:8201/docs (bearer token required)
 #    Catalog API   → http://localhost:9001/products
 #    OTLP endpoint → localhost:4317 (gRPC) / 4318 (HTTP)

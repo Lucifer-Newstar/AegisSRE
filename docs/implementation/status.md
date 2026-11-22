@@ -1,6 +1,6 @@
 # Implementation and acceptance ledger
 
-Updated: 2026-11-22. This ledger separates code from demonstrated acceptance.
+Updated: 2026-11-23. This ledger separates code from demonstrated acceptance.
 The scope reference is [features.md](../planning/features.md). Cut and stretch
 items retain their existing status. A passing unit test is not a measured
 end-to-end reliability result.
@@ -260,6 +260,30 @@ Local checks: 228 passing tests, six real-server skips, Ruff, strict mypy across
 narrow actual-cluster gate is not full D1 bootstrap, in-cluster Redis transport,
 real-model acceptance, remediation proof or the ten-fault evaluation. The
 existing actual PostgreSQL/Redis and complete Compose checks remain separate.
+
+## Milestone 2k: direct metadata authentication
+
+Registry and deployment routes now use distinct internal read/write bearer keys.
+No production defaults are provided. Only GET health/metrics remain public;
+readiness, data and docs/schema need a key. Read-only credentials cannot mutate
+metadata. Authentication precedes bounded request-body collection, including
+chunked bodies, and malformed/duplicate headers fail closed. Local no-key mode
+must be explicitly enabled and is forced off by Compose.
+
+The gateway replaces caller keys with its internal metadata operator key. The
+collector/indexer receive only the read key and attach it only to their fixed
+metadata calls. Owned clients ignore ambient proxy settings and refuse redirects;
+the evidence reader also refuses cookies and compressed responses. Metadata
+images now run non-root, and Kubernetes examples use Secret-backed keys, local
+authenticated readiness probes and a read-only root filesystem.
+
+Local checks: 243 passing tests, six external-server skips, Ruff, strict mypy
+across 113 files, YAML and API contracts. Hosted metadata and full-runtime gates
+must additionally pass actual auth/read/write/persistence and collection checks
+before merge. This is service authentication, not multi-tenant isolation,
+production security approval or full kind bootstrap. The console remains a
+labelled scaffold until its own authenticated gateway/session integration lands.
+See [metadata authentication](../operations/metadata-auth.md).
 
 ## Feature-by-feature status
 
