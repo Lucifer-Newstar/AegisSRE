@@ -1,6 +1,6 @@
 # AegisSRE — CI: what runs on every push/PR to main
 #
-# Six jobs, each one = ONE kind of check. All must pass before merge.
+# Independent validation jobs. All must pass before merge.
 #
 #   config-yaml-compose  → YAML files parse + docker-compose.yml is valid
 #   k8s-manifests        → K8s manifests match real schemas + kustomize bases assemble
@@ -9,7 +9,7 @@
 #   docker-build         → catalog + registry container images actually build
 #   frontend-build       → console (Next.js) production build
 #
-# New jobs are added when their component lands (ml in P3, ai in P4).
+# Hosted gates exercise actual storage, transport and running services.
 
 name: CI
 
@@ -126,7 +126,7 @@ jobs:
 
       - name: Types (mypy --strict)
         run: >
-          mypy backend/libs/telemetry backend/libs/eventbus backend/libs/storage
+          mypy backend/services/api-gateway backend/libs/telemetry backend/libs/eventbus backend/libs/storage
           backend/services/_template
           backend/services/registry-service
           backend/services/deployments-service
@@ -138,7 +138,7 @@ jobs:
 
       - name: Tests (pytest)
         run: >
-          pytest backend/libs/telemetry backend/libs/eventbus backend/libs/storage
+          pytest backend/services/api-gateway backend/libs/telemetry backend/libs/eventbus backend/libs/storage
           backend/services/_template
           backend/services/registry-service
           backend/services/deployments-service
@@ -291,13 +291,15 @@ jobs:
       - name: Install the integration driver's Redis client
         run: pip install -c backend/services/incidents-service/requirements.lock redis
       - name: Build and start actual runtime and instrumented workload
-        run: docker compose up -d --build --wait --wait-timeout 240 incidents-service catalog-service
+        run: docker compose up -d --build --wait --wait-timeout 240 api-gateway catalog-service
       - name: Prove live collection, durable processing and explicit quarantine
         run: python3 scripts/check_runtime_stack.py seed
       - name: Restart the application while a crashed consumer owns pending work
         run: docker compose restart incidents-service
       - name: Verify business persistence and pending-entry recovery
         run: python3 scripts/check_runtime_stack.py verify
+      - name: Prove gateway authorization, routing, correlation and approval identity
+        run: python3 scripts/check_gateway_stack.py
       - name: Collect runtime diagnostics
         if: always()
         run: |

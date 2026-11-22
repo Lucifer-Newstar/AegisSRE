@@ -52,6 +52,10 @@ def test_authentication_precedes_body_and_all_business_routing(
     assert client.get("/api/v1/services").status_code == 401
     assert client.post("/api/v1/events", content=b"x" * 70000).status_code == 401
     assert client.get("/api/v1/audit", headers={"Authorization": "Bearer wrong"}).status_code == 401
+    assert (
+        client.get("/api/v1/services", headers={b"Authorization": b"Bearer \xff"}).status_code
+        == 401
+    )
     assert not requests
     assert client.get("/docs").status_code == 404
 

@@ -99,7 +99,7 @@ def create_app(settings: Settings | None = None, repository: Repository | None =
         if config.dev_mode and not config.api_token:
             return
         supplied = credentials.credentials if credentials else ""
-        if not supplied or not hmac.compare_digest(supplied, config.api_token):
+        if not supplied or not hmac.compare_digest(supplied.encode(), config.api_token.encode()):
             raise HTTPException(status_code=401, detail="Valid bearer token required")
 
     @application.middleware("http")

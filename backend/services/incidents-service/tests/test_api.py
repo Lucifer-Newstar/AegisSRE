@@ -20,6 +20,7 @@ def test_api_requires_authorization_and_limits_request_size() -> None:
         assert http.get("/health").status_code == 200
         assert http.get("/incidents").status_code == 401
         assert http.get("/incidents", headers={"Authorization": "Bearer wrong"}).status_code == 401
+        assert http.get("/incidents", headers={b"Authorization": b"Bearer \xff"}).status_code == 401
         assert http.get("/incidents", headers={"Authorization": "Bearer test-token"}).json() == []
         assert http.post("/events", content=b"x" * 1_600_001).status_code == 413
 

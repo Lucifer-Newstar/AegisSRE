@@ -1,0 +1,117 @@
+annotated-doc==0.0.7
+    # via
+    #   -c backend/services/incidents-service/requirements.lock
+    #   fastapi
+annotated-types==0.8.0
+    # via
+    #   -c backend/services/incidents-service/requirements.lock
+    #   pydantic
+anyio==4.16.0
+    # via
+    #   -c backend/services/incidents-service/requirements.lock
+    #   fastapi
+    #   httpx
+    #   starlette
+    #   watchfiles
+certifi==2026.11.20
+    # via
+    #   -c backend/services/incidents-service/requirements.lock
+    #   httpcore
+    #   httpx
+click==8.5.1
+    # via
+    #   -c backend/services/incidents-service/requirements.lock
+    #   uvicorn
+fastapi==0.165.0
+    # via
+    #   -c backend/services/incidents-service/requirements.lock
+    #   aegissre-api-gateway (backend/services/api-gateway/pyproject.toml)
+h11==0.16.0
+    # via
+    #   -c backend/services/incidents-service/requirements.lock
+    #   httpcore
+    #   uvicorn
+httpcore==1.0.9
+    # via
+    #   -c backend/services/incidents-service/requirements.lock
+    #   httpx
+httptools==0.9.0
+    # via
+    #   -c backend/services/incidents-service/requirements.lock
+    #   uvicorn
+httpx==0.28.1
+    # via
+    #   -c backend/services/incidents-service/requirements.lock
+    #   aegissre-api-gateway (backend/services/api-gateway/pyproject.toml)
+idna==3.20
+    # via
+    #   -c backend/services/incidents-service/requirements.lock
+    #   anyio
+    #   httpx
+opentelemetry-api==1.45.2
+    # via
+    #   -c backend/services/incidents-service/requirements.lock
+    #   fastapi
+pydantic==2.14.4
+    # via
+    #   -c backend/services/incidents-service/requirements.lock
+    #   fastapi
+    #   pydantic-settings
+pydantic-core==2.50.5
+    # via
+    #   -c backend/services/incidents-service/requirements.lock
+    #   pydantic
+pydantic-settings==2.16.3
+    # via
+    #   -c backend/services/incidents-service/requirements.lock
+    #   aegissre-api-gateway (backend/services/api-gateway/pyproject.toml)
+python-dotenv==1.2.4
+    # via
+    #   -c backend/services/incidents-service/requirements.lock
+    #   pydantic-settings
+    #   uvicorn
+pyyaml==6.0.4
+    # via
+    #   -c backend/services/incidents-service/requirements.lock
+    #   uvicorn
+redis==8.1.0
+    # via
+    #   -c backend/services/incidents-service/requirements.lock
+    #   aegissre-api-gateway (backend/services/api-gateway/pyproject.toml)
+starlette==1.10.0
+    # via
+    #   -c backend/services/incidents-service/requirements.lock
+    #   fastapi
+typing-extensions==4.16.0
+    # via
+    #   -c backend/services/incidents-service/requirements.lock
+    #   anyio
+    #   fastapi
+    #   opentelemetry-api
+    #   pydantic
+    #   pydantic-core
+    #   pydantic-settings
+    #   starlette
+    #   typing-inspection
+typing-inspection==0.4.5
+    # via
+    #   -c backend/services/incidents-service/requirements.lock
+    #   fastapi
+    #   pydantic
+    #   pydantic-settings
+uvicorn==0.54.0
+    # via
+    #   -c backend/services/incidents-service/requirements.lock
+    #   aegissre-api-gateway (backend/services/api-gateway/pyproject.toml)
+uvloop==0.23.0
+    # via
+    #   -c backend/services/incidents-service/requirements.lock
+    #   uvicorn
+watchfiles==1.3.0
+    # via
+    #   -c backend/services/incidents-service/requirements.lock
+    #   uvicorn
+websockets==17.4
+    # via
+    #   -c backend/services/incidents-service/requirements.lock
+    #   uvicorn

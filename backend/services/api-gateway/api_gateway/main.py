@@ -96,7 +96,9 @@ def create_app(
     def authorized(
         credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)] = None,
     ) -> None:
-        if not credentials or not hmac.compare_digest(credentials.credentials, config.api_token):
+        if not credentials or not hmac.compare_digest(
+            credentials.credentials.encode(), config.api_token.encode()
+        ):
             raise HTTPException(
                 401, "Valid bearer token required", headers={"WWW-Authenticate": "Bearer"}
             )
@@ -111,7 +113,7 @@ def create_app(
             valid = (
                 scheme.lower() == "bearer"
                 and len(token) <= 512
-                and hmac.compare_digest(token, config.api_token)
+                and hmac.compare_digest(token.encode(), config.api_token.encode())
             )
             principal = (
                 "operator:" + hashlib.sha256(config.api_token.encode()).hexdigest()
@@ -199,7 +201,12 @@ def create_app(
                         raise HTTPException(503, "Invalid upstream readiness response") from exc
 
             async with asyncio.timeout(8):
-                await asyncio.gather(*(probe(name, origin) for name, origin in origins.items()))
+                results = await asyncio.gather(
+                    *(probe(name, origin) for name, origin in origins.items()),
+                    return_exceptions=True,
+                )
+                if any(isinstance(result, BaseException) for result in results):
+                    raise HTTPException(503, "An upstream is not ready")
         except (RedisError, httpx.HTTPError, TimeoutError) as exc:
             raise HTTPException(503, "A gateway dependency is unavailable") from exc
         return {"status": "ready"}
@@ -286,7 +293,24 @@ def create_app(
             for name in re.findall(r"{([^}]+)}", route.path)
         ]
         for method in route.methods:
-            extra: dict[str, Any] = {"parameters": path_parameters}
+            extra: dict[str, Any] = {
+                "parameters": path_parameters
+                + [
+                    {
+                        "name": key,
+                        "in": "query",
+                        "required": False,
+                        "schema": {
+                            "type": "integer"
+                            if key == "limit"
+                            else "boolean"
+                            if key == "include_heartbeats"
+                            else "string"
+                        },
+                    }
+                    for key in route.queries
+                ]
+            }
             if method in {"POST", "PUT"}:
                 extra["requestBody"] = {
                     "content": {"application/json": {"schema": {"type": "object"}}}
@@ -295,10 +319,21 @@ def create_app(
                 PREFIX + route.path,
                 make_proxy(route),
                 methods=[method],
+                status_code=204 if method == "DELETE" else 200,
                 dependencies=[Depends(authorized)],
                 name=f"{method}_{route.upstream}_{route.path}",
                 openapi_extra=extra,
                 responses={
+                    **(
+                        {201: {"description": "Created"}}
+                        if method == "POST" and route.path in {"/services", "/deployments"}
+                        else {}
+                    ),
+                    400: {"description": "Invalid request"},
+                    404: {"description": "Unknown resource or route"},
+                    413: {"description": "Request too large"},
+                    415: {"description": "JSON required"},
+                    422: {"description": "Validation failed"},
                     401: {"description": "Authentication required"},
                     429: {"description": "Rate limit exceeded"},
                     502: {"description": "Upstream failure"},
