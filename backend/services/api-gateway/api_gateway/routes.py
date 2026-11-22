@@ -38,6 +38,7 @@ ROUTES = (
     Route("/autonomy", "incidents", ("GET", "POST"), asserted_actor=True),
     Route("/runtime", "incidents"),
     Route("/ask", "incidents", ("POST",), timeout_seconds=135),
+    Route("/deployment-intelligence/risk-preview", "incidents", ("POST",)),
     Route("/deployment-intelligence/risk", "incidents", queries=("service", "limit")),
     Route("/deployment-intelligence/rollouts", "incidents", queries=("service", "limit")),
     Route("/deployment-intelligence/summary", "incidents", queries=("service", "since")),
