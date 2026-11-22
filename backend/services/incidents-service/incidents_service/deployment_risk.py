@@ -108,6 +108,7 @@ def scores(
                 "deployment_id": row.id,
                 "revision": row.revision,
                 "prediction": snapshot,
+                "change_prediction": tx.get_state("change-risk:" + row.id, None),
                 "observed_post_rollout": row.outcome,
                 "note": "No frozen model snapshot" if snapshot is None else None,
             }
