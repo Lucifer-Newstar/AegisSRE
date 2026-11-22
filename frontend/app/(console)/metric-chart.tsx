@@ -3,6 +3,7 @@ export type History={metric:string;start:string;end:string;unit:string|null;buck
 export type Band={start:string;end:string|null;label:string};
 export async function MetricChart({service,metric,bands=[],compact=false}:{service:string;metric:string;bands?:Band[];compact?:boolean}){
  const {items:h,error}=await load<History>(`/api/v1/metric-history?service=${identifier(service)}&metric=${identifier(metric)}&hours=24&buckets=288`);
+ if(error?.includes("(422)"))return <div className="card"><h3>{metric}</h3><p className="muted">Outside configured telemetry scope. Registry health is separate; no metric samples are implied.</p></div>;
  if(error||!h)return <div className="card"><h3>{metric}</h3><p role="alert">{error||"History unavailable"}</p></div>;
  const valid=h.points.filter(p=>Number.isFinite(p.mean)&&Number.isFinite(p.min)&&Number.isFinite(p.max)&&Number.isFinite(Date.parse(p.at))&&p.min<=p.mean&&p.mean<=p.max);
  const low=Math.min(0,...valid.map(p=>p.min)),high=Math.max(1,...valid.map(p=>p.max));

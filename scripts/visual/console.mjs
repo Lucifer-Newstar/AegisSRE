@@ -16,6 +16,8 @@ try{
   await page.goto('http://localhost:3030'+route);
   await page.locator('h1').waitFor();
   if((await page.content()).includes(process.env.AEGIS_API_TOKEN))throw new Error('Fixture token appeared in page data');
+  const failure=await page.locator('[role=alert]').allTextContents();
+  if(failure.some(t=>t.includes('API unavailable')||t.includes('No data substituted')))throw new Error('Visible page API failure on '+route);
   await page.screenshot({path:output+'/console-'+label+'.png',fullPage:true});
  }
  console.log('Actual Next console pixels captured from the owned platform APIs; no decisions, actions or model calls. Separate pixel inspection required.');
