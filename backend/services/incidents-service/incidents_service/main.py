@@ -275,6 +275,12 @@ def create_app(
             raise HTTPException(422, "Select an allowed service and metric")
         with repo.transaction() as tx:
             return windows(tx, service, config.environment, metric, datetime.now(UTC))
+    @application.get("/slo", dependencies=[Depends(authorized)])
+    def slo_readout(service: str) -> dict[str, Any]:
+        from incidents_service.slo import readout
+        if service not in config.allowed_targets:
+            raise HTTPException(422, "Select an allowed service")
+        return readout(config, service)
     @application.get("/deployment-intelligence/risk", dependencies=[Depends(authorized)])
     def deployment_risk(service: str, limit: int = Query(default=50, ge=1, le=100)) -> dict[str, Any]:
         from incidents_service.deployment_risk import scores
