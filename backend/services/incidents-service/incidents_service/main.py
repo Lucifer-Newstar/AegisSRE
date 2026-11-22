@@ -131,7 +131,15 @@ def create_app(settings: Settings | None = None, repository: Repository | None =
             "analysis_engine": "deterministic-evidence-v1",
         }
 
-    @application.get("/ready", dependencies=[Depends(authorized)])
+    @application.get(
+        "/ready",
+        dependencies=[Depends(authorized)],
+        responses={
+            503: {
+                "description": "A dependency, worker or configured evidence source is unavailable"
+            }
+        },
+    )
     def ready() -> dict[str, str]:
         try:
             with repo.transaction() as tx:

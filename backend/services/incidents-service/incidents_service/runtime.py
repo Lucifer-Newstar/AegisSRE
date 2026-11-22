@@ -52,6 +52,7 @@ class Runtime:
     def snapshot(self) -> dict[str, Any]:
         return {
             "enabled": True,
+            "delivery_consumer": self.delivery.consumer,
             "collector_enabled": self.collector is not None,
             "last_tick_at": self.last_tick.isoformat() if self.last_tick else None,
             "error": self.last_error,

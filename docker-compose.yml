@@ -31,7 +31,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aegis}
       POSTGRES_DB: ${POSTGRES_DB:-aegissre}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -47,7 +47,7 @@ services:
     container_name: aegissre-redis
     command: ["redis-server", "--appendonly", "yes"]
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis-data:/data
     healthcheck:
@@ -68,7 +68,7 @@ services:
       - "--web.enable-lifecycle"
       - "--web.enable-remote-write-receiver"
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     volumes:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./infra/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
@@ -89,7 +89,7 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-aegis}
       GF_USERS_ALLOW_SIGN_UP: "false"
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     volumes:
       - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
@@ -109,7 +109,7 @@ services:
     container_name: aegissre-loki
     command: ["-config.file=/etc/loki/loki-config.yaml"]
     ports:
-      - "3100:3100"
+      - "127.0.0.1:3100:3100"
     volumes:
       - ./infra/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
       - loki-data:/loki
@@ -126,7 +126,7 @@ services:
     container_name: aegissre-tempo
     command: ["-config.file=/etc/tempo/tempo.yaml"]
     ports:
-      - "3200:3200"   # Tempo HTTP API (OTLP receivers are internal to the Compose network)
+      - "127.0.0.1:3200:3200"   # Tempo HTTP API (OTLP receivers are internal to the Compose network)
     volumes:
       - ./infra/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
       - tempo-data:/var/tempo
@@ -143,8 +143,8 @@ services:
     container_name: aegissre-otel-collector
     command: ["--config=/etc/otel/config.yaml"]
     ports:
-      - "4317:4317"   # OTLP gRPC
-      - "4318:4318"   # OTLP HTTP
+      - "127.0.0.1:4317:4317"   # OTLP gRPC
+      - "127.0.0.1:4318:4318"   # OTLP HTTP
     volumes:
       - ./infra/otel/otel-collector.yaml:/etc/otel/config.yaml:ro
     # No healthcheck: the otel/opentelemetry-collector-contrib image is
@@ -171,7 +171,7 @@ services:
       ENVIRONMENT: dev
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
     ports:
-      - "9001:9001"
+      - "127.0.0.1:9001:9001"
     depends_on:
       otel-collector: { condition: service_started }
     networks: [aegissre]
@@ -187,7 +187,7 @@ services:
       ENVIRONMENT: dev
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
     ports:
-      - "9002:9002"
+      - "127.0.0.1:9002:9002"
     depends_on:
       otel-collector: { condition: service_started }
     networks: [aegissre]
@@ -204,7 +204,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       CART_SERVICE_URL: http://cart-service:9002
     ports:
-      - "9003:9003"
+      - "127.0.0.1:9003:9003"
     depends_on:
       cart-service: { condition: service_started }
       otel-collector: { condition: service_started }
@@ -221,7 +221,7 @@ services:
       ENVIRONMENT: dev
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
     ports:
-      - "9004:9004"
+      - "127.0.0.1:9004:9004"
     depends_on:
       otel-collector: { condition: service_started }
     networks: [aegissre]
@@ -268,6 +268,38 @@ services:
     networks: [aegissre]
     logging: *default-logging
 
+  incidents-service:
+    build:
+      context: .
+      dockerfile: backend/services/incidents-service/Dockerfile
+    image: aegissre/incidents-service:0.1.0
+    container_name: aegissre-incidents
+    environment:
+      AEGIS_DATABASE_URL: ${PLATFORM_DATABASE_URL:-postgresql+psycopg://aegis:aegis@postgres:5432/aegissre}
+      AEGIS_API_TOKEN: ${AEGIS_API_TOKEN:-}
+      AEGIS_DEV_MODE: ${AEGIS_DEV_MODE:-false}
+      AEGIS_EXECUTOR: simulation
+      AEGIS_REDIS_URL: redis://redis:6379/0
+      AEGIS_WORKER_ENABLED: "true"
+      AEGIS_COLLECTOR_ENABLED: "true"
+      AEGIS_POLL_SECONDS: ${AEGIS_POLL_SECONDS:-15}
+      AEGIS_ENVIRONMENT: dev
+      AEGIS_PROMETHEUS_URL: http://prometheus:9090
+      AEGIS_REGISTRY_URL: http://registry-service:8101
+      AEGIS_DEPLOYMENTS_URL: http://deployments-service:8701
+      AEGIS_LOKI_URL: http://loki:3100
+      AEGIS_TEMPO_URL: http://tempo:3200
+    ports:
+      - "127.0.0.1:8201:8201"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      prometheus: { condition: service_healthy }
+      registry-service: { condition: service_healthy }
+      deployments-service: { condition: service_healthy }
+    networks: [aegissre]
+    logging: *default-logging
+
   console:
     build: ./frontend
     image: aegissre/console:0.1.0
@@ -277,7 +309,7 @@ services:
       REGISTRY_URL: http://registry-service:8101
       DEPLOYMENTS_URL: http://deployments-service:8701
     ports:
-      - "3030:3030"
+      - "127.0.0.1:3030:3030"
     depends_on:
       registry-service: { condition: service_started }
       deployments-service: { condition: service_started }

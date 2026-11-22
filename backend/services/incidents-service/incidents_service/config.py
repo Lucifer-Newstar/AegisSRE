@@ -9,9 +9,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="AEGIS_", extra="ignore")
-    database_url: str = "sqlite:///./aegis-incidents.db"
-    api_token: str = ""
+    model_config = SettingsConfigDict(
+        env_prefix="AEGIS_", extra="ignore", hide_input_in_errors=True
+    )
+    database_url: str = Field(default="sqlite:///./aegis-incidents.db", repr=False)
+    api_token: str = Field(default="", repr=False)
     dev_mode: bool = False
     executor: Literal["simulation", "kubernetes"] = "simulation"
     kube_context: str = ""
@@ -34,8 +36,8 @@ class Settings(BaseSettings):
     llm_provider: Literal["disabled", "ollama", "openai"] = "disabled"
     llm_url: str = "http://localhost:11434"
     llm_model: str = ""
-    llm_api_key: str = ""
-    redis_url: str = ""
+    llm_api_key: str = Field(default="", repr=False)
+    redis_url: str = Field(default="", repr=False)
     environment: str = Field(
         default="dev", min_length=1, max_length=40, pattern=r"^[a-zA-Z0-9_-]+$"
     )
