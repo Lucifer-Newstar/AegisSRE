@@ -303,7 +303,9 @@ class ReliabilityLoop:
                 ),
                 **context,
             )
-            if automatic_only and not verdict.automatic:
+            if automatic_only and (
+                not verdict.automatic or (now() - incident.updated_at).total_seconds() > 60
+            ):
                 return incident
             if not verdict.allowed:
                 tx.append_audit(

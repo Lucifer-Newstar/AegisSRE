@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import timedelta
+from typing import Any
 
 import pytest
 from incidents_service.config import Settings
@@ -52,7 +53,7 @@ def test_scheduler_runs_once_and_records_automatic_actor(monkeypatch: pytest.Mon
     with loop.repo.transaction() as tx:
         item = tx.incident(key)
         assert item and item.status == "verifying"
-        assert "SIMULATION ONLY" in item.execution_output
+        assert item.execution_output and "SIMULATION ONLY" in item.execution_output
         assert any(
             a.actor == "policy:auto" and a.action == "remediation.started" for a in item.audit
         )
@@ -76,12 +77,12 @@ def test_scheduler_fails_closed(case: str, monkeypatch: pytest.MonkeyPatch) -> N
     loop, key = configured()
     monkeypatch.setattr(loop.executor, "policy_context", lambda _: {"current_replicas": 2})
     if case in {"recommend", "observe"}:
-        loop.set_mode(case, "test-operator")
+        loop.set_mode("recommend" if case == "recommend" else "observe", "test-operator")
     with loop.repo.transaction() as tx:
         item = tx.incident(key)
         assert item
         if case in {"approved", "deferred"}:
-            item.approval = case
+            item.approval = "approved" if case == "approved" else "deferred"
         if case == "stale":
             item.updated_at = now() - timedelta(seconds=61)
         if case == "high-risk":
@@ -117,7 +118,7 @@ def test_live_context_is_read_from_managed_observed_object(monkeypatch: pytest.M
     with loop.repo.transaction() as tx:
         item = tx.incident(key)
         assert item
-    obj = {
+    obj: dict[str, Any] = {
         "metadata": {
             "namespace": "aegissre-demo",
             "uid": "actual",
@@ -165,7 +166,7 @@ def test_executor_rechecks_scale_direction_at_dispatch(monkeypatch: pytest.Monke
         item = tx.incident(key)
         assert item
     executor = Executor(Settings(api_token="test", executor="kubernetes", kube_context="owned"))
-    obj = {
+    obj: dict[str, Any] = {
         "metadata": {
             "namespace": "aegissre-demo",
             "uid": "actual",
