@@ -84,10 +84,11 @@ def configure_fault_hooks(application: FastAPI) -> None:
     @asynccontextmanager
     async def fault_lifespan(app: FastAPI) -> AsyncIterator[Any]:
         # PID namespace init ignores peer SIGKILL. An opt-in fixed signal
-        # handler makes the process terminate itself, without an HTTP API or
-        # arbitrary command. Normal workloads install no handler.
+        # handler makes the process exit immediately with a distinct code,
+        # without an HTTP API or arbitrary command. No SIGKILL/OOM is claimed.
+        # Normal workloads install no handler.
         def crash(signum: int, frame: Any) -> None:
-            os.kill(os.getpid(), signal.SIGKILL)
+            os._exit(70)
         previous_signal = signal.signal(signal.SIGUSR1, crash)
         try:
             async with previous_lifespan(app) as state:
