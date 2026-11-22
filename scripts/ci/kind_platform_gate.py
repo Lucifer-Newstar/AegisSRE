@@ -485,9 +485,9 @@ def verify() -> None:
         # forwards. HTTP503 alone cannot distinguish a worker/source failure.
         try:
             state = api("/runtime")
-            output = directory() / "diagnostics"
-            output.mkdir(exist_ok=True)
-            (output / "runtime-status.json").write_text(json.dumps(state, sort_keys=True))
+            diagnostic_dir = directory() / "diagnostics"
+            diagnostic_dir.mkdir(exist_ok=True)
+            (diagnostic_dir / "runtime-status.json").write_text(json.dumps(state, sort_keys=True))
         except (OSError, ValueError):
             print("Runtime status unavailable while collecting final diagnostics")
         forwards.close()
