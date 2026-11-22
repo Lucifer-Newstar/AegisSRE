@@ -14,7 +14,7 @@ def test_only_committed_detector_flags_are_marked_not_incident_intervals() -> No
     for index in range(13):
         result = loop.ingest(
             Event(
-                id="sample-" + str(index),
+                id=("x" * 158 + str(index)) if index < 10 else ("x" * 158 + str(index)),
                 source="prometheus",
                 type="metric",
                 service="catalog-service",
@@ -30,7 +30,7 @@ def test_only_committed_detector_flags_are_marked_not_incident_intervals() -> No
     with loop.repo.transaction() as tx:
         actual = windows(tx, "catalog-service", "dev", "latency_p95", now())
         assert len(actual["points"]) == 1
-        assert actual["points"][0]["event_id"] == "sample-12"
+        assert actual["points"][0]["event_id"] == "x" * 158 + "12"
         assert actual["points"][0]["observed"] == 10
         assert windows(tx, "cart-service", "dev", "latency_p95", now())["points"] == []
         assert windows(tx, "catalog-service", "prod", "latency_p95", now())["points"] == []

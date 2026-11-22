@@ -57,6 +57,10 @@ def main() -> None:
     with opener.open(ORIGIN+"/services/catalog-service",timeout=30) as response:
         content=response.read().decode()
         assert "24h observed metric history" in content
+        assert "detector-flagged sample times" in content
+        markers=api("/anomaly-samples?service=catalog-service&metric=latency_p95")
+        assert markers["service"] == "catalog-service" and markers["metric"] == "latency_p95"
+        assert "not independently measured fault windows" in markers["caveat"]
         assert "observed samples over 24 hours" in content
         assert "API unavailable" not in content and "No data substituted" not in content
     try:
