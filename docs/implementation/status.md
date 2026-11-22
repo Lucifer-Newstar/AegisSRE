@@ -234,15 +234,42 @@ wiring uses a fake worker. No existing cluster was contacted. Actual kind,
 least-privilege behavior and fault capture remain acceptance work, not a claimed
 live Kubernetes proof.
 
+## Milestone 2j: actual isolated Kubernetes evidence gate
+
+The hosted [kind evidence job](https://github.com/Lucifer-Newstar/AegisSRE/actions/runs/45034540800/job/137245233522)
+passed on head `c54a97b59caa9f515f063543ed1bc77c03381106` before this
+ledger update. It built the packaged incidents image, created a new disposable
+runner-local kind cluster, and captured a real `BackOff` warning through the
+production reader using its projected service account and verified TLS. The
+same Pod UID had an actual exit-42 process termination and restart. The Job
+confirmed RBAC denials for Secret listing, another namespace's Pods, and a
+server-side dry-run deployment creation probe. The denial check distinguishes
+RBAC from an admission rejection. Captured evidence deduplicated in the actual
+SQLite outbox and survived closing/reopening its repository. The job then deleted
+the cluster it had created.
+
+Tool downloads have checked SHA256 pins, the node image is digest-pinned, and all
+kubectl calls explicitly name the isolated kubeconfig/context. Cleanup requires
+this CI run/attempt/job's marker. Tests cover ambient-context refusal,
+pre-existing-cluster refusal, stale ownership and checksum mismatch. The fixture
+runs non-root under restricted Pod Security with bounded resources and a
+read-only root filesystem. No existing user cluster was selected or contacted.
+
+Local checks: 228 passing tests, six real-server skips, Ruff, strict mypy across
+111 source files, YAML and API contracts. CI now has ten independent jobs. This
+narrow actual-cluster gate is not full D1 bootstrap, in-cluster Redis transport,
+real-model acceptance, remediation proof or the ten-fault evaluation. The
+existing actual PostgreSQL/Redis and complete Compose checks remain separate.
+
 ## Feature-by-feature status
 
 | ID | Implementation state | Acceptance still required |
 |---|---|---|
-| A1 Observability | Scoped metrics/health/deployment/log/trace collectors, optional UID-scoped Kubernetes source, durable delivery and hosted trace/log join proof | Actual Kubernetes capture/RBAC proof and full-stack startup timing |
+| A1 Observability | Scoped metrics/health/deployment/log/trace collectors, UID-scoped Kubernetes source, durable delivery, hosted trace/log join and actual kind capture/RBAC proof | Full-stack startup timing and integrated kind runtime |
 | A2 Registry | Durable CRUD, owner/SLO metadata and timed allowlisted probes implemented; hosted restart proof passed | Live console integration and full-stack timing |
 | A3 Detection | Statistical + Isolation Forest code and unit tests | Held-out ten-fault precision/recall/F1 and measured detection latency |
 | A4 Incidents | Lifecycle, Redis consumption/outbox, append-only audit and API implemented | Measured live timing and timeline UI |
-| A5 Evidence/RCA | Fixed read-only tool suite, cited deterministic hypotheses, optional structured inference and revision-safe sidecars | Actual model/accuracy evaluation, live Kubernetes acceptance and postmortem UI |
+| A5 Evidence/RCA | Fixed read-only tool suite, cited deterministic hypotheses, optional structured inference and revision-safe sidecars | Actual model/accuracy evaluation, broader real-fault evidence and postmortem UI |
 | A6 Policy | Versioned typed policies, risk matrix and hard execution bounds | Runtime policy update, complete action matrix and safety evaluation |
 | A7 Approvals | Approve/reject/defer API and audit implemented | Authorized console flow, impact view and click-count check |
 | A8 Autonomy | Conservative decision gates, kill switch and executor code | Auto scheduler, least-privilege cluster integration, eligible-action success rate |
@@ -256,7 +283,7 @@ live Kubernetes proof.
 | C3 Runbooks | Ten packaged guides, indexing and authenticated list/detail/context APIs | Live console viewer and incident links |
 | C4 Postmortems | Verified-closure API implemented | Viewer, evidence/timeline/action rendering and metrics |
 | C5 Audit | Durable append-only store, transactional Redis emission and filtered API implemented | Console viewer and filtering |
-| D1 kind | Existing app manifests | Full dependencies, least privilege, kind boot and behavior checks |
+| D1 kind | Existing app manifests and actual isolated reader/RBAC/crash gate | Full dependencies, least privilege across the full stack, kind boot and behavior checks |
 | D5 CI/CD | Existing lint/tests/build checks; reliability tests added | Publish workflow and agreed registry verification |
 | D6 SLOs | Existing dashboard/alert configs | Live per-service panels, multiwindow burn alerts, firing checks |
 | E2 Comparison | Not implemented | Real comparative results; no invented human-response timings |
