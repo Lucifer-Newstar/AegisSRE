@@ -351,7 +351,7 @@ observed-outcome foundation for DI-4/DI-7, not predictive risk/canary scoring,
 causal proof or authority to execute a rollback. Detailed rules and proof limits
 are in [deployment windows](../operations/deployment-windows.md).
 
-Local checks: 263 passing tests, seven actual-server tests deliberately skipped
+Local checks: 264 passing tests, seven actual-server tests deliberately skipped
 without their external services, strict mypy across 116 files and Ruff/contracts.
 Hosted gates must pass before merge: actual PostgreSQL grouping, counts and
 reopen; actual metadata-to-runtime collection, authenticated gateway reads,

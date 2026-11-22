@@ -273,7 +273,9 @@ class Transaction:
             ).scalars()
         ]
 
-    def rollout_counts(self, service: str, environment: str, since: datetime) -> dict[str, int]:
+    def rollout_counts(
+        self, service: str, environment: str, since: datetime, until: datetime
+    ) -> dict[str, int]:
         known_bad = and_(
             rollouts.c.outcome == "bad",
             or_(rollouts.c.ambiguous.is_(False), rollouts.c.phase == "failed"),
@@ -297,6 +299,7 @@ class Transaction:
                     rollouts.c.service == service,
                     rollouts.c.environment == environment,
                     rollouts.c.started_at >= since.astimezone(UTC),
+                    rollouts.c.started_at <= until.astimezone(UTC),
                 )
             )
             .mappings()
@@ -308,6 +311,11 @@ class Transaction:
             if self.conn.dialect.name == "sqlite"
             else since.astimezone(UTC)
         )
+        upper = (
+            func.julianday(until.astimezone(UTC).isoformat())
+            if self.conn.dialect.name == "sqlite"
+            else until.astimezone(UTC)
+        )
         missing = self.conn.execute(
             select(func.count())
             .select_from(events)
@@ -317,6 +325,7 @@ class Transaction:
                 events.c.type == "deployment",
                 events.c.document["payload"]["action"].as_string() == "deploy",
                 self.event_time >= bound,
+                self.event_time <= upper,
                 ~select(rollout_events.c.event_id)
                 .where(rollout_events.c.event_id == events.c.id)
                 .exists(),

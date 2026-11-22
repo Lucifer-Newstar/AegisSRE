@@ -53,7 +53,9 @@ Through the authenticated gateway:
 
 Direct paths omit `/api/v1`. Reads are limited to configured allowed services and
 the runtime environment. `since` defaults to the previous 30 days and must be an
-aware time within the previous 90 days. The rollout list is bounded and reports
+aware time within the previous 90 days. `as_of` is the actual summary clock;
+future-dated starts and raw events are excluded until that clock reaches them.
+The rollout list is bounded and reports
 truncation. Counts use SQL aggregates, not that bounded list.
 
 Change failure rate is null when there are unidentified/unmapped events, unknown

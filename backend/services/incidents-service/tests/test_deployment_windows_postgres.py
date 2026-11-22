@@ -50,6 +50,7 @@ def test_actual_postgres_rollout_identity_window_counts_and_reopen() -> None:
         failed = event("failed", 300, "two", "failed")
         runtime.ingest(failed)
         assert runtime.ingest(failed)["duplicate"]
+        runtime.ingest(event("future", 630, "future", "failed"))
         orphan = event("old-unmapped", 100, "unmapped", "in_progress")
         with repo.transaction() as tx:
             tx.add_event(orphan)
@@ -63,7 +64,7 @@ def test_actual_postgres_rollout_identity_window_counts_and_reopen() -> None:
         repo = Repository(url)
         with repo.transaction() as tx:
             rows = tx.list_rollouts(service=service, environment="dev")
-            assert len(rows) == 2
+            assert len(rows) == 3
             report = di.summary(
                 tx, service=service, environment="dev", since=start + timedelta(seconds=200)
             )

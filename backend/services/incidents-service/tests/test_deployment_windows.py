@@ -373,3 +373,25 @@ def test_producer_can_confirm_a_previously_implicit_matching_start() -> None:
     runtime.ingest(deploy("confirmed-start", start))
     good_observations(repo, start)
     assert state(repo)[0][0]["outcome"] == "healthy"
+
+
+def test_summary_does_not_count_future_identified_or_unmapped_deployments() -> None:
+    repo = Repository("sqlite:///:memory:")
+    runtime = loop(repo)
+    point = now()
+    runtime.ingest(
+        deploy("already-failed", point - timedelta(seconds=600), phase="failed", logical="past")
+    )
+    runtime.ingest(
+        deploy("future-failed", point + timedelta(seconds=30), phase="failed", logical="future")
+    )
+    with repo.transaction() as tx:
+        tx.add_event(deploy("future-unmapped", point + timedelta(seconds=40), logical=None))
+        report = di.summary(
+            tx, service="catalog-service", environment="dev", since=point - timedelta(days=1)
+        )
+    assert report["identified_deployments"] == report["confirmed_bad"] == 1
+    assert report["unidentified_or_unmapped_events"] == 0
+    assert report["change_failure_rate"] == 1
+    assert datetime.fromisoformat(report["as_of"]) >= point
+    repo.close()

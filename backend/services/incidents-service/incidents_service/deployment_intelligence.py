@@ -295,7 +295,8 @@ def finalize(tx: Transaction, clock: datetime | None = None) -> None:
 
 
 def summary(tx: Transaction, *, service: str, environment: str, since: datetime) -> dict[str, Any]:
-    counts = tx.rollout_counts(service, environment, since)
+    point = now()
+    counts = tx.rollout_counts(service, environment, since, point)
     explicit = counts["identified"]
     bad, healthy = counts["bad"], counts["healthy"]
     unknown = explicit - bad - healthy
@@ -304,6 +305,7 @@ def summary(tx: Transaction, *, service: str, environment: str, since: datetime)
         "service": service,
         "environment": environment,
         "since": since.isoformat(),
+        "as_of": point.isoformat(),
         "counting_unit": "explicit deployment_id, scoped by service and environment; deploy actions only",
         "identified_deployments": explicit,
         "confirmed_bad": bad,
