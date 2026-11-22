@@ -107,6 +107,7 @@ def seed() -> None:
         return bool(runtime["collector_enabled"] and not failures)
 
     wait_for(collectors_converged, "all enabled collectors reporting success", 120)
+    runtime = api("/runtime")
 
     redis = Redis.from_url("redis://127.0.0.1:6379/0", decode_responses=True)
     try:
