@@ -94,7 +94,7 @@ def predict(
                     "features": vector(
                         Attributes.model_validate(snapshot["attributes"]),
                         snapshot["health"],
-                        row.started_at,
+                        datetime.fromisoformat(snapshot["at"]),
                     ),
                     "source_event_ids": row.source_event_ids,
                     "observation_ids": row.observation_ids,
