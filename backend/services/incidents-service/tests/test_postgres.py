@@ -102,3 +102,15 @@ def test_postgres_historical_windows_compare_offsets_as_instants() -> None:
             assert tx.baseline(newer.series()) == [1, 2]
     finally:
         repo.close()
+
+
+def test_postgres_runtime_waits_are_bounded() -> None:
+    from sqlalchemy import text
+
+    repo=Repository(DATABASE_URL)
+    try:
+        with repo.engine.connect() as connection:
+            assert connection.execute(text("SHOW statement_timeout")).scalar_one()=="15s"
+            assert connection.execute(text("SHOW lock_timeout")).scalar_one()=="10s"
+    finally:
+        repo.close()
