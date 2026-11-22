@@ -45,6 +45,19 @@ def seed() -> None:
         raise RuntimeError("Refusing to replace a prior fixture checkpoint")
     assert not query("rollouts", service=SERVICE)["rollouts"], "CI cohort already occupied"
     identity = "ci-window-" + uuid4().hex
+    preview_body = {
+        "service": SERVICE,
+        "deployment_id": identity + "-preview",
+        "revision": "preview-v1",
+        "attributes": {
+            "changed_lines": 40,
+            "affected_services": 1,
+            "owner_prior_deployments": 0,
+            "source_reference": "explicit-synthetic-ci-fixture",
+        },
+    }
+    preview = gateway_request("/api/v1/deployment-intelligence/risk-preview", body=preview_body)
+    assert preview["probability"] is None and not preview["authorizes_execution"]
     start = datetime.now(UTC) - timedelta(seconds=5)
     for index in range(12):
         api(
@@ -137,6 +150,9 @@ def verify() -> None:
     assert risk["prediction"]["confirmed_outcomes"] == 0
     assert risk["prediction"]["is_predeploy_prediction"] is False
     assert risk["prediction"]["authorizes_execution"] is False
+    assert risk["change_prediction"]["probability"] is None
+    assert risk["change_prediction"]["is_predeploy_prediction"] is False
+    assert risk["change_prediction"]["authorizes_execution"] is False
     assert risk["observed_post_rollout"] == "bad"
     report = query("summary", service=SERVICE, since=saved["since"])
     assert report["identified_deployments"] == report["confirmed_bad"] == 1, report

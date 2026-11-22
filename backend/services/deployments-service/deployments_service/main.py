@@ -25,6 +25,7 @@ class DeploymentPayloadIn(BaseModel):
     previous_revision: str | None = None
     triggered_by: str = Field(min_length=1, max_length=100)
     status: Literal["in_progress", "succeeded", "failed"]
+    change_attributes: dict[str, Any] | None = None
     risk_score: float | None = Field(default=None, ge=0, le=1)
     risk_factors: list[str] = Field(default_factory=list)
     canary: dict[str, Any] | None = None
@@ -66,7 +67,7 @@ def ready() -> Any:
 def record_deployment(body: DeploymentEnvelopeIn) -> Any:
     document = body.model_dump(mode="json")
     # Preserve canonical old envelopes when optional lifecycle fields are absent.
-    for field in ("deployment_id", "started_at"):
+    for field in ("deployment_id", "started_at", "change_attributes"):
         if document["payload"].get(field) is None:
             document["payload"].pop(field, None)
     rec = DeploymentRecord(
