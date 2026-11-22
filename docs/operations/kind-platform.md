@@ -34,6 +34,7 @@ contents in chat. The database URL must match the Postgres values and address
 
 | Secret | Required keys |
 |---|---|
+| `aegissre-console` | `session-secret`, independent encryption secret of at least32 bytes |
 | `aegisshop-postgres` | `username`, `password`, `database`, separate from platform credentials |
 | `aegisshop-database` | `url`, a `postgresql+psycopg` URL pointing to `shop-postgres:5432` |
 | `aegissre-postgres` | `username`, `password`, `database` |
@@ -54,7 +55,7 @@ files, create the namespace, create each named Secret with `kubectl --context
 
 ```sh
 kubectl --context "$CONTEXT" create namespace aegissre-demo
-# Create the seven required Secrets in that namespace before applying workloads.
+# Create the eight required Secrets in that namespace before applying workloads.
 kubectl --context "$CONTEXT" apply -k infra
 kubectl --context "$CONTEXT" -n aegissre-demo get pods,pvc
 kubectl --context "$CONTEXT" -n aegissre-demo rollout status deployment/api-gateway
@@ -161,3 +162,7 @@ shop Redis, observes cart and checkout 503 while platform and retained order
 reads stay healthy, restores replicas in `finally`, and requires the unchanged
 cart after Redis/AOF replacement. This is dependency preservation proof, not
 a benchmark result or autonomous remediation.
+
+The console default browser origin is `http://localhost:3030`. Forward its service
+to that exact origin or update `AEGIS_CONSOLE_ORIGIN` to the intended one. Login
+requires the gateway operator token; the session secret is not that token.

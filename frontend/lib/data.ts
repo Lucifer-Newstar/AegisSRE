@@ -1,77 +1,44 @@
-import {
-  MOCK_DEPLOYMENTS,
-  MOCK_SERVICES,
-  type Deployment,
-  type ServiceInfo,
-  type ServiceStatus,
-} from "./mocks";
+import { redirect } from "next/navigation";
+import { session } from "./session";
+import { ApiError, gateway } from "./gateway";
+import type { Deployment, ServiceInfo, ServiceStatus } from "./types";
 
-export type DataSource = "live" | "mock";
+export type Incident = {
+  id: string; service: string; environment: string; title: string; severity: string; status: string;
+  created_at: string; updated_at: string; approval: string; approved_by: string | null;
+  resolved_at: string | null; fault_started_at: string | null; executed_at: string | null;
+  execution_output: string | null; evidence_ids: string[];
+  signals: { metric: string; observed: number; baseline_mean: number; z_score: number; event_id: string }[];
+  analysis: { engine: string; summary: string; confidence: string; caveat: string; hypotheses: Record<string, unknown>[]; evidence_ids: string[] };
+  plan: { action: string; target: string; risk: string; executor: string; impact: string; reason: string; requires_approval: boolean; reversible: boolean; revision?: string };
+  audit: { at: string; action: string; actor: string; detail: string }[];
+};
+export type Envelope = { id: string; timestamp: string; type: string; source: string; service: string; payload: Record<string, unknown>; trace_id?: string };
+export type Result<T> = { items: T; error: string | null };
 
-function asStatus(value: unknown): ServiceStatus {
-  if (value === "healthy" || value === "degraded" || value === "unhealthy" || value === "unknown") {
-    return value;
-  }
-  return "unknown";
-}
-
-export async function loadServices(): Promise<{ items: ServiceInfo[]; source: DataSource }> {
-  const base = process.env.REGISTRY_URL;
-  if (!base) {
-    return { items: MOCK_SERVICES, source: "mock" };
-  }
-  try {
-    const res = await fetch(`${base.replace(/\/$/, "")}/services`, { cache: "no-store" });
-    if (!res.ok) {
-      throw new Error(`registry ${res.status}`);
-    }
-    const rows: unknown = await res.json();
-    if (!Array.isArray(rows) || rows.length === 0) {
-      throw new Error("empty registry");
-    }
-    const items: ServiceInfo[] = rows.map((row) => {
-      const rec = row as Record<string, unknown>;
-      return {
-        id: String(rec.id ?? ""),
-        name: String(rec.name ?? rec.id ?? "service"),
-        url: String(rec.url ?? ""),
-        version: String(rec.version ?? "0.1.0"),
-        status: asStatus(rec.status),
-      };
-    });
-    return { items, source: "live" };
-  } catch {
-    return { items: MOCK_SERVICES, source: "mock" };
+export async function load<T>(path: string): Promise<Result<T | null>> {
+  const current = session();
+  if (!current) redirect("/login");
+  try { return { items: await gateway<T>(path, current.token), error: null }; }
+  catch (error) {
+    if (error instanceof ApiError && error.status === 401) redirect("/login?error=1");
+    return { items: null, error: error instanceof ApiError ? `API unavailable (${error.status}). No data substituted.` : "API connection failed. No data substituted." };
   }
 }
-
-export async function loadDeployments(): Promise<{ items: Deployment[]; source: DataSource }> {
-  const base = process.env.DEPLOYMENTS_URL;
-  if (!base) {
-    return { items: MOCK_DEPLOYMENTS, source: "mock" };
-  }
-  try {
-    const res = await fetch(`${base.replace(/\/$/, "")}/deployments?limit=20`, { cache: "no-store" });
-    if (!res.ok) {
-      throw new Error(`deployments ${res.status}`);
-    }
-    const rows: unknown = await res.json();
-    if (!Array.isArray(rows)) {
-      throw new Error("bad deployments payload");
-    }
-    const items: Deployment[] = rows.map((row) => {
-      const rec = row as Record<string, unknown>;
-      const status = rec.status;
-      return {
-        eventId: String(rec.event_id ?? ""),
-        service: String(rec.service ?? ""),
-        revision: String(rec.revision ?? ""),
-        status: status === "in_progress" || status === "failed" ? status : "succeeded",
-        storedAt: String(rec.stored_at ?? ""),
-      };
-    });
-    return { items, source: "live" };
-  } catch {
-    return { items: MOCK_DEPLOYMENTS, source: "mock" };
-  }
+export async function loadServices() {
+  const result = await load<Record<string, unknown>[]>("/api/v1/services");
+  const items: ServiceInfo[] = (result.items || []).map(row => ({
+    id: String(row.id), name: String(row.name), url: String(row.url), version: String(row.version || "unknown"),
+    status: (["healthy", "degraded", "unhealthy", "unknown"].includes(String(row.status)) ? row.status : "unknown") as ServiceStatus,
+  }));
+  return { items, error: result.error, source: "live" as const };
+}
+export async function loadDeployments() {
+  const result = await load<Record<string, unknown>[]>("/api/v1/deployments?limit=100");
+  const items: Deployment[] = (result.items || []).map(row => ({ eventId: String(row.event_id), service: String(row.service), revision: String(row.revision), status: row.status as Deployment["status"], storedAt: String(row.stored_at) }));
+  return { items, error: result.error, source: "live" as const };
+}
+export function identifier(value: string): string {
+  if (!/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$/.test(value)) throw new Error("Invalid identifier");
+  return encodeURIComponent(value);
 }

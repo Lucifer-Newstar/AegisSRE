@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "AegisShop catalog service (vertical slice — proves OTLP → Grafana flow)"
 requires-python = ">=3.12"
 dependencies = [
+    "aegisshop-fault-hooks>=0.1",
     "aegissre-telemetry[observability]>=0.2",
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",

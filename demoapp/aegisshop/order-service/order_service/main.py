@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
+from aegisshop_faults import configure_fault_hooks
 from fastapi import HTTPException
 from opentelemetry.propagate import inject
 from pydantic import BaseModel
@@ -105,4 +106,5 @@ def get_order(order_id: str) -> dict[str, Any]:
     return order
 
 
+configure_fault_hooks(app)
 instrument_middleware(app)

@@ -25,6 +25,15 @@ spec:
             - containerPort: 3030
               name: http
           env:
+            - name: AEGIS_CONSOLE_GATEWAY_URL
+              value: http://api-gateway:8000
+            - name: AEGIS_CONSOLE_ORIGIN
+              value: http://localhost:3030
+            - name: AEGIS_CONSOLE_SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: aegissre-console
+                  key: session-secret
             - name: SERVICE_NAME
               value: console
             - name: SERVICE_PORT

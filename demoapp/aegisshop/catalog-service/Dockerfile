@@ -9,7 +9,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /build
 COPY demoapp/aegisshop/catalog-service/requirements.txt .
 COPY backend/libs/telemetry /tmp/telemetry
-RUN pip install --no-cache-dir "/tmp/telemetry[observability]" -r requirements.txt
+COPY demoapp/libs/fault-hooks /tmp/fault-hooks
+RUN pip install --no-cache-dir "/tmp/telemetry[observability]" /tmp/fault-hooks -r requirements.txt
 
 FROM python:3.12-slim AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
