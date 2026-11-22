@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
+from aegisshop_faults import configure_fault_hooks
 from fastapi import HTTPException
 from pydantic import BaseModel, Field
 
@@ -61,4 +62,5 @@ def get_payment(payment_id: str) -> dict[str, Any]:
     return payment
 
 
+configure_fault_hooks(app)
 instrument_middleware(app)
