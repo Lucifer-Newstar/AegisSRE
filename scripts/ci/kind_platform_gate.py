@@ -381,6 +381,11 @@ def verify() -> None:
             "platform reconnection after Postgres replacement",
             seconds=120,
         )
+        records = api("/services", port=8101)
+        for service_name in ("registry-service", "deployments-service"):
+            row = next(item for item in records if item["id"] == service_name)
+            assert row["status"] == "healthy" and row["last_heartbeat_at"], row
+        print("Actual authenticated built-in metadata readiness probes passed; arbitrary endpoints receive no credential")
         # Real shop data and dependency failure, isolated from platform storage.
         from scripts.check_shop_stack import request as shop_request
         from scripts.check_shop_stack import retained, seed, unavailable
