@@ -165,6 +165,8 @@ class ReliabilityLoop:
         evidence = tx.recent_events(event.service, event.environment, limit=200)
         signals = active.signals if active else [signal]
         analysis, plan, correlation = analyze(event, signals, evidence)
+        # Capacity plans without replicas remain recommendations until an explicit
+        # live plan-preparation pass outside this ingest transaction supplies them.
         rule = self.policy.rules.get(plan.action)
         if rule:
             plan.risk, plan.requires_approval, plan.policy_version = (
@@ -257,10 +259,40 @@ class ReliabilityLoop:
             tx.save_incident(incident)
             return incident
 
-    def execute(self, incident_id: str, actor: str) -> Incident:
+    def execute(self, incident_id: str, actor: str, *, automatic_only: bool = False) -> Incident:
+        # Live preflight must not hold the decision lock or delay the kill switch.
+        with self.repo.transaction() as tx:
+            observed = self._get(tx, incident_id)
+            preflight_mode = tx.get_state("autonomy", {"mode": "recommend"})["mode"]
+        context: dict[str, Any] = {}
+        context_error = False
+        if preflight_mode == "auto-safe" and observed.approval != "approved":
+            try:
+                context = self.executor.policy_context(observed.plan)
+            except Exception:
+                context_error = True
+        target_uid = context.pop("target_uid", None)
         with self.repo.transaction() as tx:
             incident = self._get(tx, incident_id)
             mode = str(tx.get_state("autonomy", {"mode": "recommend"})["mode"])
+            if observed.plan != incident.plan or observed.updated_at != incident.updated_at:
+                context, context_error = {}, True
+            if automatic_only and (
+                incident.approval != "pending"
+                or not 0 <= (now() - incident.updated_at).total_seconds() <= 60
+            ):
+                return incident
+            plan_filled = False
+            if (
+                not context_error
+                and mode == "auto-safe"
+                and incident.approval == "pending"
+                and incident.plan.action == "scale"
+                and incident.plan.replicas is None
+                and isinstance(context.get("current_replicas"), int)
+            ):
+                incident.plan.replicas = int(context["current_replicas"]) + 1
+                plan_filled = True
             history: list[dict[str, str]] = tx.get_state("executions", [])
             recent = [
                 x
@@ -284,9 +316,16 @@ class ReliabilityLoop:
                 seconds_since_target_action=elapsed,
                 target_allowed=(
                     incident.service in self.settings.allowed_targets
+                    and incident.plan.target == incident.service
                     and incident.environment == self.settings.environment
+                    and not context_error
                 ),
+                **context,
             )
+            if automatic_only and (
+                not verdict.automatic or (now() - observed.updated_at).total_seconds() > 60
+            ):
+                return incident
             if not verdict.allowed:
                 tx.append_audit(
                     incident.id,
@@ -298,6 +337,14 @@ class ReliabilityLoop:
                 )
                 # A denial is a recorded result, not an exception that rolls the audit back.
                 return incident.model_copy(update={"execution_output": f"DENIED: {verdict.reason}"})
+            if plan_filled:
+                self._audit(
+                    tx,
+                    incident,
+                    "plan.live_preconditions",
+                    "policy",
+                    "One-replica scale-up filled from live managed deployment",
+                )
             incident.status = "remediating"
             incident.executed_at = now()
             incident.verification_deadline = now() + timedelta(
@@ -319,9 +366,16 @@ class ReliabilityLoop:
         # duplicate execution and is escalated, never retried, after an interrupted run.
         try:
             with self.repo.transaction() as tx:
-                if tx.get_state("autonomy", {"mode": "recommend"})["mode"] == "observe":
+                dispatch_mode = tx.get_state("autonomy", {"mode": "recommend"})["mode"]
+                if dispatch_mode == "observe" or (
+                    verdict.automatic and dispatch_mode != "auto-safe"
+                ):
                     raise DomainError("Kill switch enabled before execution")
-            result = self.executor.run(incident.plan)
+            result = (
+                self.executor.run(incident.plan, automatic=True, expected_uid=target_uid)
+                if verdict.automatic
+                else self.executor.run(incident.plan)
+            )
         except Exception as exc:
             with self.repo.transaction() as tx:
                 incident = self._get(tx, incident_id)
@@ -347,6 +401,30 @@ class ReliabilityLoop:
             self._emit(tx, incident, "remediation")
             tx.save_incident(incident)
             return incident
+
+    def run_automatic(self) -> int:
+        """Bounded worker sweep, no approved/manual action is executed here.
+
+        Each candidate re-enters the transaction lock and rechecks mode, policy,
+        rate limits and current state. Denied candidates do not flood the audit.
+        """
+        with self.repo.transaction() as tx:
+            if tx.get_state("autonomy", {"mode": "recommend"})["mode"] != "auto-safe":
+                return 0
+            candidates = [
+                item.id
+                for item in tx.list_incidents(limit=100)
+                if item.status == "investigating"
+                and item.approval == "pending"
+                and item.service in self.settings.allowed_targets
+                and item.environment == self.settings.environment
+                and 0 <= (now() - item.updated_at).total_seconds() <= 60
+            ]
+        executed = 0
+        for incident_id in candidates:
+            item = self.execute(incident_id, "policy:auto", automatic_only=True)
+            executed += int(item.status in {"verifying", "escalated"})
+        return executed
 
     def _verify(self, tx: Transaction, incident: Incident, event: Event) -> None:
         if (
