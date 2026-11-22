@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 import urllib.error
 import urllib.request
 from datetime import timedelta
@@ -55,6 +56,19 @@ def main() -> None:
         except urllib.error.HTTPError as error:
             return error.code
 
+    def wait_status(expected: int) -> int:
+        deadline = time.monotonic() + 30
+        while True:
+            try:
+                actual = status()
+                if actual == expected:
+                    return actual
+            except OSError:
+                pass
+            if time.monotonic() >= deadline:
+                raise AssertionError("Expected independently observed HTTP status not reached")
+            time.sleep(0.2)
+
     try:
         fixture.kubectl(
             "label",
@@ -77,7 +91,7 @@ def main() -> None:
             "rollout", "status", "deployment/catalog-service", "-n", fixture.NS, "--timeout=120s"
         )
         forwards.start("catalog-service", 19105, 9001)
-        assert status() == 503
+        assert wait_status(503) == 503
         forwards.close()
         current_revision = deployment()["metadata"]["annotations"][
             "deployment.kubernetes.io/revision"
@@ -182,7 +196,7 @@ def main() -> None:
         )
         forwards = fixture.Forwards()
         forwards.start("catalog-service", 19105, 9001)
-        assert status() == 200
+        assert wait_status(200) == 200
         current = deployment()
         assert current["metadata"]["uid"] == original["metadata"]["uid"]
         assert current["spec"]["template"] == original["spec"]["template"]
