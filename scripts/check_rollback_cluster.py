@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Real retained-template rollback. Seeded executor proof, not DI-5 accuracy."""
+"""Real policy-worker rollback. Seeded prerequisites, not DI-5 accuracy."""
 
 from __future__ import annotations
 
@@ -240,7 +240,7 @@ def main() -> None:
             "rollout", "status", "deployment/catalog-service", "-n", fixture.NS, "--timeout=120s"
         )
     print(
-        "Actual faulty image503 recovered200 through retained-template scoped rollback. Seeded fixture, not automatic policy or evaluation claim."
+        "Actual faulty image503 recovered200 through automatic scoped rollback. Seeded policy prerequisites, not diagnosis or evaluation accuracy."
     )
 
 
