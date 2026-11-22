@@ -216,7 +216,7 @@ def test_capacity_anomaly_plans_from_live_replicas_not_guessed_default(
         )
     with loop.repo.transaction() as tx:
         item = tx.incident(str(result["incident_id"]))
-        assert item and item.plan.action == "scale" and item.plan.replicas == 3
+        assert item and item.plan.action == "scale" and item.plan.replicas is None
         assert item.plan.risk == "low" and item.plan.reversible
     assert loop.run_automatic() == 1
 
@@ -242,5 +242,17 @@ def test_capacity_anomaly_without_live_context_escalates() -> None:
         )
     with loop.repo.transaction() as tx:
         item = tx.incident(str(result["incident_id"]))
-        assert item and item.plan.action == "escalate" and item.plan.replicas is None
-        assert item.plan.risk == "high" and not item.plan.reversible
+        assert item and item.plan.action == "scale" and item.plan.replicas is None
+    assert loop.run_automatic() == 0
+
+
+def test_kill_switch_during_slow_preflight_wins(monkeypatch: pytest.MonkeyPatch) -> None:
+    loop, _ = configured()
+
+    def preflight(_: Plan) -> dict[str, int]:
+        loop.set_mode("observe", "operator-during-read")
+        return {"current_replicas": 2}
+
+    monkeypatch.setattr(loop.executor, "policy_context", preflight)
+    monkeypatch.setattr(loop.executor, "run", lambda _: pytest.fail("Kill switch ignored"))
+    assert loop.run_automatic() == 0

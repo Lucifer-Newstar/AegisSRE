@@ -165,19 +165,8 @@ class ReliabilityLoop:
         evidence = tx.recent_events(event.service, event.environment, limit=200)
         signals = active.signals if active else [signal]
         analysis, plan, correlation = analyze(event, signals, evidence)
-        if plan.action == "scale":
-            try:
-                live = self.executor.policy_context(plan)
-                if isinstance(live.get("current_replicas"), int):
-                    plan.replicas = int(live["current_replicas"]) + 1
-                else:
-                    plan.action, plan.risk, plan.reversible = "escalate", "high", False
-                    plan.reason = "Capacity evidence without live managed replica preconditions"
-            except Exception:
-                plan.action, plan.risk, plan.reversible = "escalate", "high", False
-                plan.reason = (
-                    "Live capacity preconditions unavailable; operator investigation required"
-                )
+        # Capacity plans without replicas remain recommendations until an explicit
+        # live plan-preparation pass outside this ingest transaction supplies them.
         rule = self.policy.rules.get(plan.action)
         if rule:
             plan.risk, plan.requires_approval, plan.policy_version = (
@@ -271,9 +260,39 @@ class ReliabilityLoop:
             return incident
 
     def execute(self, incident_id: str, actor: str, *, automatic_only: bool = False) -> Incident:
+        # Live preflight must not hold the decision lock or delay the kill switch.
+        with self.repo.transaction() as tx:
+            observed = self._get(tx, incident_id)
+            preflight_mode = tx.get_state("autonomy", {"mode": "recommend"})["mode"]
+        context: dict[str, Any] = {}
+        context_error = False
+        if preflight_mode == "auto-safe" and observed.approval != "approved":
+            try:
+                context = self.executor.policy_context(observed.plan)
+            except Exception:
+                context_error = True
         with self.repo.transaction() as tx:
             incident = self._get(tx, incident_id)
             mode = str(tx.get_state("autonomy", {"mode": "recommend"})["mode"])
+            if observed.plan != incident.plan or observed.updated_at != incident.updated_at:
+                context, context_error = {}, True
+            if (
+                not context_error
+                and mode == "auto-safe"
+                and incident.approval == "pending"
+                and incident.plan.action == "scale"
+                and incident.plan.replicas is None
+                and isinstance(context.get("current_replicas"), int)
+            ):
+                incident.plan.replicas = int(context["current_replicas"]) + 1
+                self._audit(
+                    tx,
+                    incident,
+                    "plan.live_preconditions",
+                    "policy",
+                    "One-replica scale-up filled from live managed deployment",
+                )
+                tx.save_incident(incident)
             if automatic_only and (
                 incident.approval != "pending"
                 or not 0 <= (now() - incident.updated_at).total_seconds() <= 60
@@ -291,14 +310,6 @@ class ReliabilityLoop:
                 if per_target
                 else math.inf
             )
-            context: dict[str, Any] = {}
-            context_error = False
-            if mode == "auto-safe" and incident.approval != "approved":
-                try:
-                    context = self.executor.policy_context(incident.plan)
-                except Exception:
-                    # Read failures never become fabricated policy preconditions.
-                    context_error = True
             verdict = evaluate(
                 self.policy,
                 incident,

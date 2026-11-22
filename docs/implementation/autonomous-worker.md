@@ -31,6 +31,8 @@ credentials. The evidence reader is read-only and never receives deployment patc
 permission. No default manifests enable execution or auto-safe mode.
 
 CPU/load hypotheses can propose a bounded scale-up. Plan replicas are filled only
-from a live managed Deployment read. Missing live context changes the plan to
-operator escalation, not a guessed replica count. The versioned policy remains
+from a live managed Deployment read. Missing live context leaves replicas unknown and blocks automatic work, never a
+guessed replica count. Live reads run outside the decision lock, so a slow read
+cannot delay an operator's kill-switch write. The unchanged plan and mode are
+checked again before saving live plan preconditions. The versioned policy remains
 the authority for risk/approval, and dispatch rechecks current replicas again.
