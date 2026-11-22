@@ -29,7 +29,7 @@ def test_restart_probe_retries_transient_socket_errors(
         return {"status": "ready"}
 
     monkeypatch.setattr(check_metadata_stack, "request", request)
-    monkeypatch.setattr(check_metadata_stack.time, "sleep", sleeps.append)
+    monkeypatch.setattr("scripts.check_metadata_stack.time.sleep", sleeps.append)
     check_metadata_stack.ready()
     assert calls == [8101, 8101, 8701]
     assert sleeps == [1]
