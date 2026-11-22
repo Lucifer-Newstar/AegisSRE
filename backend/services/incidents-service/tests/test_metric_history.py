@@ -20,9 +20,9 @@ def test_history_scope_gaps_units_and_real_sources() -> None:
             (99, "prometheus", "catalog-service", "prod", {}, "seconds"),
             (99, "prometheus", "catalog-service", "dev", {"revision":"canary"}, "seconds"),
         ]):
-            tx.add_event(Event(id=f"history-{index}", timestamp=point-timedelta(seconds=20),
+            tx.add_event(Event.model_validate(dict(id=f"history-{index}", timestamp=point-timedelta(seconds=20),
                 type="metric", source=source, service=service, environment=environment,
-                payload={"name":"latency_p95","value":value,"labels":labels,"unit":unit}))
+                payload={"name":"latency_p95","value":value,"labels":labels,"unit":unit})))
         result=history(tx,"catalog-service","dev","latency_p95",point,1,12)
         assert result["status"]=="observed" and result["missing_buckets"]==11
         assert len(result["points"])==1
