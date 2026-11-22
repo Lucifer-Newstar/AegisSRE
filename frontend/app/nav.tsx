@@ -7,7 +7,12 @@ const LINKS = [
   { href: "/", label: "Command Center" },
   { href: "/services", label: "Services" },
   { href: "/incidents", label: "Incidents" },
+  { href: "/approvals", label: "Approvals" },
+  { href: "/postmortems", label: "Postmortems" },
+  { href: "/runbooks", label: "Runbooks" },
+  { href: "/ask", label: "Ask Aegis" },
   { href: "/deployments", label: "Deployments" },
+  { href: "/audit", label: "Audit log" },
 ];
 
 export function Nav() {
