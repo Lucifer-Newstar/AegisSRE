@@ -91,6 +91,7 @@ def evaluate(
         and not rule.requires_approval
         and incident.plan.action in {"scale", "rollback"}
         and incident.plan.reversible
+        and incident.plan.risk == "low"
     )
     if incident.plan.action == "rollback" and automatic:
         # Auto rollback is reserved for a known bad, recent rollout. Other rollback requires approval.
