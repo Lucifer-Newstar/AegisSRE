@@ -7,6 +7,7 @@ pyyaml
 -e backend/services/registry-service[dev]
 -e backend/services/deployments-service[dev]
 -e backend/services/incidents-service[dev]
+-e backend/services/api-gateway[dev]
 -e demoapp/aegisshop/catalog-service[dev]
 -e demoapp/aegisshop/cart-service[dev]
 -e demoapp/aegisshop/order-service[dev]

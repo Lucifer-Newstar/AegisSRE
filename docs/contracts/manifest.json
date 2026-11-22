@@ -35,6 +35,11 @@
       "id": "incidents-service",
       "module": "incidents_service.contract",
       "contract": "incidents-service.yaml"
+    },
+    {
+      "id": "api-gateway",
+      "module": "api_gateway.contract",
+      "contract": "api-gateway.yaml"
     }
   ]
 }

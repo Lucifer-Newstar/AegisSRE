@@ -300,6 +300,29 @@ services:
     networks: [aegissre]
     logging: *default-logging
 
+  api-gateway:
+    build:
+      context: .
+      dockerfile: backend/services/api-gateway/Dockerfile
+    image: aegissre/api-gateway:0.1.0
+    container_name: aegissre-gateway
+    environment:
+      AEGIS_GATEWAY_API_TOKEN: ${AEGIS_API_TOKEN:-}
+      AEGIS_GATEWAY_INCIDENTS_TOKEN: ${AEGIS_API_TOKEN:-}
+      AEGIS_GATEWAY_REDIS_URL: redis://redis:6379/0
+      AEGIS_GATEWAY_REGISTRY_URL: http://registry-service:8101
+      AEGIS_GATEWAY_DEPLOYMENTS_URL: http://deployments-service:8701
+      AEGIS_GATEWAY_INCIDENTS_URL: http://incidents-service:8201
+    ports:
+      - "127.0.0.1:8080:8000"
+    depends_on:
+      redis: { condition: service_healthy }
+      incidents-service: { condition: service_healthy }
+      registry-service: { condition: service_healthy }
+      deployments-service: { condition: service_healthy }
+    networks: [aegissre]
+    logging: *default-logging
+
   console:
     build: ./frontend
     image: aegissre/console:0.1.0

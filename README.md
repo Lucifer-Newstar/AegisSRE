@@ -46,6 +46,9 @@ measured checks and remaining work. Code presence is not an acceptance result.
   incident/audit outbox delivery, statistical + Isolation Forest detection, cited
   deterministic RCA, approvals, policy and recovery gates. The default executor
   is explicitly simulation; no real-cluster success is claimed.
+- **API gateway** (`backend/services/api-gateway`, host :8080): fixed routes,
+  bearer auth, Redis-backed rate limits and principal-bound audit writes. Console
+  session/login and migration to this entrypoint remain in progress.
 - **AegisShop** demo app: catalog (:9001), cart (:9002), order (:9003), payment (:9004)
   services with tests.
 - **Console** (Next.js 14 on :3030): overview, services, deployments, and incidents

@@ -1,0 +1,35 @@
+"""Explicit routes, not a generic URL/path proxy or a model-selected tool."""
+
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class Route:
+    path: str
+    upstream: str
+    methods: tuple[str, ...] = ("GET",)
+    queries: tuple[str, ...] = ()
+    asserted_actor: bool = False
+
+
+ROUTES = (
+    Route("/services", "registry", ("GET", "POST"), ("status", "include_heartbeats")),
+    Route("/services/{service_id}", "registry", ("GET", "PUT", "DELETE")),
+    Route("/services/{service_id}/heartbeat", "registry", ("POST",)),
+    Route("/deployments", "deployments", ("GET", "POST"), ("service", "status", "limit")),
+    Route("/deployments/{service}/latest", "deployments"),
+    Route("/deployments/{event_id}", "deployments"),
+    Route(
+        "/events", "incidents", ("GET", "POST"), ("service", "environment", "event_type", "limit")
+    ),
+    Route("/events/{event_id}", "incidents"),
+    Route("/incidents", "incidents", queries=("service", "limit")),
+    Route("/incidents/{incident_id}", "incidents"),
+    Route("/incidents/{incident_id}/{decision}", "incidents", ("POST",), asserted_actor=True),
+    Route("/actions/{incident_id}/execute", "incidents", ("POST",), asserted_actor=True),
+    Route("/postmortems", "incidents"),
+    Route("/postmortems/{incident_id}", "incidents"),
+    Route("/audit", "incidents", queries=("incident_id", "limit")),
+    Route("/autonomy", "incidents", ("GET", "POST"), asserted_actor=True),
+    Route("/runtime", "incidents"),
+)

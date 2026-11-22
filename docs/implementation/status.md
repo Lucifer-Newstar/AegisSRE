@@ -97,6 +97,24 @@ Earlier merged transport/storage proofs: [PR 2](https://github.com/Lucifer-Newst
 and [PR 3](https://github.com/Lucifer-Newstar/AegisSRE/pull/3). The live gateway,
 LLM/RAG/tool suite, full console, cluster bootstrap and evaluation remain open.
 
+## Milestone 2d: authenticated API entrypoint
+
+A compiled-route FastAPI gateway now fronts the existing APIs with explicit
+bearer auth, shared Redis-backed rate windows, bounded bodies/responses, fixed
+origins, redirect rejection and request correlation. Gateway writes bind audit
+actors to the configured token principal. Backend credentials and cookies are
+not copied from caller requests; upstream cookies are not retained. Redis failure
+closes access. The image is non-root and disables proxy-header trust by default.
+
+Local checks: 145 tests pass, with strict mypy/Ruff and eight API contracts. The
+hosted runtime gate also exercises actual gateway auth, routing, correlation and
+approval of a controlled CI incident, without executing a remediation.
+
+This is the API boundary, not the completed console login. The existing console
+still calls its old data layer and still has explicit mock scaffolding. Session
+security, switching all console reads/writes through the gateway, internal
+metadata auth/network hardening and production cluster proof remain open.
+
 ## Feature-by-feature status
 
 | ID | Implementation state | Acceptance still required |
