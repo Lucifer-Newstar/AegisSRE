@@ -30,17 +30,25 @@ def main() -> None:
         assert "ci-runtime" in text and "simulation" in text
     assert any(cookie.name == "aegis_session" and cookie.has_nonstandard_attr("HttpOnly")
                for cookie in jar)
+    from scripts.check_runtime_stack import api
+    incidents=api("/incidents?service=ci-runtime")
+    assert incidents, "Expected persisted transport-fixture incident"
+    identity=incidents[0]["id"]
     for path, heading in [
         ("/services", "Services"), ("/incidents", "Incidents"),
         ("/approvals", "Approvals"), ("/postmortems", "Postmortems"),
         ("/runbooks", "Runbooks"), ("/ask", "Ask Aegis"),
         ("/deployments", "Deployments"), ("/audit", "Audit log"),
+        ("/services/catalog-service", "Registry and SLO configuration"),
+        ("/incidents/"+urllib.parse.quote(identity,safe=""), "Incident timeline"),
     ]:
         with opener.open(ORIGIN + path, timeout=30) as response:
             text = response.read().decode()
             assert response.status == 200 and heading in text
             assert os.environ["AEGIS_API_TOKEN"] not in text
             assert "Mock data" not in text and "mock payload" not in text
+            assert "No data substituted" not in text and "API connection failed" not in text
+            assert "API unavailable" not in text and "Incident unavailable" not in text
     try:
         opener.open(urllib.request.Request(
             ORIGIN + "/api/decision", data=b"id=fixture&decision=approve",
