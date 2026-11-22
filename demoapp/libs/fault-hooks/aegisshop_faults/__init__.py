@@ -10,8 +10,11 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import signal
 import stat
 import time
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
@@ -76,6 +79,24 @@ def configure_fault_hooks(application: FastAPI) -> None:
     if application.middleware_stack is not None:
         raise RuntimeError("Configure fault hooks before application startup")
 
+    previous_lifespan = application.router.lifespan_context
+
+    @asynccontextmanager
+    async def fault_lifespan(app: FastAPI) -> AsyncIterator[Any]:
+        # PID namespace init ignores peer SIGKILL. An opt-in fixed signal
+        # handler makes the process exit immediately with a distinct code,
+        # without an HTTP API or arbitrary command. No SIGKILL/OOM is claimed.
+        # Normal workloads install no handler.
+        def crash(signum: int, frame: Any) -> None:
+            os._exit(70)
+        previous_signal = signal.signal(signal.SIGUSR1, crash)
+        try:
+            async with previous_lifespan(app) as state:
+                yield state
+        finally:
+            signal.signal(signal.SIGUSR1, previous_signal)
+
+    application.router.lifespan_context = fault_lifespan
     resource_slot = asyncio.Semaphore(1)
 
     @application.middleware("http")

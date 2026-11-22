@@ -10,6 +10,7 @@ import argparse
 import importlib.util
 import json
 import signal
+import subprocess
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -22,7 +23,7 @@ from chaoslab.journal import Journal
 ROOT = Path(__file__).resolve().parents[1]
 HOOKS = {"http-5xx", "network-latency", "cpu-saturation", "memory-pressure"}
 DATABASES = {"database-outage": "shop-postgres", "dependency-failure": "shop-redis"}
-FAULTS = HOOKS | set(DATABASES)
+FAULTS = HOOKS | set(DATABASES) | {"container-crash"}
 WRITE_CONTROL = (
     "import os,sys;from pathlib import Path;"
     "p=Path('/tmp/aegisshop-fault.json');"
@@ -65,7 +66,7 @@ def _run(api: ModuleType, fault: str, seconds: int, output: Path) -> Path:
     if original["spec"].get("replicas", 1) != 1:
         raise RuntimeError("The disposable experiment requires exactly one replica")
     env = original["spec"]["template"]["spec"]["containers"][0].get("env", [])
-    if fault in HOOKS and not any(
+    if fault in HOOKS | {"container-crash"} and not any(
         item.get("name") == "AEGIS_SHOP_FAULTS_ENABLED" and item.get("value") == "true"
         for item in env
     ):
@@ -84,6 +85,16 @@ def _run(api: ModuleType, fault: str, seconds: int, output: Path) -> Path:
             api.kubectl("scale", kind + "/" + target, "--replicas=0", "--namespace", api.NS)
             api.kubectl("wait", "--for=delete", "pod/" + target + "-0", "--namespace", api.NS,
                         "--timeout=90s", timeout=100)
+        elif fault == "container-crash":
+            # Fixed opt-in signal makes the namespace init process self-terminate.
+            # Fixed process in one explicitly owned shop Deployment. No caller
+            # command, signal, PID, namespace or target is accepted.
+            try:
+                api.kubectl("exec", "deployment/" + target, "--namespace", api.NS, "--",
+                            "python", "-c", "import os,signal;os.kill(1,signal.SIGUSR1)")
+            except subprocess.CalledProcessError as error:
+                if error.returncode != 137:
+                    raise
         else:
             magnitude = {"http-5xx": 100, "network-latency": 1000,
                          "cpu-saturation": 500, "memory-pressure": 32}[fault]
@@ -106,6 +117,9 @@ def _run(api: ModuleType, fault: str, seconds: int, output: Path) -> Path:
                 journal.record("restoration_requested")
                 if fault in DATABASES:
                     api.kubectl("scale", kind + "/" + target, "--replicas=1", "--namespace", api.NS)
+                    api.kubectl("rollout", "status", kind + "/" + target,
+                                "--namespace", api.NS, "--timeout=180s", timeout=200)
+                elif fault == "container-crash":
                     api.kubectl("rollout", "status", kind + "/" + target,
                                 "--namespace", api.NS, "--timeout=180s", timeout=200)
                 else:

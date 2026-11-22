@@ -32,8 +32,9 @@ Supported runner operations so far:
 | `database-outage` | shop DB replicas 1 to 0, then back to 1 | controller restoration is not app-health recovery |
 | `dependency-failure` | shop Redis replicas 1 to 0, then back to 1 | same health limitation |
 
-Crash, actual OOM, configuration error, faulty deployment and traffic-spike
-experiments remain unimplemented. The final A11 ten-fault catalogue is not
+Actual OOM, configuration error, faulty deployment and traffic-spike
+experiments remain unimplemented. Container crash is implemented below, with
+real hosted proof required. The final A11 ten-fault catalogue is not
 complete. The current hook/runner set must not be reported as meeting it.
 
 Each unique JSONL journal is created exclusively, flushed and fsynced on every
@@ -48,3 +49,19 @@ The full-kind gate must demonstrate real HTTP failure, independent liveness,
 CLI completion, restored normal response and the journal stages. Other hooks
 currently have native safety tests only. Full fault coverage, independent health
 truth, split manifests, evaluation repetitions and research comparisons remain.
+
+## Container process crash
+
+`python -m chaoslab container-crash --seconds 5 --output PATH` sends fixed
+SIGUSR1 to PID1 inside the current owned catalog-service container. The opt-in
+startup handler then immediately exits with code70, without shutdown cleanup. This is necessary because Linux
+PID namespace init ignores peer SIGKILL; no arbitrary signal is accepted. The
+runner has no caller-selected command/PID/namespace/target. Kubernetes restart
+is the restoration mechanism; a successful rollout wait is not proof of
+business recovery. The kind gate independently requires the same Pod UID,
+increased container restart count, last exit70 and restored `/products`200,
+then saves that proof separately from the ground-truth journal. No real run is
+claimed until this hosted gate passes. It is not OOM, node deletion, detection
+accuracy or an A12 trial. Other missing faults/evaluation remain.
+
+PID-namespace signal behavior: https://man7.org/linux/man-pages/man7/pid_namespaces.7.html

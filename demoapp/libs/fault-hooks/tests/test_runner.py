@@ -81,3 +81,41 @@ def test_bad_fault_or_duration_never_loads_driver(tmp_path: Path, monkeypatch: p
         with pytest.raises(ValueError):
             runner.run(fault, seconds, tmp_path)
     load.assert_not_called()
+
+
+def test_fixed_container_crash_tolerates_only_expected_killed_exec(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import subprocess
+
+    api=fixture_driver()
+    original=api.kubectl.return_value
+    api.kubectl.side_effect=[original, subprocess.CalledProcessError(137,["kubectl"]), original, ""]
+    api.directory=lambda:tmp_path
+    monkeypatch.setattr(runner,"driver",lambda:api)
+    monkeypatch.setattr(time,"sleep",Mock())
+    runner.run("container-crash",1,tmp_path)
+    calls=api.kubectl.call_args_list
+    assert any("import os,signal;os.kill(1,signal.SIGUSR1)" in call.args for call in calls)
+    assert any("rollout" in call.args and "status" in call.args for call in calls)
+    assert not (tmp_path/"chaos-active").exists()
+
+
+def test_opt_in_lifespan_really_terminates_its_own_process() -> None:
+    import os
+    import subprocess
+    import sys
+
+    # A fresh child, never the pytest process. No server/port or fake os.kill.
+    program = '''
+import asyncio, os, signal
+from fastapi import FastAPI
+from aegisshop_faults import configure_fault_hooks
+app = FastAPI()
+configure_fault_hooks(app)
+async def check():
+    async with app.router.lifespan_context(app):
+        os.kill(os.getpid(), signal.SIGUSR1)
+asyncio.run(check())
+'''
+    result = subprocess.run([sys.executable, "-c", program],
+        env={**os.environ, "AEGIS_SHOP_FAULTS_ENABLED": "true"}, timeout=10)
+    assert result.returncode == 70
