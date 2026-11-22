@@ -19,6 +19,7 @@ from starlette.responses import Response
 
 from incidents_service.config import Settings
 from incidents_service.engine import DomainError, ReliabilityLoop
+from incidents_service.intelligence import AskRequest, AskResult, Intelligence, IntelligenceError
 from incidents_service.knowledge import KnowledgeStore
 from incidents_service.knowledge_indexer import KnowledgeIndexer
 from incidents_service.models import Decision, Event, StrictModel
@@ -60,6 +61,7 @@ def create_app(settings: Settings | None = None, repository: Repository | None =
     runtime = Runtime(loop) if config.worker_enabled else None
     knowledge = KnowledgeStore(repo) if config.knowledge_enabled else None
     indexer = KnowledgeIndexer(knowledge, config) if knowledge else None
+    intelligence = Intelligence(repo, config, knowledge)
 
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
@@ -109,12 +111,14 @@ def create_app(settings: Settings | None = None, repository: Repository | None =
                 indexer.close()
             if runtime:
                 runtime.close()
+            await intelligence.close()
             if repository is None:
                 repo.close()
 
     application = FastAPI(title="AegisSRE Reliability API", version="0.1.0", lifespan=lifespan)
     application.state.loop = loop
     application.state.runtime = runtime
+    application.state.intelligence = intelligence
     application.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:3030", "http://127.0.0.1:3030"],
@@ -150,6 +154,35 @@ def create_app(settings: Settings | None = None, repository: Repository | None =
     async def domain_error(_: Request, exc: DomainError) -> JSONResponse:
         errors.inc()
         return JSONResponse({"detail": str(exc)}, status_code=exc.status)
+
+    @application.exception_handler(IntelligenceError)
+    async def intelligence_error(_: Request, exc: IntelligenceError) -> JSONResponse:
+        return JSONResponse({"detail": str(exc)}, status_code=exc.status)
+
+    @application.get("/intelligence/status", dependencies=[Depends(authorized)])
+    def intelligence_status() -> dict[str, object]:
+        return intelligence.status()
+
+    @application.get("/intelligence/tools", dependencies=[Depends(authorized)])
+    def intelligence_tools(
+        service: str, question: str = Query(default="service health", min_length=1, max_length=2000)
+    ) -> dict[str, Any]:
+        try:
+            return intelligence.tools.collect(service, question).model_dump(mode="json")
+        except ValueError as exc:
+            raise HTTPException(422, "Invalid evidence scope or query") from exc
+
+    @application.post("/ask", dependencies=[Depends(authorized)], response_model=AskResult)
+    async def ask(body: AskRequest) -> AskResult:
+        return await intelligence.ask(body)
+
+    @application.post("/incidents/{incident_id}/investigate", dependencies=[Depends(authorized)])
+    async def investigate(incident_id: str) -> dict[str, object]:
+        return await intelligence.investigate(incident_id)
+
+    @application.get("/incidents/{incident_id}/investigation", dependencies=[Depends(authorized)])
+    def investigation(incident_id: str) -> dict[str, object]:
+        return intelligence.investigation(incident_id)
 
     @application.get("/health")
     def health() -> dict[str, str]:
@@ -202,9 +235,17 @@ def create_app(settings: Settings | None = None, repository: Repository | None =
         if body.service not in config.allowed_targets:
             raise HTTPException(422, "Select an allowed service")
         try:
-            results = knowledge.search(body.query, service=body.service, environment=config.environment, limit=body.limit, kind=body.kind)
+            results = knowledge.search(
+                body.query,
+                service=body.service,
+                environment=config.environment,
+                limit=body.limit,
+                kind=body.kind,
+            )
         except ValueError as exc:
-            raise HTTPException(503, "Retrieval is unavailable for this corpus; inspect knowledge status") from exc
+            raise HTTPException(
+                503, "Retrieval is unavailable for this corpus; inspect knowledge status"
+            ) from exc
         return {
             "service": body.service,
             "environment": config.environment,

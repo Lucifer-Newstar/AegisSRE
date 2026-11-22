@@ -250,7 +250,7 @@ def create_app(
             path = route.path.format(**request.path_params)
             try:
                 async with (
-                    asyncio.timeout(10),
+                    asyncio.timeout(route.timeout_seconds),
                     upstream.stream(
                         request.method,
                         origins[route.upstream].rstrip("/") + path,
@@ -258,6 +258,7 @@ def create_app(
                         content=raw,
                         headers=headers,
                         follow_redirects=False,
+                        timeout=httpx.Timeout(route.timeout_seconds, connect=3),
                     ) as response,
                 ):
                     if 300 <= response.status_code < 400 or response.status_code >= 500:

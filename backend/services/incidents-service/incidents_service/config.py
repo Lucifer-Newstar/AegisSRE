@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     llm_url: str = "http://localhost:11434"
     llm_model: str = ""
     llm_api_key: str = Field(default="", repr=False)
+    llm_allow_remote: bool = False
+    llm_timeout_seconds: int = Field(default=30, ge=5, le=120)
+    llm_max_output_tokens: int = Field(default=1024, ge=128, le=4096)
+    llm_requests_per_hour: int = Field(default=10, ge=1, le=100)
+    llm_requests_per_day: int = Field(default=50, ge=1, le=1000)
     redis_url: str = Field(default="", repr=False)
     environment: str = Field(
         default="dev", min_length=1, max_length=40, pattern=r"^[a-zA-Z0-9_-]+$"
@@ -101,4 +106,15 @@ class Settings(BaseSettings):
             )
         if self.llm_provider != "disabled" and not self.llm_model:
             raise ValueError("An explicit LLM model is required")
+        from incidents_service.providers import ProviderConfig
+
+        ProviderConfig(
+            provider=self.llm_provider,
+            base_url=self.llm_url,
+            model=self.llm_model,
+            api_key=self.llm_api_key,
+            allow_remote=self.llm_allow_remote,
+            timeout_seconds=self.llm_timeout_seconds,
+            max_output_tokens=self.llm_max_output_tokens,
+        )
         return self
