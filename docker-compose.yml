@@ -42,6 +42,23 @@ services:
     networks: [aegissre]
     logging: *default-logging
 
+  # Shop data is a different server/volume/identity from platform evidence.
+  shop-postgres:
+    image: ${AEGIS_POSTGRES_IMAGE:-pgvector/pgvector:0.8.1-pg16-bookworm@sha256:33198da2828a14c30348d2ccb4750833d5ed9a44c88d840a0e523d7417120337}
+    environment:
+      POSTGRES_USER: ${SHOP_POSTGRES_USER:-shop}
+      POSTGRES_PASSWORD: ${SHOP_POSTGRES_PASSWORD:-shop-dev-only}
+      POSTGRES_DB: ${SHOP_POSTGRES_DB:-aegisshop}
+    volumes:
+      - shop-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SHOP_POSTGRES_USER:-shop}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [aegissre]
+    logging: *default-logging
+
   redis:
     image: redis:7-alpine
     container_name: aegissre-redis
@@ -209,10 +226,12 @@ services:
       ENVIRONMENT: dev
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       CART_SERVICE_URL: http://cart-service:9002
+      SHOP_DATABASE_URL: ${SHOP_DATABASE_URL:-postgresql+psycopg://shop:shop-dev-only@shop-postgres:5432/aegisshop}
     ports:
       - "127.0.0.1:9003:9003"
     depends_on:
       cart-service: { condition: service_started }
+      shop-postgres: { condition: service_healthy }
       otel-collector: { condition: service_started }
     networks: [aegissre]
     logging: *default-logging
@@ -371,6 +390,7 @@ networks:
     driver: bridge
 
 volumes:
+  shop-postgres-data:
   postgres-data:
   redis-data:
   prometheus-data:

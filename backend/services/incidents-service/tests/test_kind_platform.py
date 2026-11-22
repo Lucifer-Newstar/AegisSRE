@@ -121,7 +121,7 @@ def test_full_platform_has_compose_image_parity_and_only_internal_services() -> 
         for doc in documents
         if doc["kind"] in {"Deployment", "StatefulSet"}
     }
-    assert set(workloads) == set(services) and len(workloads) == 16
+    assert set(workloads) == set(services) and len(workloads) == 17
     for name, doc in workloads.items():
         image = services[name]["image"]
         if image.startswith("${AEGIS_POSTGRES_IMAGE:-"):
@@ -145,7 +145,7 @@ def test_persistent_stores_and_shared_configs_are_not_silently_ephemeral() -> No
         doc["metadata"]["name"] for doc in documents if doc["kind"] == "PersistentVolumeClaim"
     }
     assert claims == {
-        name + "-data" for name in ("postgres", "redis", "prometheus", "grafana", "loki", "tempo")
+        name + "-data" for name in ("postgres", "shop-postgres", "redis", "prometheus", "grafana", "loki", "tempo")
     }
     for doc in documents:
         if doc["kind"] not in {"Deployment", "StatefulSet"}:
@@ -195,3 +195,23 @@ def test_platform_runtime_is_readonly_evidence_not_live_executor() -> None:
         ("apps", "replicasets"),
         ("events.k8s.io", "events"),
     }
+
+
+def test_shop_order_database_is_not_the_platform_evidence_dependency() -> None:
+    documents = manifests()
+    compose = yaml.safe_load((ROOT / "docker-compose.yml").read_text())["services"]
+    assert "ports" not in compose["shop-postgres"]
+    assert compose["shop-postgres"]["volumes"] != compose["postgres"]["volumes"]
+    assert "@shop-postgres:" in compose["order-service"]["environment"]["SHOP_DATABASE_URL"]
+    order = next(doc for doc in documents if doc["kind"] == "Deployment"
+                 and doc["metadata"]["name"] == "order-service")
+    env = {entry["name"]: entry for entry in order["spec"]["template"]["spec"]["containers"][0]["env"]}
+    assert env["SHOP_DATABASE_URL"]["valueFrom"]["secretKeyRef"]["name"] == "aegisshop-database"
+    postgres = next(doc for doc in documents if doc["kind"] == "StatefulSet"
+                    and doc["metadata"]["name"] == "shop-postgres")
+    pod = postgres["spec"]["template"]["spec"]
+    assert not pod["automountServiceAccountToken"]
+    assert any(volume.get("persistentVolumeClaim", {}).get("claimName") == "shop-postgres-data"
+               for volume in pod["volumes"])
+    assert all(entry.get("valueFrom", {}).get("secretKeyRef", {}).get("name") != "aegissre-postgres"
+               for entry in pod["containers"][0]["env"])
