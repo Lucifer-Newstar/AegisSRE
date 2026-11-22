@@ -54,12 +54,12 @@ truth, split manifests, evaluation repetitions and research comparisons remain.
 
 `python -m chaoslab container-crash --seconds 5 --output PATH` sends fixed
 SIGUSR1 to PID1 inside the current owned catalog-service container. The opt-in
-startup handler then sends SIGKILL to itself. This is necessary because Linux
+startup handler then immediately exits with code70, without shutdown cleanup. This is necessary because Linux
 PID namespace init ignores peer SIGKILL; no arbitrary signal is accepted. The
 runner has no caller-selected command/PID/namespace/target. Kubernetes restart
 is the restoration mechanism; a successful rollout wait is not proof of
 business recovery. The kind gate independently requires the same Pod UID,
-increased container restart count, last exit137 and restored `/products`200,
+increased container restart count, last exit70 and restored `/products`200,
 then saves that proof separately from the ground-truth journal. No real run is
 claimed until this hosted gate passes. It is not OOM, node deletion, detection
 accuracy or an A12 trial. Other missing faults/evaluation remain.

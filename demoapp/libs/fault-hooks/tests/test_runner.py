@@ -136,4 +136,4 @@ asyncio.run(check())
 '''
     result = subprocess.run([sys.executable, "-c", program],
         env={**os.environ, "AEGIS_SHOP_FAULTS_ENABLED": "true"}, timeout=10)
-    assert result.returncode == -9
+    assert result.returncode == 70

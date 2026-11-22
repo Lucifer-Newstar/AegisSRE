@@ -489,7 +489,7 @@ def verify() -> None:
         assert after_crash["uid"] == before_crash["uid"]
         assert after_crash["restartCount"] > before_crash["restartCount"]
         terminated = after_crash["lastState"]["terminated"]
-        assert terminated["exitCode"] == 137 and terminated.get("finishedAt")
+        assert terminated["exitCode"] == 70 and terminated.get("finishedAt")
         forwards.start("catalog-service", 9001, 9001)
         wait_for(lambda: shop_request(9001, "/products")[0] == 200,
                  "catalog domain recovery after actual process crash", 120)
@@ -497,7 +497,7 @@ def verify() -> None:
                  "restart_count_after":after_crash["restartCount"], "terminated":terminated,
                  "domain_recovery_observed":True, "not_evaluation_accuracy":True}
         (crash_dir / "independent-proof.json").write_text(json.dumps(proof, indent=2))
-        print("Actual SIGKILL container crash, same-Pod restart/137 and domain recovery verified independently of runner journal")
+        print("Actual immediate process-exit crash, same-Pod restart/70 and domain recovery verified independently of runner journal")
         config_dir = experiment_dir / "config-error"
         config_dir.mkdir(exist_ok=True)
         before_config = json.loads(kubectl("get", "deployment", "catalog-service",
@@ -550,6 +550,7 @@ def verify() -> None:
         config_proof["not_evaluation_accuracy"] = True
         (config_dir / "independent-proof.json").write_text(json.dumps(config_proof, indent=2))
         print("Actual invalid catalog setting rejected on startup; exact Pod template restored and domain ready, no outage assumed")
+
         run([sys.executable, str(ROOT / "scripts/check_console_stack.py")], timeout=240)
         with urllib.request.urlopen("http://127.0.0.1:3030/login", timeout=15) as response:
             assert response.status == 200
