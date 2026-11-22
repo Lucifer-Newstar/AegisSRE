@@ -167,9 +167,15 @@ def main() -> None:
         )
         forwards.start("api-gateway", 8080, 8000)
         forwards.start("console", 3030, 3030)
-        subprocess.run(["node", str(ROOT / "scripts/visual/console.mjs")],
-            env={**os.environ, "AEGIS_VISUAL_OUTPUT": str(fixture.directory() / "diagnostics" / "canary-visual")},
-            check=True, timeout=120)
+        subprocess.run(
+            ["node", str(ROOT / "scripts/visual/console.mjs")],
+            env={
+                **os.environ,
+                "AEGIS_VISUAL_OUTPUT": str(fixture.directory() / "diagnostics" / "canary-visual"),
+            },
+            check=True,
+            timeout=120,
+        )
         print(
             "Actual normal/faulty catalog track traffic independently scraped and regression visible through authenticated API"
         )
