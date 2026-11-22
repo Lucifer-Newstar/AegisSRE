@@ -45,6 +45,16 @@ class DocumentStore:
             options["connect_args"] = {"check_same_thread": False, "timeout": 30}
             if ":memory:" in url:
                 options["poolclass"] = StaticPool
+        elif url.startswith("postgresql"):
+            # A replaced Pod can leave a TCP connection black-holed. Pool
+            # pre-ping cannot recover until the kernel notices that failure.
+            options["pool_timeout"] = 5
+            options["connect_args"] = {
+                "connect_timeout": 5, "keepalives": 1, "keepalives_idle": 5,
+                "keepalives_interval": 2, "keepalives_count": 3,
+                "tcp_user_timeout": 10000,
+                "options": "-c statement_timeout=15000 -c lock_timeout=10000",
+            }
         self.engine = create_engine(url, **options)
         with self.engine.begin() as connection:
             if self.engine.dialect.name == "postgresql":
