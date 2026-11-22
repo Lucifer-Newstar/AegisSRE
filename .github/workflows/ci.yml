@@ -300,6 +300,8 @@ jobs:
         run: python3 scripts/check_runtime_stack.py verify
       - name: Prove gateway authorization, routing, correlation and approval identity
         run: python3 scripts/check_gateway_stack.py
+      - name: Prove real OTLP logs and traces join after durable collection
+        run: python3 scripts/check_observability_stack.py
       - name: Collect runtime diagnostics
         if: always()
         run: |
