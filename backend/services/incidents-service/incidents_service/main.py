@@ -288,6 +288,12 @@ def create_app(
             raise HTTPException(404, "Deployment review not found")
         return result
 
+    @application.get("/slo", dependencies=[Depends(authorized)])
+    def slo_readout(service: str) -> dict[str, Any]:
+        from incidents_service.slo import readout
+        if service not in config.allowed_targets:
+            raise HTTPException(422, "Select an allowed service")
+        return readout(config, service)
     @application.get("/deployment-intelligence/risk", dependencies=[Depends(authorized)])
     def deployment_risk(
         service: str, limit: int = Query(default=50, ge=1, le=100)
