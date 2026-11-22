@@ -1,46 +1,22 @@
-import { loadDeployments } from "@/lib/data";
-
+import { identifier, load, loadDeployments } from "@/lib/data";
 export const dynamic = "force-dynamic";
-
-export default async function DeploymentsPage() {
-  const { items: deployments, error } = await loadDeployments();
-  return (
-    <>
-      <div className="topbar">
-        <div>
-          <h1 style={{ margin: 0 }}>Deployments</h1>
-          <p className="muted">
-            DI-1 history · live API
-          </p>
-        </div>
-      </div>
-      {error && <p role="alert">{error}</p>}
-      <div className="card">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Event</th>
-              <th>Service</th>
-              <th>Revision</th>
-              <th>Status</th>
-              <th>Stored</th>
-            </tr>
-          </thead>
-          <tbody>
-            {deployments.map((row) => (
-              <tr key={row.eventId}>
-                <td>{row.eventId}</td>
-                <td>{row.service}</td>
-                <td>{row.revision}</td>
-                <td>
-                  <span className={`pill ${row.status==="succeeded"?"healthy":row.status==="failed"?"unhealthy":"unknown"}`}>{row.status}</span>
-                </td>
-                <td className="muted">{row.storedAt}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </>
-  );
+type Rollout={id:string;revision:string;deployment_id:string|null;started_at:string;phase:string;outcome:string;reason:string;ambiguous:boolean;flag_latency_seconds:number|null;source_event_ids:string[];observation_ids:string[];incident_id:string|null};
+type Summary={identified_deployments:number;confirmed_bad:number;observed_healthy:number;unknown_outcomes:number;unidentified_or_unmapped_events:number;change_failure_rate:number|null;observed_finalized_rate:number|null;outcome_coverage:number|null;identified_failure_lower_bound:number|null;identified_failure_upper_bound:number|null;caveat:string};
+const percent=(v:number|null|undefined)=>v==null?"Unknown":`${(v*100).toFixed(1)}%`;
+export default async function DeploymentsPage({searchParams}:{searchParams:{service?:string}}){
+ const history=await loadDeployments();
+ const services=[...new Set(history.items.map(d=>d.service))].sort();
+ const selected=searchParams.service&&services.includes(searchParams.service)?searchParams.service:services[0];
+ const path=selected?identifier(selected):null;
+ const [windows,summary]=path?await Promise.all([load<{rollouts:Rollout[];truncated:boolean}>(`/api/v1/deployment-intelligence/rollouts?service=${path}&limit=100`),load<Summary>(`/api/v1/deployment-intelligence/summary?service=${path}`)]):[null,null];
+ const s=summary?.items;
+ return <><h1>Deployments</h1><p className="muted">Producer lifecycle history and observed deployment windows are separate. Temporal association is not proof of cause.</p>
+ {history.error&&<p role="alert">{history.error}</p>}
+ <form method="get"><label htmlFor="service">Service</label><select name="service" id="service" defaultValue={selected}>{services.map(name=><option key={name}>{name}</option>)}</select><button>Inspect</button></form>
+ <h2>Observed change-failure analytics</h2>{summary?.error&&<p role="alert">{summary.error}</p>}
+ {s?<><div className="grid"><div className="card"><h3>Confirmed CFR,30d</h3><div className="val">{percent(s.change_failure_rate)}</div></div><div className="card"><h3>Outcome coverage</h3><div className="val">{percent(s.outcome_coverage)}</div></div><div className="card"><h3>Confirmed bad / identified</h3><div className="val">{s.confirmed_bad} / {s.identified_deployments}</div></div><div className="card"><h3>Unknown outcomes</h3><div className="val">{s.unknown_outcomes}</div></div></div><p>Observed finalized failure rate: {percent(s.observed_finalized_rate)}. Identified failure bounds: {percent(s.identified_failure_lower_bound)} to {percent(s.identified_failure_upper_bound)}. Unidentified/unmapped events: {s.unidentified_or_unmapped_events}.</p><p className="muted">{s.caveat}</p></>:<p>No complete analytics available.</p>}
+ <h2>Deployment windows</h2>{windows?.error&&<p role="alert">{windows.error}</p>}
+ {windows?.items?.rollouts.map(row=><section className="card" key={row.id} style={{marginBottom:16}}><h3>{row.revision}</h3><p><span className={`pill ${row.outcome==="bad"?"unhealthy":row.outcome==="healthy"?"healthy":"unknown"}`}>{row.outcome}</span> / producer phase: {row.phase}</p><p>{row.reason}</p>{row.ambiguous&&<p role="alert">Overlapping or incomplete identity. Attribution is uncertain.</p>}<p>Started: {row.started_at}. Producer-anchored flag latency: {row.flag_latency_seconds==null?"Not measured":`${row.flag_latency_seconds.toFixed(1)}s`}</p>{row.incident_id&&<a href={`/incidents/${identifier(row.incident_id)}`}>Inspect associated incident</a>}<details><summary>Source and observation IDs</summary><pre>{JSON.stringify({deployment_id:row.deployment_id,source_event_ids:row.source_event_ids,observation_ids:row.observation_ids},null,2)}</pre></details></section>)}
+ {!windows?.items?.rollouts.length&&<p>No observed deployment windows for this service.</p>}{windows?.items?.truncated&&<p>Window list truncated, inspect the API for more.</p>}
+ <h2>Producer lifecycle events</h2><div className="card"><table className="table"><thead><tr><th>Event</th><th>Service</th><th>Revision</th><th>Producer phase</th><th>Stored</th></tr></thead><tbody>{history.items.filter(r=>!selected||r.service===selected).map(row=><tr key={row.eventId}><td>{row.eventId}</td><td>{row.service}</td><td>{row.revision}</td><td>{row.status}</td><td>{row.storedAt}</td></tr>)}</tbody></table></div><p className="muted">Latest100 lifecycle events. Producer succeeded does not mean observed healthy. Risk, canary assessment and evaluation accuracy are not implied by this history.</p></>;
 }
