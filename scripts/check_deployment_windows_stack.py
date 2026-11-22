@@ -130,6 +130,14 @@ def verify() -> None:
     assert row["id"] == saved["rollout_id"] and row["outcome"] == "bad"
     assert row["flagged_at"] == saved["flagged_at"]
     assert row["ambiguous"] is False, "CI cohort overlapped another rollout"
+    risks = query("risk", service=SERVICE, limit="50")
+    risk = next(item for item in risks["items"] if item["deployment_id"] == saved["rollout_id"])
+    assert risk["prediction"]["status"] == "insufficient_history"
+    assert risk["prediction"]["probability"] is None
+    assert risk["prediction"]["confirmed_outcomes"] == 0
+    assert risk["prediction"]["is_predeploy_prediction"] is False
+    assert risk["prediction"]["authorizes_execution"] is False
+    assert risk["observed_post_rollout"] == "bad"
     report = query("summary", service=SERVICE, since=saved["since"])
     assert report["identified_deployments"] == report["confirmed_bad"] == 1, report
     assert report["change_failure_rate"] == 1 and report["unknown_outcomes"] == 0

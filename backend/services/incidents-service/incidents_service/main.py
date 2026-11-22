@@ -273,6 +273,13 @@ def create_app(
         if service not in config.allowed_targets:
             raise HTTPException(422, "Select an allowed service")
         return analyze(config, service)
+    @application.get("/deployment-intelligence/risk", dependencies=[Depends(authorized)])
+    def deployment_risk(service: str, limit: int = Query(default=50, ge=1, le=100)) -> dict[str, Any]:
+        from incidents_service.deployment_risk import scores
+        if service not in config.allowed_targets:
+            raise HTTPException(422, "Select an allowed service")
+        with repo.transaction() as tx:
+            return scores(tx, service, config.environment, datetime.now(UTC), limit)
 
     @application.get("/deployment-intelligence/rollouts", dependencies=[Depends(authorized)])
     def deployment_rollouts(

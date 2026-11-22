@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -47,7 +48,39 @@ class Executor:
             )
         return result.stdout[:32000]
 
-    def run(self, plan: Plan) -> ExecutionResult:
+    def policy_context(self, plan: Plan) -> dict[str, Any]:
+        """Read live scale preconditions. Simulation never invents a replica count.
+
+        Rollback remains fail-closed until observed risk/rollout context is wired.
+        The scale executor reads again and uses Kubernetes' replica precondition.
+        """
+        if self.settings.executor != "kubernetes" or plan.action != "scale":
+            return {}
+        if plan.target not in self.settings.allowed_targets:
+            raise ExecutionError("Target not allowlisted")
+        obj = json.loads(self._kubectl(["get", "deployment", plan.target, "-o", "json"]))
+        meta, spec = obj.get("metadata", {}), obj.get("spec", {})
+        if (
+            meta.get("namespace") != self.settings.kube_namespace
+            or meta.get("labels", {}).get("aegissre.managed") != "true"
+            or not meta.get("uid")
+            or spec.get("paused")
+            or obj.get("status", {}).get("observedGeneration", 0) < meta.get("generation", 1)
+        ):
+            raise ExecutionError("Automatic scale requires an observed managed deployment")
+        replicas = spec.get("replicas")
+        if isinstance(replicas, bool) or not isinstance(replicas, int) or not 1 <= replicas < 10:
+            raise ExecutionError("Automatic scale requires a known bounded replica count")
+        return {"current_replicas": replicas, "target_uid": str(meta["uid"])}
+
+    def run(
+        self,
+        plan: Plan,
+        *,
+        automatic: bool = False,
+        expected_uid: str | None = None,
+        dispatch_allowed: Callable[[], bool] | None = None,
+    ) -> ExecutionResult:
         if plan.target not in self.settings.allowed_targets:
             raise ExecutionError("Target not allowlisted")
         if plan.action not in {"restart", "rollback", "scale"}:
@@ -68,6 +101,8 @@ class Executor:
             raise ExecutionError(
                 "Deployment is not labelled aegissre.managed=true in the configured namespace"
             )
+        if automatic and (not expected_uid or meta.get("uid") != expected_uid):
+            raise ExecutionError("Automatic target identity changed after preflight")
         if obj.get("spec", {}).get("paused"):
             raise ExecutionError("Paused deployment cannot be remediated")
         revision = str(meta.get("annotations", {}).get("deployment.kubernetes.io/revision", ""))
@@ -98,6 +133,7 @@ class Executor:
                 plan.replicas is None
                 or not 1 <= plan.replicas <= 10
                 or abs(plan.replicas - replicas) > 1
+                or (automatic and plan.replicas != replicas + 1)
             ):
                 raise ExecutionError("Scaling is limited to one replica per action, within 1..10")
             args = [
@@ -110,6 +146,8 @@ class Executor:
             if replicas < 2:
                 raise ExecutionError("Real rolling restart requires at least two replicas")
             args = ["rollout", "restart", f"deployment/{plan.target}"]
+        if automatic and (dispatch_allowed is None or not dispatch_allowed()):
+            raise ExecutionError("Automatic dispatch blocked by the current kill switch")
         output = self._kubectl(args)
         return ExecutionResult(output.strip()[:2000], undo)
 

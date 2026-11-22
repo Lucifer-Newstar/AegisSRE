@@ -112,6 +112,15 @@ def analyze(
             reversible=True,
             impact="Restore the previous deployment revision. Requests may be interrupted during rollout.",
         )
+    elif best["cause"] in {"cpu_saturation", "traffic_spike"}:
+        plan = Plan(
+            action="scale",
+            target=event.service,
+            reason="Capacity hypothesis from observed load; live replica policy preflight required",
+            risk="low",
+            reversible=True,
+            impact="Add one replica only after live managed-deployment checks. No scale-down.",
+        )
     elif best["cause"] in {"container_crash", "memory_exhaustion"}:
         plan = Plan(
             action="restart",
