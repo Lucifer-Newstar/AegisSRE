@@ -53,3 +53,5 @@ data/
 *.swp
 .DS_Store
 Thumbs.db
+
+/scripts/visual/node_modules
