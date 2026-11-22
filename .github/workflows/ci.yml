@@ -75,7 +75,9 @@ jobs:
             | xargs -0 -r kubeconform -strict -summary
 
       - name: Kustomize bases assemble
-        run: kustomize build infra/k8s/base > /dev/null
+        run: |
+          kustomize build infra/k8s/base > /tmp/aegis-base.yaml
+          kustomize build infra > /tmp/aegis-platform.yaml
 
   # 3 ── Docs: every markdown link resolves ──────────────────────────────────
   docs-links:
@@ -359,3 +361,34 @@ jobs:
       - name: Delete only the cluster created by this fixture
         if: always()
         run: python3 scripts/ci/kind_evidence_gate.py cleanup
+
+  kind-platform:
+    name: Full platform (owned kind + persistent stores)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install the integration driver's Redis client
+        run: pip install -c backend/services/incidents-service/requirements.lock redis
+      - name: Install checksum-pinned kind and kubectl
+        run: python3 scripts/ci/kind_platform_gate.py install
+      - name: Build all nine actual application images
+        run: python3 scripts/ci/kind_platform_gate.py build
+      - name: Create an owned cluster and apply the complete shared-config Kustomization
+        run: python3 scripts/ci/kind_platform_gate.py create
+      - name: Prove actual telemetry, gateway, persistence and projected-SA evidence
+        run: python3 scripts/ci/kind_platform_gate.py verify
+      - name: Collect scoped cluster diagnostics without secrets
+        if: always()
+        run: python3 scripts/ci/kind_platform_gate.py diagnostics
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kind-platform-diagnostics
+          path: ${{ runner.temp }}/aegis-kind-platform/diagnostics
+      - name: Delete only the fixture-owned cluster
+        if: always()
+        run: python3 scripts/ci/kind_platform_gate.py cleanup
