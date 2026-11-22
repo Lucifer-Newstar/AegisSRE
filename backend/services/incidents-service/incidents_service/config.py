@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     environment: str = Field(
         default="dev", min_length=1, max_length=40, pattern=r"^[a-zA-Z0-9_-]+$"
     )
+    knowledge_enabled: bool = False
     collector_enabled: bool = False
     worker_enabled: bool = False
 

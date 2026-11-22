@@ -62,6 +62,121 @@ paths:
               schema: {}
       security:
       - HTTPBearer: []
+  /knowledge/status:
+    get:
+      summary: Knowledge Status
+      operationId: knowledge_status_knowledge_status_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Knowledge Status Knowledge Status Get
+      security:
+      - HTTPBearer: []
+  /knowledge/search:
+    post:
+      summary: Knowledge Search
+      operationId: knowledge_search_knowledge_search_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KnowledgeSearch'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Knowledge Search Knowledge Search Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - HTTPBearer: []
+  /runbooks:
+    get:
+      summary: Runbooks
+      operationId: runbooks_runbooks_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  additionalProperties: true
+                  type: object
+                type: array
+                title: Response Runbooks Runbooks Get
+      security:
+      - HTTPBearer: []
+  /runbooks/{runbook_id}:
+    get:
+      summary: Runbook
+      operationId: runbook_runbooks__runbook_id__get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: runbook_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Runbook Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Runbook Runbooks  Runbook Id  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /incidents/{incident_id}/context:
+    get:
+      summary: Incident Context
+      operationId: incident_context_incidents__incident_id__context_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: incident_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Incident Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Incident Context Incidents  Incident Id  Context Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /events:
     post:
       summary: Ingest
@@ -569,6 +684,40 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
+    KnowledgeSearch:
+      properties:
+        query:
+          type: string
+          maxLength: 2000
+          minLength: 1
+          title: Query
+        service:
+          type: string
+          maxLength: 63
+          minLength: 1
+          title: Service
+        limit:
+          type: integer
+          maximum: 10.0
+          minimum: 1.0
+          title: Limit
+          default: 5
+        kind:
+          anyOf:
+          - type: string
+            enum:
+            - runbook
+            - incident
+            - service
+            - failure_pattern
+          - type: 'null'
+          title: Kind
+      additionalProperties: false
+      type: object
+      required:
+      - query
+      - service
+      title: KnowledgeSearch
     ModeIn:
       properties:
         actor:

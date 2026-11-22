@@ -669,6 +669,43 @@ paths:
         schema:
           type: string
           pattern: '[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}'
+  /api/v1/incidents/{incident_id}/context:
+    get:
+      summary: Get Incidents /Incidents/{Incident Id}/Context
+      operationId: GET_incidents__incidents__incident_id__context_api_v1_incidents__incident_id__context_get
+      security:
+      - HTTPBearer: []
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '400':
+          description: Invalid request
+        '404':
+          description: Unknown resource or route
+        '413':
+          description: Request too large
+        '415':
+          description: JSON required
+        '422':
+          description: Validation failed
+        '401':
+          description: Authentication required
+        '429':
+          description: Rate limit exceeded
+        '502':
+          description: Upstream failure
+        '503':
+          description: Required dependency unavailable
+      parameters:
+      - name: incident_id
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: '[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}'
   /api/v1/incidents/{incident_id}/{decision}:
     post:
       summary: Post Incidents /Incidents/{Incident Id}/{Decision}
@@ -965,6 +1002,141 @@ paths:
           description: Required dependency unavailable
       security:
       - HTTPBearer: []
+  /api/v1/knowledge/status:
+    get:
+      summary: Get Incidents /Knowledge/Status
+      operationId: GET_incidents__knowledge_status_api_v1_knowledge_status_get
+      parameters: []
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '400':
+          description: Invalid request
+        '404':
+          description: Unknown resource or route
+        '413':
+          description: Request too large
+        '415':
+          description: JSON required
+        '422':
+          description: Validation failed
+        '401':
+          description: Authentication required
+        '429':
+          description: Rate limit exceeded
+        '502':
+          description: Upstream failure
+        '503':
+          description: Required dependency unavailable
+      security:
+      - HTTPBearer: []
+  /api/v1/knowledge/search:
+    post:
+      summary: Post Incidents /Knowledge/Search
+      operationId: POST_incidents__knowledge_search_api_v1_knowledge_search_post
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '400':
+          description: Invalid request
+        '404':
+          description: Unknown resource or route
+        '413':
+          description: Request too large
+        '415':
+          description: JSON required
+        '422':
+          description: Validation failed
+        '401':
+          description: Authentication required
+        '429':
+          description: Rate limit exceeded
+        '502':
+          description: Upstream failure
+        '503':
+          description: Required dependency unavailable
+      security:
+      - HTTPBearer: []
+  /api/v1/runbooks:
+    get:
+      summary: Get Incidents /Runbooks
+      operationId: GET_incidents__runbooks_api_v1_runbooks_get
+      parameters: []
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '400':
+          description: Invalid request
+        '404':
+          description: Unknown resource or route
+        '413':
+          description: Request too large
+        '415':
+          description: JSON required
+        '422':
+          description: Validation failed
+        '401':
+          description: Authentication required
+        '429':
+          description: Rate limit exceeded
+        '502':
+          description: Upstream failure
+        '503':
+          description: Required dependency unavailable
+      security:
+      - HTTPBearer: []
+  /api/v1/runbooks/{runbook_id}:
+    get:
+      summary: Get Incidents /Runbooks/{Runbook Id}
+      operationId: GET_incidents__runbooks__runbook_id__api_v1_runbooks__runbook_id__get
+      security:
+      - HTTPBearer: []
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '400':
+          description: Invalid request
+        '404':
+          description: Unknown resource or route
+        '413':
+          description: Request too large
+        '415':
+          description: JSON required
+        '422':
+          description: Validation failed
+        '401':
+          description: Authentication required
+        '429':
+          description: Rate limit exceeded
+        '502':
+          description: Upstream failure
+        '503':
+          description: Required dependency unavailable
+      parameters:
+      - name: runbook_id
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: '[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}'
 components:
   securitySchemes:
     HTTPBearer:
