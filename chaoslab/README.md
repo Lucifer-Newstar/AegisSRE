@@ -119,3 +119,15 @@ rollback or DI accuracy merely because the CLI restored the image.
 Hosted acceptance is pending. All ten named primitives now have code paths,
 but bounded CPU is not sustained saturation, and measurements/evaluation plus
 hosted proof of the newly added operations remain required.
+
+## Independent hook observations
+
+The owned-kind gate also runs the latency, bounded CPU-work and memory-pressure
+CLI commands, taking actual application request durations and independent
+`process_cpu_seconds_total` / resident-memory samples from `/metrics`.
+Latency must add at least0.5s over baseline and reach0.9s, then recover below0.7s.
+CPU work must add at least0.3CPU seconds; memory pressure must add at least20Mi
+while the request runs. These are bounded-effect checks, not sustained CPU
+saturation, exact capacity or detector evaluation. Their separate evidence
+files include baseline, measurements and restored response. Hosted proof is
+required and pending.
