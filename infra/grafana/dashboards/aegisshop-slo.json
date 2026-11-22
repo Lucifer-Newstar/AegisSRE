@@ -2,7 +2,7 @@
   "uid": "aegisshop-slo",
   "title": "AegisShop SLO burn, observed demo windows",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "timezone": "browser",
   "time": {
     "from": "now-1h",
@@ -31,7 +31,9 @@
             "spanNulls": false,
             "drawStyle": "line",
             "lineWidth": 1
-          }
+          },
+          "min": 0,
+          "max": 1
         },
         "overrides": []
       },
