@@ -21,7 +21,7 @@ from uuid import uuid4
 from chaoslab.journal import Journal
 
 ROOT = Path(__file__).resolve().parents[1]
-HOOKS = {"http-5xx", "network-latency", "cpu-saturation", "memory-pressure"}
+HOOKS = {"http-5xx", "network-latency", "cpu-saturation", "memory-pressure", "memory-exhaustion"}
 DATABASES = {"database-outage": "shop-postgres", "dependency-failure": "shop-redis"}
 FAULTS = HOOKS | set(DATABASES) | {"container-crash", "config-error"}
 WRITE_CONTROL = (
@@ -71,6 +71,10 @@ def _run(api: ModuleType, fault: str, seconds: int, output: Path) -> Path:
         for item in env
     ):
         raise RuntimeError("Fault hooks are not explicitly enabled on the owned fixture")
+    if fault == "memory-exhaustion":
+        container = original["spec"]["template"]["spec"]["containers"][0]
+        if container.get("resources", {}).get("limits", {}).get("memory") != "256Mi":
+            raise RuntimeError("OOM experiment requires the fixed 256Mi application cgroup")
     journal = Journal(output, "run-" + uuid4().hex)
     attempted = False
     try:
@@ -101,7 +105,7 @@ def _run(api: ModuleType, fault: str, seconds: int, output: Path) -> Path:
                     raise
         else:
             magnitude = {"http-5xx": 100, "network-latency": 1000,
-                         "cpu-saturation": 500, "memory-pressure": 32}[fault]
+                         "cpu-saturation": 500, "memory-pressure": 32, "memory-exhaustion": 384}[fault]
             control = json.dumps({"kind": fault, "until": time.time() + seconds + 15,
                                   "magnitude": magnitude})
             api.kubectl("exec", "deployment/" + target, "--namespace", api.NS, "-i", "--",
@@ -137,6 +141,9 @@ def _run(api: ModuleType, fault: str, seconds: int, output: Path) -> Path:
                     api.kubectl("rollout", "status", kind + "/" + target,
                                 "--namespace", api.NS, "--timeout=180s", timeout=200)
                 else:
+                    if fault == "memory-exhaustion":
+                        api.kubectl("rollout", "status", "deployment/" + target,
+                                    "--namespace", api.NS, "--timeout=180s", timeout=200)
                     api.kubectl("exec", "deployment/" + target, "--namespace", api.NS, "--",
                                 "python", "-c", REMOVE_CONTROL)
                 journal.record("restored_control_state", independently_verified_health=False,

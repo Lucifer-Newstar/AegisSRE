@@ -15,6 +15,7 @@ import re
 import subprocess
 import sys
 import urllib.request
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -498,6 +499,48 @@ def verify() -> None:
                  "domain_recovery_observed":True, "not_evaluation_accuracy":True}
         (crash_dir / "independent-proof.json").write_text(json.dumps(proof, indent=2))
         print("Actual immediate process-exit crash, same-Pod restart/70 and domain recovery verified independently of runner journal")
+        oom_dir = experiment_dir / "memory-exhaustion"
+        oom_dir.mkdir(exist_ok=True)
+        before_oom = catalog_container()
+        with (oom_dir / "runner.log").open("w") as output:
+            experiment = subprocess.Popen(
+                [sys.executable, "-m", "chaoslab", "memory-exhaustion", "--seconds", "30",
+                 "--output", str(oom_dir)],
+                cwd=ROOT, env={**os.environ, **FIXTURE}, stdout=output, stderr=subprocess.STDOUT,
+            )
+            try:
+                def observe_oom() -> Any:
+                    item = catalog_container()
+                    if item["restartCount"] > before_oom["restartCount"]:
+                        return item
+                    # Connection loss alone is not OOM proof.
+                    with suppress(OSError):
+                        shop_request(9001, "/products")
+                    return None
+                wait_for(observe_oom, "actual memory-exhaustion process restart", 60)
+                assert experiment.wait(timeout=210) == 0
+            finally:
+                if experiment.poll() is None:
+                    experiment.terminate()
+                    experiment.wait(timeout=210)
+        def oom_recovered() -> Any:
+            item = catalog_container()
+            return item if item["restartCount"] > before_oom["restartCount"] and item.get("ready") else None
+        after_oom = wait_for(oom_recovered, "OOM container readiness", 180)
+        assert after_oom["uid"] == before_oom["uid"]
+        ended = after_oom["lastState"]["terminated"]
+        assert ended["reason"] == "OOMKilled" and ended["exitCode"] == 137, ended
+        forwards.start("catalog-service", 9001, 9001)
+        wait_for(lambda: shop_request(9001, "/products")[0] == 200,
+                 "catalog domain recovery after real cgroup OOM", 120)
+        (oom_dir / "independent-proof.json").write_text(json.dumps({
+            "pod_uid": after_oom["uid"], "terminated": ended,
+            "restart_count_before": before_oom["restartCount"],
+            "restart_count_after": after_oom["restartCount"],
+            "domain_recovery_observed": True, "not_evaluation_accuracy": True,
+        }, indent=2))
+        print("Actual cgroup OOMKilled/137, same-Pod restart and business recovery independently observed")
+
         config_dir = experiment_dir / "config-error"
         config_dir.mkdir(exist_ok=True)
         before_config = json.loads(kubectl("get", "deployment", "catalog-service",
