@@ -166,6 +166,7 @@ def create() -> None:
     )
     kubectl("create", "namespace", NS)
     secrets = {
+        "aegissre-console": {"session-secret": "ci-disposable-console-session-secret-value"},
         "aegisshop-postgres": {
             "username": "shop", "password": "ci-disposable-shop", "database": "aegisshop"
         },
@@ -461,7 +462,8 @@ def verify() -> None:
         assert stages == ["prepared", "injection_requested", "injection_applied",
                           "restoration_requested", "restored_control_state"]
         print("Actual opt-in HTTP fault CLI injected/restored with durable ground truth; not ten-fault acceptance")
-        with urllib.request.urlopen("http://127.0.0.1:3030/", timeout=15) as response:
+        run([sys.executable, str(ROOT / "scripts/check_console_stack.py")], timeout=240)
+        with urllib.request.urlopen("http://127.0.0.1:3030/login", timeout=15) as response:
             assert response.status == 200
         print(
             json.dumps(

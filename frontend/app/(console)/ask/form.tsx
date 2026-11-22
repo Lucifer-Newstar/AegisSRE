@@ -1,0 +1,7 @@
+"use client";
+import { FormEvent, useState } from "react";
+export function AskForm({csrf,services}:{csrf:string;services:{id:string;name:string}[]}){
+ const [answer,setAnswer]=useState<unknown>(null),[busy,setBusy]=useState(false),[error,setError]=useState("");
+ async function submit(event:FormEvent<HTMLFormElement>){event.preventDefault();const form=new FormData(event.currentTarget);setBusy(true);setError("");setAnswer(null);try{const response=await fetch("/api/ask",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({csrf,service:form.get("service"),question:form.get("question")})});const result=await response.json();if(!response.ok)throw new Error(result.error||"Request failed");setAnswer(result);}catch(e){setError(e instanceof Error?e.message:"Request failed");}finally{setBusy(false);}}
+ return <><form onSubmit={submit}><label htmlFor="service">Service</label><select name="service" id="service" required>{services.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select><label htmlFor="question">Question</label><textarea id="question" name="question" required maxLength={2000} rows={4}/><p><button disabled={busy||!services.length}>{busy?"Reading evidence...":"Ask Aegis"}</button></p></form>{error&&<p role="alert">{error}</p>}{answer!==null&&<div className="card"><span className="badge">AI · evidence-cited</span><h2>Answer, visible tools and citations</h2><pre>{JSON.stringify(answer,null,2)}</pre></div>}</>;
+}

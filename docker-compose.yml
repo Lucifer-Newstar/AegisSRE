@@ -391,6 +391,9 @@ services:
     environment:
       PORT: "3030"
       HOSTNAME: "0.0.0.0"
+      AEGIS_CONSOLE_GATEWAY_URL: http://api-gateway:8000
+      AEGIS_CONSOLE_ORIGIN: ${AEGIS_CONSOLE_ORIGIN:-http://localhost:3030}
+      AEGIS_CONSOLE_SESSION_SECRET: ${AEGIS_CONSOLE_SESSION_SECRET:-}
       REGISTRY_URL: http://registry-service:8101
       DEPLOYMENTS_URL: http://deployments-service:8701
     ports:

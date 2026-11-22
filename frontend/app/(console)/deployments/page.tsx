@@ -3,17 +3,18 @@ import { loadDeployments } from "@/lib/data";
 export const dynamic = "force-dynamic";
 
 export default async function DeploymentsPage() {
-  const { items: MOCK_DEPLOYMENTS, source } = await loadDeployments();
+  const { items: deployments, error } = await loadDeployments();
   return (
     <>
       <div className="topbar">
         <div>
           <h1 style={{ margin: 0 }}>Deployments</h1>
           <p className="muted">
-            DI-1 history · {source === "live" ? "live API" : "mock payload"}
+            DI-1 history · live API
           </p>
         </div>
       </div>
+      {error && <p role="alert">{error}</p>}
       <div className="card">
         <table className="table">
           <thead>
@@ -26,7 +27,7 @@ export default async function DeploymentsPage() {
             </tr>
           </thead>
           <tbody>
-            {MOCK_DEPLOYMENTS.map((row) => (
+            {deployments.map((row) => (
               <tr key={row.eventId}>
                 <td>{row.eventId}</td>
                 <td>{row.service}</td>
