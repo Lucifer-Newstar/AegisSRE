@@ -33,7 +33,7 @@ export default async function DeploymentsPage() {
                 <td>{row.service}</td>
                 <td>{row.revision}</td>
                 <td>
-                  <span className="pill healthy">{row.status}</span>
+                  <span className={`pill ${row.status==="succeeded"?"healthy":row.status==="failed"?"unhealthy":"unknown"}`}>{row.status}</span>
                 </td>
                 <td className="muted">{row.storedAt}</td>
               </tr>
