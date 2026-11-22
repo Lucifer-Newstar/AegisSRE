@@ -16,6 +16,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+from aegisshop_faults import configure_fault_hooks
 from fastapi import FastAPI, HTTPException
 from prometheus_client import (
     CONTENT_TYPE_LATEST,
@@ -139,6 +140,9 @@ def get_product(product_id: str) -> Product:
 def list_faults() -> dict[str, list[str]]:
     """Advertise the supported fault hooks (chaos-lab contract, A11)."""
     return {"implemented": [], "planned": ["cpu-saturation", "latency", "http-5xx", "crash"]}
+
+
+configure_fault_hooks(app)
 
 
 configure_observability(

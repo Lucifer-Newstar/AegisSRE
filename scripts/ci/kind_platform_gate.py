@@ -424,6 +424,44 @@ def verify() -> None:
             and shop_request(9002, "/cart/ci-persistent-order") == (200, cart_before)
         ), "same AOF-persisted cart after Redis outage/restoration", 180)
         print("Actual Redis cart survived app restart and isolated Redis outage/restoration; platform stayed ready")
+        # Enable hooks only in this newly owned demo fixture, not base manifests.
+        kubectl("set", "env", "deployment/catalog-service", "AEGIS_SHOP_FAULTS_ENABLED=true",
+                "--namespace", NS)
+        kubectl("rollout", "status", "deployment/catalog-service", "--namespace", NS,
+                "--timeout=180s", timeout=200)
+        forwards.start("catalog-service", 9001, 9001)
+        wait_for(lambda: shop_request(9001, "/products")[0] == 200,
+                 "catalog normal before real hook experiment", 120)
+        experiment_dir = directory() / "diagnostics" / "experiments"
+        experiment_dir.mkdir(parents=True, exist_ok=True)
+        with (experiment_dir / "runner.log").open("w") as output:
+            experiment = subprocess.Popen(
+                [sys.executable, "-m", "chaoslab", "http-5xx", "--seconds", "5",
+                 "--output", str(experiment_dir)],
+                cwd=ROOT, env={**os.environ, **FIXTURE}, stdout=output, stderr=subprocess.STDOUT,
+            )
+            try:
+                wait_for(lambda: shop_request(9001, "/products")[0] == 503,
+                         "actual HTTP fault from CLI", 30)
+                assert shop_request(9001, "/health")[0] == 200
+                assert experiment.wait(timeout=60) == 0
+            finally:
+                if experiment.poll() is None:
+                    experiment.terminate()
+                    experiment.wait(timeout=30)
+                    # SIGTERM may skip Python finally; explicit runner cleanup
+                    # remains scoped to this owned, identity-checked workload.
+                    kubectl("exec", "deployment/catalog-service", "--namespace", NS, "--",
+                            "python", "-c",
+                            "from pathlib import Path;Path('/tmp/aegisshop-fault.json').unlink(missing_ok=True)")
+        wait_for(lambda: shop_request(9001, "/products")[0] == 200,
+                 "catalog restored after actual CLI experiment", 60)
+        journal_files = list(experiment_dir.glob("*.jsonl"))
+        assert len(journal_files) == 1
+        stages = [json.loads(line)["stage"] for line in journal_files[0].read_text().splitlines()]
+        assert stages == ["prepared", "injection_requested", "injection_applied",
+                          "restoration_requested", "restored_control_state"]
+        print("Actual opt-in HTTP fault CLI injected/restored with durable ground truth; not ten-fault acceptance")
         run([sys.executable, str(ROOT / "scripts/check_console_stack.py")], timeout=240)
         with urllib.request.urlopen("http://127.0.0.1:3030/login", timeout=15) as response:
             assert response.status == 200
@@ -449,9 +487,9 @@ def verify() -> None:
         # forwards. HTTP503 alone cannot distinguish a worker/source failure.
         try:
             state = api("/runtime")
-            output = directory() / "diagnostics"
-            output.mkdir(exist_ok=True)
-            (output / "runtime-status.json").write_text(json.dumps(state, sort_keys=True))
+            diagnostic_dir = directory() / "diagnostics"
+            diagnostic_dir.mkdir(exist_ok=True)
+            (diagnostic_dir / "runtime-status.json").write_text(json.dumps(state, sort_keys=True))
         except (OSError, ValueError):
             print("Runtime status unavailable while collecting final diagnostics")
         forwards.close()
