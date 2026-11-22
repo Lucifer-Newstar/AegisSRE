@@ -55,3 +55,4 @@ data/
 Thumbs.db
 
 /scripts/visual/node_modules
+node_modules/

@@ -23,7 +23,10 @@ const fixture=http.createServer((req,res)=>{
  else if(req.url.startsWith('/api/v1/runbooks/'))result={id:'runbook:fixture',title:'Fixture dependency checks',source:'Synthetic visual fixture',content:'# Dependency checks\n## Observe first\n- Confirm actual health before acting\n```\ncurl /ready\n```\n<script>must remain literal</script>'};
  else if(req.url.includes('/context'))result={knowledge:[{document_id:'runbook:fixture',title:'Fixture dependency checks',kind:'runbook'}]};
  else if(req.url==='/api/v1/incidents/fixture-closed')result=incident;
- else if(req.url.startsWith('/api/v1/incidents')||req.url.startsWith('/api/v1/deployments'))result=[];
+ else if(req.url.startsWith('/api/v1/deployment-intelligence/summary'))result={identified_deployments:2,confirmed_bad:1,observed_healthy:0,unknown_outcomes:1,unidentified_or_unmapped_events:0,change_failure_rate:null,observed_finalized_rate:1,outcome_coverage:0.5,identified_failure_lower_bound:0.5,identified_failure_upper_bound:1,caveat:'Synthetic visual fixture. Unknown outcomes are not healthy.'};
+ else if(req.url.startsWith('/api/v1/deployment-intelligence/rollouts'))result={rollouts:[{id:'fixture-window',revision:'fixture-revision',deployment_id:'fixture',started_at:'2026-11-22T20:00:00Z',phase:'succeeded',outcome:'bad',reason:'Synthetic observed anomaly, not real telemetry',ambiguous:false,flag_latency_seconds:null,source_event_ids:['fixture-deploy'],observation_ids:['fixture-anomaly'],incident_id:null}],truncated:false};
+ else if(req.url.startsWith('/api/v1/deployments'))result=[{event_id:'fixture-deploy',service:'catalog-service',revision:'fixture-revision',status:'succeeded',stored_at:'2026-11-22T20:00:00Z'}];
+ else if(req.url.startsWith('/api/v1/incidents'))result=[];
  else result=[];
  res.setHeader('Content-Type','application/json');res.end(JSON.stringify(result));
 });
@@ -46,6 +49,7 @@ try{
  const download=await page.request.get(origin+'/api/report/fixture-closed');const markdown=await download.text();if(download.status()!==200||!markdown.includes('Not measured')||!download.headers()['content-disposition'].includes('attachment'))throw new Error('Report export failure');
  await page.goto(origin+'/runbooks?id=runbook:fixture');await page.getByText('Observe first',{exact:true}).waitFor();await page.screenshot({path:path.join(output,'aegis-console-runbook.png'),fullPage:true});if(await page.locator('script').filter({hasText:'must remain literal'}).count())throw new Error('Runbook HTML active');
  await page.goto(origin+'/services/catalog-service');await page.getByText('24h observed metric history',{exact:true}).waitFor();await page.screenshot({path:path.join(output,'aegis-console-service-charts.png'),fullPage:true});
+ await page.goto(origin+'/deployments');await page.getByText('Confirmed CFR,30d',{exact:true}).waitFor();if(!(await page.content()).includes('Unknown'))throw new Error('Unknown CFR replaced');await page.screenshot({path:path.join(output,'aegis-console-rollout-analytics.png'),fullPage:true});
  await page.goto(origin+'/incidents/fixture-closed');await page.getByText('Related runbooks',{exact:true}).waitFor();await page.getByRole('link',{name:'Fixture dependency checks'}).click();await page.waitForURL('**/runbooks?id=runbook%3Afixture');
  const forbidden=await page.request.post(origin+'/api/decision',{headers:{Origin:'https://not-this-console.invalid'},form:{id:'fixture',decision:'approve'}});if(forbidden.status()!==403)throw new Error('Cross-origin mutation accepted');
  console.log('Actual Next fixture pixels saved to '+output+'. Synthetic HTTP fixture only, not real telemetry. Login/cookie/CSRF, reports, export, incident-runbook navigation and sparse charts passed.');
