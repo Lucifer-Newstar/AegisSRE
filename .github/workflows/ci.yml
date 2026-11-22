@@ -399,6 +399,8 @@ jobs:
           pip install --no-deps backend/libs/telemetry backend/libs/eventbus backend/services/incidents-service
       - name: Prove automatic scale and kill switch against the owned cluster
         run: python3 scripts/check_autonomy_cluster.py
+      - name: Prove retained-template rollback and stale-write guards against owned cluster
+        run: python3 scripts/check_rollback_cluster.py
       - name: Collect scoped cluster diagnostics without secrets
         if: always()
         run: python3 scripts/ci/kind_platform_gate.py diagnostics

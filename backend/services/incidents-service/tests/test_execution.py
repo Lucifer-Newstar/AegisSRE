@@ -97,3 +97,59 @@ def test_rollback_requires_numeric_recent_revision(monkeypatch: pytest.MonkeyPat
                 action="rollback", target="catalog-service", reason="bad", risk="high", revision="1"
             )
         )
+
+
+def test_rollback_restores_only_uniquely_owned_template_with_compare_and_swap(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    executor = Executor(Settings(api_token="test", executor="kubernetes", kube_context="kind-test"))
+    current = {
+        "metadata": {
+            "namespace": "aegissre-demo",
+            "uid": "owned",
+            "resourceVersion": "42",
+            "labels": {"aegissre.managed": "true"},
+            "annotations": {"deployment.kubernetes.io/revision": "4"},
+        },
+        "spec": {"replicas": 1},
+    }
+    rs: dict[str, Any] = {
+        "metadata": {
+            "namespace": "aegissre-demo",
+            "annotations": {"deployment.kubernetes.io/revision": "3"},
+            "ownerReferences": [{"uid": "owned", "kind": "Deployment", "controller": True}],
+        },
+        "spec": {
+            "template": {
+                "metadata": {
+                    "labels": {"app": "catalog-service", "pod-template-hash": "generated"}
+                },
+                "spec": {
+                    "containers": [{"name": "catalog-service", "image": "known-retained-image"}]
+                },
+            }
+        },
+    }
+    calls: list[list[str]] = []
+
+    def kubectl(args: list[str]) -> str:
+        calls.append(args)
+        return (
+            json.dumps({"items": [rs]})
+            if args[:2] == ["get", "replicasets"]
+            else json.dumps(current)
+        )
+
+    monkeypatch.setattr(executor, "_kubectl", kubectl)
+    rollback = Plan(
+        action="rollback", target="catalog-service", reason="test", risk="high", revision="3"
+    )
+    executor.run(rollback)
+    patch = json.loads(calls[-1][-1])
+    assert calls[-1][:4] == ["patch", "deployment/catalog-service", "--type=json", "-p"]
+    assert patch[0] == {"op": "test", "path": "/metadata/uid", "value": "owned"}
+    assert patch[1]["value"] == "42"
+    assert "pod-template-hash" not in patch[2]["value"]["metadata"]["labels"]
+    rs["metadata"]["ownerReferences"][0]["uid"] = "another-deployment"
+    with pytest.raises(ExecutionError, match="uniquely owned"):
+        executor.run(rollback)
