@@ -66,7 +66,7 @@ def _run(api: ModuleType, fault: str, seconds: int, output: Path) -> Path:
     if original["spec"].get("replicas", 1) != 1:
         raise RuntimeError("The disposable experiment requires exactly one replica")
     env = original["spec"]["template"]["spec"]["containers"][0].get("env", [])
-    if fault in HOOKS and not any(
+    if fault in HOOKS | {"container-crash"} and not any(
         item.get("name") == "AEGIS_SHOP_FAULTS_ENABLED" and item.get("value") == "true"
         for item in env
     ):
@@ -86,11 +86,12 @@ def _run(api: ModuleType, fault: str, seconds: int, output: Path) -> Path:
             api.kubectl("wait", "--for=delete", "pod/" + target + "-0", "--namespace", api.NS,
                         "--timeout=90s", timeout=100)
         elif fault == "container-crash":
+            # Fixed opt-in signal makes the namespace init process self-terminate.
             # Fixed process in one explicitly owned shop Deployment. No caller
             # command, signal, PID, namespace or target is accepted.
             try:
                 api.kubectl("exec", "deployment/" + target, "--namespace", api.NS, "--",
-                            "python", "-c", "import os,signal;os.kill(1,signal.SIGKILL)")
+                            "python", "-c", "import os,signal;os.kill(1,signal.SIGUSR1)")
             except subprocess.CalledProcessError as error:
                 if error.returncode != 137:
                     raise

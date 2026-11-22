@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import signal
 import stat
 import time
 from dataclasses import dataclass
@@ -75,6 +76,15 @@ def configure_fault_hooks(application: FastAPI) -> None:
         return
     if application.middleware_stack is not None:
         raise RuntimeError("Configure fault hooks before application startup")
+
+    @application.on_event("startup")
+    async def install_crash_signal() -> None:
+        # PID namespace init ignores peer SIGKILL. An opt-in fixed signal
+        # handler makes the process terminate itself, without an HTTP API or
+        # arbitrary command. Normal workloads install no handler.
+        def crash(signum: int, frame: Any) -> None:
+            os.kill(os.getpid(), signal.SIGKILL)
+        signal.signal(signal.SIGUSR1, crash)
 
     resource_slot = asyncio.Semaphore(1)
 

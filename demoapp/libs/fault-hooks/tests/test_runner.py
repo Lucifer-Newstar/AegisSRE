@@ -94,6 +94,6 @@ def test_fixed_container_crash_tolerates_only_expected_killed_exec(tmp_path: Pat
     monkeypatch.setattr(time,"sleep",Mock())
     runner.run("container-crash",1,tmp_path)
     calls=api.kubectl.call_args_list
-    assert any("import os,signal;os.kill(1,signal.SIGKILL)" in call.args for call in calls)
+    assert any("import os,signal;os.kill(1,signal.SIGUSR1)" in call.args for call in calls)
     assert any("rollout" in call.args and "status" in call.args for call in calls)
     assert not (tmp_path/"chaos-active").exists()
