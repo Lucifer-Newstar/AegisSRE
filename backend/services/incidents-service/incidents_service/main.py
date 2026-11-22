@@ -19,6 +19,8 @@ from starlette.responses import Response
 
 from incidents_service.config import Settings
 from incidents_service.engine import DomainError, ReliabilityLoop
+from incidents_service.knowledge import KnowledgeStore
+from incidents_service.knowledge_indexer import KnowledgeIndexer
 from incidents_service.models import Decision, Event, StrictModel
 from incidents_service.repository import Repository
 from incidents_service.runtime import Runtime
@@ -30,6 +32,13 @@ bearer = HTTPBearer(auto_error=False)
 
 class ModeIn(Decision):
     mode: Literal["observe", "recommend", "auto-safe"]
+
+
+class KnowledgeSearch(StrictModel):
+    query: str = Field(min_length=1, max_length=2000)
+    service: str = Field(min_length=1, max_length=63)
+    limit: int = Field(default=5, ge=1, le=10)
+    kind: Literal["runbook", "incident", "service", "failure_pattern"] | None = None
 
 
 class IngestIn(StrictModel):
@@ -49,11 +58,26 @@ def create_app(settings: Settings | None = None, repository: Repository | None =
     )
 
     runtime = Runtime(loop) if config.worker_enabled else None
+    knowledge = KnowledgeStore(repo) if config.knowledge_enabled else None
+    indexer = KnowledgeIndexer(knowledge, config) if knowledge else None
 
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         loop.sweep(recover_interrupted=True)
         stop = asyncio.Event()
+        if indexer:
+            indexer.seed()
+
+        async def index_knowledge() -> None:
+            assert indexer is not None
+            while not stop.is_set():
+                try:
+                    await asyncio.to_thread(indexer.refresh)
+                except Exception as exc:
+                    indexer.failures["index"] = type(exc).__name__
+                    logger.error("Knowledge refresh failed (%s)", type(exc).__name__)
+                with suppress(TimeoutError):
+                    await asyncio.wait_for(stop.wait(), timeout=60)
 
         async def work() -> None:
             assert runtime is not None
@@ -71,6 +95,7 @@ def create_app(settings: Settings | None = None, repository: Repository | None =
                     await asyncio.wait_for(stop.wait(), timeout=delay)
 
         task = asyncio.create_task(work()) if runtime else None
+        knowledge_task = asyncio.create_task(index_knowledge()) if indexer else None
         try:
             yield
         finally:
@@ -78,6 +103,10 @@ def create_app(settings: Settings | None = None, repository: Repository | None =
             if task is not None:
                 # Wait for in-flight I/O before closing shared connections.
                 await task
+            if knowledge_task is not None:
+                await knowledge_task
+            if indexer:
+                indexer.close()
             if runtime:
                 runtime.close()
             if repository is None:
@@ -161,6 +190,83 @@ def create_app(settings: Settings | None = None, repository: Repository | None =
         return Response(
             generate_latest(metrics), media_type="text/plain; version=0.0.4; charset=utf-8"
         )
+
+    @application.get("/knowledge/status", dependencies=[Depends(authorized)])
+    def knowledge_status() -> dict[str, Any]:
+        return indexer.snapshot() if indexer else {"enabled": False}
+
+    @application.post("/knowledge/search", dependencies=[Depends(authorized)])
+    def knowledge_search(body: KnowledgeSearch) -> dict[str, Any]:
+        if knowledge is None:
+            raise HTTPException(503, "Knowledge indexing is disabled")
+        if body.service not in config.allowed_targets:
+            raise HTTPException(422, "Select an allowed service")
+        try:
+            results = knowledge.search(body.query, service=body.service, environment=config.environment, limit=body.limit, kind=body.kind)
+        except ValueError as exc:
+            raise HTTPException(503, "Retrieval is unavailable for this corpus; inspect knowledge status") from exc
+        return {
+            "service": body.service,
+            "environment": config.environment,
+            "results": results,
+            "index_status": indexer.snapshot() if indexer else {"enabled": False},
+        }
+
+    @application.get("/runbooks", dependencies=[Depends(authorized)])
+    def runbooks() -> list[dict[str, Any]]:
+        if knowledge is None:
+            raise HTTPException(503, "Knowledge indexing is disabled")
+        records: dict[str, dict[str, Any]] = {}
+        for service in config.allowed_targets:
+            for document in knowledge.list_documents(
+                kind="runbook", service=service, environment=config.environment
+            ):
+                records[document["id"]] = {
+                    key: value for key, value in document.items() if key != "content"
+                }
+        return [records[identity] for identity in sorted(records)]
+
+    @application.get("/runbooks/{runbook_id}", dependencies=[Depends(authorized)])
+    def runbook(runbook_id: str) -> dict[str, Any]:
+        if knowledge is None:
+            raise HTTPException(503, "Knowledge indexing is disabled")
+        identity = runbook_id if runbook_id.startswith("runbook:") else "runbook:" + runbook_id
+        for service in config.allowed_targets:
+            document = knowledge.get_document(
+                identity, service=service, environment=config.environment
+            )
+            if document and document["kind"] == "runbook":
+                return document
+        raise HTTPException(404, "Unknown runbook")
+
+    @application.get("/incidents/{incident_id}/context", dependencies=[Depends(authorized)])
+    def incident_context(incident_id: str) -> dict[str, Any]:
+        if knowledge is None:
+            raise HTTPException(503, "Knowledge indexing is disabled")
+        with repo.transaction() as tx:
+            incident = tx.incident(incident_id)
+        if incident is None:
+            raise HTTPException(404, "Unknown incident")
+        if (
+            incident.service not in config.allowed_targets
+            or incident.environment != config.environment
+        ):
+            raise HTTPException(422, "Incident is outside the configured evidence scope")
+        # Retrieval happens after the snapshot transaction closes. In particular,
+        # never take a second PostgreSQL advisory lock while the first is held.
+        query = (
+            incident.analysis.summary + " " + " ".join(signal.metric for signal in incident.signals)
+        )[:2000]
+        return {
+            "incident_id": incident.id,
+            "evidence_ids": incident.evidence_ids,
+            "knowledge": knowledge.search(
+                query, service=incident.service, environment=incident.environment
+            ),
+            "read_only": True,
+            "index_status": indexer.snapshot() if indexer else {"enabled": False},
+            "authorizes_actions": False,
+        }
 
     @application.post("/events", dependencies=[Depends(authorized)])
     def ingest(body: Event) -> dict[str, Any]:

@@ -25,6 +25,7 @@ ROUTES = (
     Route("/events/{event_id}", "incidents"),
     Route("/incidents", "incidents", queries=("service", "limit")),
     Route("/incidents/{incident_id}", "incidents"),
+    Route("/incidents/{incident_id}/context", "incidents"),
     Route("/incidents/{incident_id}/{decision}", "incidents", ("POST",), asserted_actor=True),
     Route("/actions/{incident_id}/execute", "incidents", ("POST",), asserted_actor=True),
     Route("/postmortems", "incidents"),
@@ -32,4 +33,8 @@ ROUTES = (
     Route("/audit", "incidents", queries=("incident_id", "limit")),
     Route("/autonomy", "incidents", ("GET", "POST"), asserted_actor=True),
     Route("/runtime", "incidents"),
+    Route("/knowledge/status", "incidents"),
+    Route("/knowledge/search", "incidents", ("POST",)),
+    Route("/runbooks", "incidents"),
+    Route("/runbooks/{runbook_id}", "incidents"),
 )
