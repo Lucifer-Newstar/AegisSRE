@@ -21,7 +21,7 @@
 | Service | Port | DNS | Contract | Feature | Phase | Status |
 |---|---|---|---|---|---|---|
 | registry | **8101** | registry-service | [registry-service.yaml](../contracts/registry-service.yaml) | A2 registry + health | P2 | **LIVE** |
-| incidents | 8201 | incidents-service | — | A4 incident manager | P3 | planned |
+| incidents | 8201 | incidents-service | [incidents-service.yaml](../contracts/incidents-service.yaml) | A3–A9 reliability core | P3+ | API implemented; runtime integration pending |
 | evidence | 8202 | evidence-service | — | A5 evidence store | P3/P4 | planned |
 | remediation | 8301 | remediation-service | — | A6/A7 planner + approvals | P5 | planned |
 | policy | 8302 | policy-service | — | A6/A8 policy + risk matrix | P5 | planned |

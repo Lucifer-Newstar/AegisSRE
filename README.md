@@ -26,6 +26,10 @@ keeping humans in control of higher-risk operations.
 This repo is in the **foundation / P2 phase**. The design documents cover the full
 vision; the code implements the first slice of it.
 
+Implementation is continuing against the complete approved scope. See the
+[feature-by-feature acceptance ledger](docs/implementation/status.md) for code,
+measured checks and remaining work. Code presence is not an acceptance result.
+
 **Built and working today:**
 
 - Full local observability stack: OpenTelemetry Collector, Prometheus, Grafana, Loki,
@@ -36,22 +40,26 @@ vision; the code implements the first slice of it.
   for every service.
 - **registry-service** — service catalogue + health aggregation API (:8101, live).
 - **deployments-service** — DI-1 deployment history API (:8701, live).
+- **Reliability core API** (`backend/services/incidents-service`, integration in progress):
+  validated telemetry, durable incidents/audit/outbox, statistical + Isolation Forest
+  detection, cited deterministic RCA, approvals, policy and recovery gates. The
+  default executor is explicitly simulation; no real-cluster success is claimed.
 - **AegisShop** demo app: catalog (:9001), cart (:9002), order (:9003), payment (:9004)
   services with tests.
 - **Console** (Next.js 14 on :3030): overview, services, deployments, and incidents
   pages — live data where APIs exist, clearly-marked mock fallback elsewhere.
 - K8s manifests (Kustomize base, 1:1 with Compose), Terraform skeleton (`iac/`).
 - CI: YAML/Compose validation, kubeconform + kustomize checks, docs link check, ruff,
-  mypy (strict), pytest (54 tests), contract-drift guard, image builds.
+  mypy (strict), pytest (81 tests at the first reliability-core milestone), contract-drift guard, image builds.
 - OpenAPI contract set with a CI drift guard, 14-diagram UML set, ADRs.
 
-**Designed but not yet built** (see [docs/planning/](docs/planning/) and
+**Remaining scope** (see [docs/planning/](docs/planning/) and
 [docs/architecture/](docs/architecture/)):
 
-- ML anomaly detection (Isolation Forest + baselines), incident manager, AI
-  reasoning/RCA, RAG knowledge base, Ask Aegis assistant (`ml/`, `ai/` — planned).
-- Remediation planner, policy engine, approval workflow, safe autonomous execution,
-  recovery verification.
+- Live collector/event integration and measured anomaly/incident acceptance;
+  LLM reasoning, pgvector RAG knowledge base and Ask Aegis assistant.
+- Console approvals, scheduled safe autonomy, live executor verification and
+  complete evaluation of the implemented policy/recovery core.
 - Chaos lab (`chaoslab/` — planned), DI-2…DI-7 deployment-intelligence capabilities
   beyond DI-1 tracking.
 - Full eight-page console scope, kind-cluster deployment, evaluation harness.

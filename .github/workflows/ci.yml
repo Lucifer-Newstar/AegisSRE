@@ -119,12 +119,13 @@ jobs:
 
       - name: Install packages (editable, with dev extras)
         run: |
-          pip install pyyaml \
+          pip install -c backend/services/incidents-service/requirements.lock pyyaml \
                       -e backend/libs/telemetry[dev] \
                       -e backend/libs/eventbus[dev] \
                       -e backend/services/_template[dev] \
                       -e backend/services/registry-service[dev] \
                       -e backend/services/deployments-service[dev] \
+                      -e backend/services/incidents-service[dev] \
                       -e demoapp/aegisshop/catalog-service[dev] \
                       -e demoapp/aegisshop/cart-service[dev] \
                       -e demoapp/aegisshop/order-service[dev] \
@@ -139,6 +140,7 @@ jobs:
           backend/services/_template
           backend/services/registry-service
           backend/services/deployments-service
+          backend/services/incidents-service
           demoapp/aegisshop/catalog-service
           demoapp/aegisshop/cart-service
           demoapp/aegisshop/order-service
@@ -150,6 +152,7 @@ jobs:
           backend/services/_template
           backend/services/registry-service
           backend/services/deployments-service
+          backend/services/incidents-service
           demoapp/aegisshop/catalog-service
           demoapp/aegisshop/cart-service
           demoapp/aegisshop/order-service
@@ -204,3 +207,34 @@ jobs:
       - name: Build console
         run: |
           cd frontend && npm ci && npm run build
+
+  reliability-storage:
+    name: Reliability storage (PostgreSQL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: aegis_test
+          POSTGRES_PASSWORD: aegis_test
+          POSTGRES_DB: aegis_test
+        ports:
+          - 15432:5432
+        options: >-
+          --health-cmd "pg_isready -U aegis_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      AEGIS_TEST_DATABASE_URL: postgresql+psycopg://aegis_test:aegis_test@127.0.0.1:15432/aegis_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install locked reliability dependencies
+        run: |
+          pip install -r backend/services/incidents-service/requirements.lock
+          pip install --no-deps -e backend/services/incidents-service
+      - name: Exercise real PostgreSQL transactions and concurrent ingestion
+        run: pytest backend/services/incidents-service/tests/test_postgres.py

@@ -1,0 +1,609 @@
+openapi: 3.1.0
+info:
+  title: AegisSRE Reliability API
+  version: 0.1.0
+paths:
+  /health:
+    get:
+      summary: Health
+      operationId: health_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Health Health Get
+  /ready:
+    get:
+      summary: Ready
+      operationId: ready_ready_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Ready Ready Get
+      security:
+      - HTTPBearer: []
+  /metrics:
+    get:
+      summary: Scrape
+      operationId: scrape_metrics_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+  /events:
+    post:
+      summary: Ingest
+      operationId: ingest_events_post
+      security:
+      - HTTPBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Event'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Ingest Events Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      summary: Evidence
+      operationId: evidence_events_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: service
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Service
+      - name: environment
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Environment
+      - name: event_type
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Event Type
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 500
+          minimum: 1
+          default: 100
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+                title: Response Evidence Events Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /events/{event_id}:
+    get:
+      summary: Get Evidence
+      operationId: get_evidence_events__event_id__get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: event_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Event Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Get Evidence Events  Event Id  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /incidents:
+    get:
+      summary: List Incidents
+      operationId: list_incidents_incidents_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: service
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Service
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 500
+          minimum: 1
+          default: 100
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+                title: Response List Incidents Incidents Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /incidents/{incident_id}:
+    get:
+      summary: Incident
+      operationId: incident_incidents__incident_id__get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: incident_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Incident Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Incident Incidents  Incident Id  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /incidents/{incident_id}/{decision}:
+    post:
+      summary: Decide
+      operationId: decide_incidents__incident_id___decision__post
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: incident_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Incident Id
+      - name: decision
+        in: path
+        required: true
+        schema:
+          enum:
+          - approve
+          - reject
+          - defer
+          type: string
+          title: Decision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Decision'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Decide Incidents  Incident Id   Decision  Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /actions/{incident_id}/execute:
+    post:
+      summary: Execute
+      operationId: execute_actions__incident_id__execute_post
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: incident_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Incident Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Decision'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Execute Actions  Incident Id  Execute Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /postmortems/{incident_id}:
+    get:
+      summary: Postmortem
+      operationId: postmortem_postmortems__incident_id__get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: incident_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Incident Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Postmortem Postmortems  Incident Id  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /postmortems:
+    get:
+      summary: Postmortems
+      operationId: postmortems_postmortems_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  additionalProperties: true
+                  type: object
+                type: array
+                title: Response Postmortems Postmortems Get
+      security:
+      - HTTPBearer: []
+  /audit:
+    get:
+      summary: Audits
+      operationId: audits_audit_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: incident_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Incident Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 1000
+          minimum: 1
+          default: 200
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+                title: Response Audits Audit Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /autonomy:
+    get:
+      summary: Get Mode
+      operationId: get_mode_autonomy_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Get Mode Autonomy Get
+      security:
+      - HTTPBearer: []
+    post:
+      summary: Set Mode
+      operationId: set_mode_autonomy_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModeIn'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Set Mode Autonomy Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - HTTPBearer: []
+components:
+  schemas:
+    Decision:
+      properties:
+        actor:
+          type: string
+          maxLength: 100
+          minLength: 1
+          title: Actor
+        note:
+          type: string
+          maxLength: 1000
+          title: Note
+          default: ''
+      additionalProperties: false
+      type: object
+      required:
+      - actor
+      title: Decision
+    Event:
+      properties:
+        id:
+          type: string
+          maxLength: 160
+          minLength: 1
+          title: Id
+        schema_version:
+          type: string
+          const: '0.2'
+          title: Schema Version
+          default: '0.2'
+        timestamp:
+          type: string
+          format: date-time
+          title: Timestamp
+        source:
+          type: string
+          enum:
+          - prometheus
+          - loki
+          - tempo
+          - k8s
+          - deployment
+          - chaoslab
+          - ml
+          - ai
+          - policy
+          - executor
+          - registry
+          title: Source
+        type:
+          type: string
+          enum:
+          - metric
+          - log
+          - deployment
+          - trace
+          - k8s_event
+          - health
+          - anomaly
+          title: Type
+        service:
+          type: string
+          maxLength: 63
+          minLength: 1
+          pattern: ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$
+          title: Service
+        environment:
+          type: string
+          maxLength: 40
+          minLength: 1
+          title: Environment
+          default: dev
+        severity:
+          type: string
+          enum:
+          - info
+          - warning
+          - critical
+          title: Severity
+          default: info
+        correlation_id:
+          anyOf:
+          - type: string
+            maxLength: 160
+          - type: 'null'
+          title: Correlation Id
+        trace_id:
+          anyOf:
+          - type: string
+            maxLength: 64
+          - type: 'null'
+          title: Trace Id
+        deployment:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Deployment
+        payload:
+          additionalProperties: true
+          type: object
+          title: Payload
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - source
+      - type
+      - service
+      - payload
+      title: Event
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    ModeIn:
+      properties:
+        actor:
+          type: string
+          maxLength: 100
+          minLength: 1
+          title: Actor
+        note:
+          type: string
+          maxLength: 1000
+          title: Note
+          default: ''
+        mode:
+          type: string
+          enum:
+          - observe
+          - recommend
+          - auto-safe
+          title: Mode
+      additionalProperties: false
+      type: object
+      required:
+      - actor
+      - mode
+      title: ModeIn
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+  securitySchemes:
+    HTTPBearer:
+      type: http
+      scheme: bearer

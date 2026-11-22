@@ -1,5 +1,5 @@
 {
-  "comment": "Service → contract mapping for the contract-drift check (scripts/check_contract_drift.py). Add a row when a service lands (PR template checklist).",
+  "comment": "Service \u2192 contract mapping for the contract-drift check (scripts/check_contract_drift.py). Add a row when a service lands (PR template checklist).",
   "services": [
     {
       "id": "catalog-service",
@@ -30,6 +30,11 @@
       "id": "payment-service",
       "module": "payment_service.main",
       "contract": "payment-service.yaml"
+    },
+    {
+      "id": "incidents-service",
+      "module": "incidents_service.contract",
+      "contract": "incidents-service.yaml"
     }
   ]
 }
