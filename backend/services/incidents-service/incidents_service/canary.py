@@ -48,8 +48,13 @@ def analyze(settings: Settings, service: str, reader: ReadClient | None = None) 
         }
         observed: dict[str, dict[str, float]] = {}
         evidence: dict[str, Any] = {}
+        evaluation_time = now().timestamp()
         for name, expression in expressions.items():
-            response = client.get(settings.prometheus_url, "/api/v1/query", {"query": expression})
+            response = client.get(
+                settings.prometheus_url,
+                "/api/v1/query",
+                {"query": expression, "time": str(evaluation_time)},
+            )
             if (
                 response.get("status") != "success"
                 or response.get("warnings")

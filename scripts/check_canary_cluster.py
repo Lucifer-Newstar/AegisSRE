@@ -173,6 +173,7 @@ def main() -> None:
             env={
                 **os.environ,
                 "AEGIS_VISUAL_OUTPUT": str(fixture.directory() / "diagnostics" / "canary-visual"),
+                "AEGIS_REQUIRE_CANARY": "true",
             },
             check=True,
             timeout=120,
