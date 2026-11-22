@@ -115,11 +115,35 @@ still calls its old data layer and still has explicit mock scaffolding. Session
 security, switching all console reads/writes through the gateway, internal
 metadata auth/network hardening and production cluster proof remain open.
 
+## Milestone 2e: scoped logs and trace evidence
+
+Per-application instrumentation now owns its providers and service-scoped log
+handler without replacing process globals. It is attached before ASGI startup,
+flushes on shutdown (including startup failure), and places the current trace ID
+in JSON log bodies. The order-to-cart request preserves W3C trace context.
+Metrics use route templates rather than raw resource IDs and count uncaught 500s.
+The demo and metadata images build from the repository root for this shared code.
+
+Fixed-origin read-only Loki and Tempo readers enforce service/environment scope,
+three-minute windows, response/time/cardinality limits, validated trace IDs and
+an attribute allowlist. One service is sampled per collector tick. Where a log
+has a trace ID, the collector fetches that exact trace, then stages both through
+the existing durable outbox/Redis delivery. Missing stores are reported rather
+than replaced with sample telemetry. Loki explicitly indexes the low-cardinality
+service/environment resource attributes; trace IDs remain structured data.
+
+Local checks: 159 passing tests, with Ruff, strict mypy, YAML and API contracts.
+The hosted Compose gate also proved a real HTTP request's OTLP log and server
+span share a trace ID after collection into the event database. This gate is
+pipeline proof, not the ten-fault chaos benchmark or an AI accuracy claim.
+Kubernetes event collection, the remaining evidence tools, LLM/RAG/Ask and the
+complete console remain open.
+
 ## Feature-by-feature status
 
 | ID | Implementation state | Acceptance still required |
 |---|---|---|
-| A1 Observability | Live scoped metrics/health/deployment collectors and durable Redis delivery implemented | Log/trace tool suite, trace joins, full-stack startup timing |
+| A1 Observability | Scoped metrics/health/deployment/log/trace collectors, durable Redis delivery and hosted trace/log join proof | Kubernetes events, full-stack startup timing |
 | A2 Registry | Durable CRUD, owner/SLO metadata and timed allowlisted probes implemented; hosted restart proof passed | Live console integration and full-stack timing |
 | A3 Detection | Statistical + Isolation Forest code and unit tests | Held-out ten-fault precision/recall/F1 and measured detection latency |
 | A4 Incidents | Lifecycle, Redis consumption/outbox, append-only audit and API implemented | Measured live timing and timeline UI |
