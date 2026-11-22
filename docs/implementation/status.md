@@ -228,7 +228,7 @@ namespace Roles grant only list permissions, with no Secret, exec or workload
 write permission. See [Kubernetes evidence](../operations/kubernetes-evidence.md)
 for the broader namespace read scope and current attribution limits.
 
-Local checks: 218 passing tests and six real-server skips, with Ruff, strict mypy,
+Local checks: 222 passing tests and six real-server skips, with Ruff, strict mypy,
 YAML and API contracts. Source tests use explicit HTTP mock transports; background
 wiring uses a fake worker. No existing cluster was contacted. Actual kind,
 least-privilege behavior and fault capture remain acceptance work, not a claimed

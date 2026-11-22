@@ -207,6 +207,13 @@ class KubernetesEvidence:
                     *(self._get(path, selected=index < 3) for index, path in enumerate(paths)),
                     return_exceptions=True,
                 )
+            # A concurrent parse failure must not hide throttling/access denial
+            # from another request in the same bounded batch.
+            for response in responses:
+                if isinstance(
+                    response, httpx.HTTPStatusError
+                ) and response.response.status_code in {401, 403, 429}:
+                    raise response
             resources: list[list[dict[str, Any]]] = []
             for response in responses:
                 if isinstance(response, BaseException):

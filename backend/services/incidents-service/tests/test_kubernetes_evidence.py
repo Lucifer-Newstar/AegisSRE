@@ -264,3 +264,37 @@ def test_invalid_projected_token_never_leaves_the_process(tmp_path: Path, token:
             assert source.error == "invalid_projected_token"
 
     asyncio.run(exercise())
+
+
+@pytest.mark.parametrize("token,dev", [("", True), ("fixture", True), ("", False)])
+def test_cluster_credentials_cannot_enable_unauthenticated_or_dev_mode(
+    token: str, dev: bool
+) -> None:
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError, match="authenticated non-dev"):
+        Settings(
+            api_token=token,
+            dev_mode=dev,
+            worker_enabled=True,
+            redis_url="redis://unused",
+            kube_evidence_enabled=True,
+            kube_api_url="https://cluster.invalid",
+        )
+
+
+def test_throttle_is_not_hidden_by_another_concurrent_failure(tmp_path: Path) -> None:
+    settings = config(tmp_path)
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/events"):
+            return httpx.Response(429)
+        return httpx.Response(200, json={"items": [{"metadata": {"namespace": "wrong"}}]})
+
+    async def exercise() -> None:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+            source = KubernetesEvidence(settings, client)
+            assert await source.collect() == []
+            assert source.error == "cluster_throttled"
+
+    asyncio.run(exercise())
