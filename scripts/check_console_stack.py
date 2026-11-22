@@ -38,7 +38,7 @@ def main() -> None:
         ("/services", "Services"), ("/incidents", "Incidents"),
         ("/approvals", "Approvals"), ("/postmortems", "Postmortems"),
         ("/runbooks", "Runbooks"), ("/ask", "Ask Aegis"),
-        ("/deployments", "Deployments"), ("/audit", "Audit log"),
+        ("/deployments", "Observed change-failure analytics"), ("/audit", "Audit log"),
         ("/services/catalog-service", "Registry and SLO configuration"),
         ("/incidents/"+urllib.parse.quote(identity,safe=""), "Incident timeline"),
     ]:
