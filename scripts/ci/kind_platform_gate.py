@@ -15,6 +15,7 @@ import re
 import subprocess
 import sys
 import urllib.request
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -473,6 +474,153 @@ def verify() -> None:
         assert stages == ["prepared", "injection_requested", "injection_applied",
                           "restoration_requested", "restored_control_state"]
         print("Actual opt-in HTTP fault CLI injected/restored with durable ground truth; not ten-fault acceptance")
+        def catalog_container() -> dict[str, Any]:
+            pods = json.loads(kubectl("get", "pods", "--namespace", NS, "-l",
+                "app.kubernetes.io/name=catalog-service", "-o", "json", capture=True))["items"]
+            assert len(pods) == 1
+            pod = pods[0]
+            statuses = pod["status"].get("containerStatuses", [])
+            assert len(statuses) == 1
+            return {"uid":pod["metadata"]["uid"], **statuses[0]}
+
+        before_crash = catalog_container()
+        crash_dir = experiment_dir / "container-crash"
+        run([sys.executable, "-m", "chaoslab", "container-crash", "--seconds", "5",
+             "--output", str(crash_dir)], timeout=240)
+        def restarted_container() -> Any:
+            item = catalog_container()
+            return item if item["restartCount"] > before_crash["restartCount"] and item.get("ready") else None
+
+        after_crash = wait_for(restarted_container, "independent restarted container readiness", 180)
+        assert after_crash["uid"] == before_crash["uid"]
+        assert after_crash["restartCount"] > before_crash["restartCount"]
+        terminated = after_crash["lastState"]["terminated"]
+        assert terminated["exitCode"] == 70 and terminated.get("finishedAt")
+        forwards.start("catalog-service", 9001, 9001)
+        wait_for(lambda: shop_request(9001, "/products")[0] == 200,
+                 "catalog domain recovery after actual process crash", 120)
+        proof = {"pod_uid":after_crash["uid"], "restart_count_before":before_crash["restartCount"],
+                 "restart_count_after":after_crash["restartCount"], "terminated":terminated,
+                 "domain_recovery_observed":True, "not_evaluation_accuracy":True}
+        (crash_dir / "independent-proof.json").write_text(json.dumps(proof, indent=2))
+        print("Actual immediate process-exit crash, same-Pod restart/70 and domain recovery verified independently of runner journal")
+        oom_dir = experiment_dir / "memory-exhaustion"
+        oom_dir.mkdir(exist_ok=True)
+        before_oom = catalog_container()
+        with (oom_dir / "runner.log").open("w") as output:
+            experiment = subprocess.Popen(
+                [sys.executable, "-m", "chaoslab", "memory-exhaustion", "--seconds", "30",
+                 "--output", str(oom_dir)],
+                cwd=ROOT, env={**os.environ, **FIXTURE}, stdout=output, stderr=subprocess.STDOUT,
+            )
+            try:
+                def observe_oom() -> Any:
+                    item = catalog_container()
+                    if item["restartCount"] > before_oom["restartCount"]:
+                        return item
+                    # Connection loss alone is not OOM proof.
+                    with suppress(OSError):
+                        shop_request(9001, "/products")
+                    return None
+                wait_for(observe_oom, "actual memory-exhaustion process restart", 60)
+                assert experiment.wait(timeout=210) == 0
+            finally:
+                if experiment.poll() is None:
+                    experiment.terminate()
+                    experiment.wait(timeout=210)
+        def oom_recovered() -> Any:
+            item = catalog_container()
+            return item if item["restartCount"] > before_oom["restartCount"] and item.get("ready") else None
+        after_oom = wait_for(oom_recovered, "OOM container readiness", 180)
+        assert after_oom["uid"] == before_oom["uid"]
+        ended = after_oom["lastState"]["terminated"]
+        assert ended["reason"] == "OOMKilled" and ended["exitCode"] == 137, ended
+        forwards.start("catalog-service", 9001, 9001)
+        wait_for(lambda: shop_request(9001, "/products")[0] == 200,
+                 "catalog domain recovery after real cgroup OOM", 120)
+        (oom_dir / "independent-proof.json").write_text(json.dumps({
+            "pod_uid": after_oom["uid"], "terminated": ended,
+            "restart_count_before": before_oom["restartCount"],
+            "restart_count_after": after_oom["restartCount"],
+            "domain_recovery_observed": True, "not_evaluation_accuracy": True,
+        }, indent=2))
+        print("Actual cgroup OOMKilled/137, same-Pod restart and business recovery independently observed")
+
+        config_dir = experiment_dir / "config-error"
+        config_dir.mkdir(exist_ok=True)
+        before_config = json.loads(kubectl("get", "deployment", "catalog-service",
+            "--namespace", NS, "-o", "json", capture=True))["spec"]["template"]
+        with (config_dir / "runner.log").open("w") as output:
+            experiment = subprocess.Popen(
+                [sys.executable, "-m", "chaoslab", "config-error", "--seconds", "60",
+                 "--output", str(config_dir)],
+                cwd=ROOT, env={**os.environ, **FIXTURE}, stdout=output, stderr=subprocess.STDOUT,
+            )
+            def rejected_configuration() -> Any:
+                pods = json.loads(kubectl("get", "pods", "--namespace", NS, "-l",
+                    "app.kubernetes.io/name=catalog-service", "-o", "json", capture=True))["items"]
+                for pod in pods:
+                    values = pod["spec"]["containers"][0].get("env", [])
+                    if not any(e.get("name") == "CATALOG_MAX_PRODUCTS" and e.get("value") == "0" for e in values):
+                        continue
+                    for status in pod["status"].get("containerStatuses", []):
+                        ended = status.get("lastState", {}).get("terminated") or status.get("state", {}).get("terminated")
+                        if ended and ended["exitCode"] != 0 and not status["ready"]:
+                            try:
+                                logs = kubectl("logs", pod["metadata"]["name"], "--namespace", NS,
+                                               "--tail=80", *( ["--previous"] if status["restartCount"] else []),
+                                               capture=True)
+                            except subprocess.CalledProcessError:
+                                continue
+                            if "catalog_max_products" in logs and "ValidationError" in logs:
+                                return {"pod_uid": pod["metadata"]["uid"], "exit": ended,
+                                        "startup_configuration_rejected": True}
+                return None
+            try:
+                config_proof = wait_for(rejected_configuration,
+                    "actual invalid configuration rejected by new process", 55)
+                # RollingUpdate normally preserves the healthy prior replica.
+                # This fault is failed rollout, not assumed service outage.
+                config_proof["old_replica_domain_status"] = shop_request(9001, "/products")[0]
+                assert experiment.wait(timeout=210) == 0
+            finally:
+                if experiment.poll() is None:
+                    experiment.terminate()
+                    experiment.wait(timeout=210)
+        after_config = json.loads(kubectl("get", "deployment", "catalog-service",
+            "--namespace", NS, "-o", "json", capture=True))["spec"]["template"]
+        assert before_config == after_config
+        forwards.start("catalog-service", 9001, 9001)
+        wait_for(lambda: shop_request(9001, "/products")[0] == 200,
+                 "domain ready after exact configuration restoration", 120)
+        config_proof["exact_template_restored"] = True
+        config_proof["domain_recovery_observed"] = True
+        config_proof["not_evaluation_accuracy"] = True
+        (config_dir / "independent-proof.json").write_text(json.dumps(config_proof, indent=2))
+        print("Actual invalid catalog setting rejected on startup; exact Pod template restored and domain ready, no outage assumed")
+
+        traffic_dir = experiment_dir / "traffic-spike"
+        def catalog_requests() -> float:
+            import urllib.parse
+            expression = 'sum(http_server_requests_total{service="catalog-service",path="/products"})'
+            with urllib.request.urlopen("http://127.0.0.1:19090/api/v1/query?" +
+                    urllib.parse.urlencode({"query": expression}), timeout=10) as response:
+                result = json.load(response)["data"]["result"]
+            assert len(result) == 1
+            return float(result[0]["value"][1])
+        before_load = catalog_requests()
+        run([sys.executable, "-m", "chaoslab", "traffic-spike", "--seconds", "10",
+             "--output", str(traffic_dir)], timeout=60)
+        after_load = wait_for(lambda: (value if (value := catalog_requests()) >= before_load + 100 else None),
+                             "independently scraped request counter increase", 60)
+        assert shop_request(9001, "/products")[0] == 200
+        (traffic_dir / "independent-proof.json").write_text(json.dumps({
+            "prometheus_requests_before": before_load, "prometheus_requests_after": after_load,
+            "window_seconds": 10, "minimum_request_delta": 100,
+            "domain_response_after": 200, "not_evaluation_accuracy": True,
+            "caveat": "Counter difference includes background traffic and scrape timing, not an exact generator RPS measurement",
+        }, indent=2))
+        print("Actual bounded traffic CLI and independent Prometheus counter growth verified; not sustained capacity or detection acceptance")
         run([sys.executable, str(ROOT / "scripts/check_console_stack.py")], timeout=240)
         run(["env", "AEGIS_VISUAL_OUTPUT=" + str(directory() / "diagnostics" / "visual"),
              "node", str(ROOT / "scripts/visual/console.mjs")], timeout=180)
