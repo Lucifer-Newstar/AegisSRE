@@ -281,6 +281,7 @@ class ReliabilityLoop:
                 or not 0 <= (now() - incident.updated_at).total_seconds() <= 60
             ):
                 return incident
+            plan_filled = False
             if (
                 not context_error
                 and mode == "auto-safe"
@@ -290,14 +291,7 @@ class ReliabilityLoop:
                 and isinstance(context.get("current_replicas"), int)
             ):
                 incident.plan.replicas = int(context["current_replicas"]) + 1
-                self._audit(
-                    tx,
-                    incident,
-                    "plan.live_preconditions",
-                    "policy",
-                    "One-replica scale-up filled from live managed deployment",
-                )
-                tx.save_incident(incident)
+                plan_filled = True
             history: list[dict[str, str]] = tx.get_state("executions", [])
             recent = [
                 x
@@ -342,6 +336,14 @@ class ReliabilityLoop:
                 )
                 # A denial is a recorded result, not an exception that rolls the audit back.
                 return incident.model_copy(update={"execution_output": f"DENIED: {verdict.reason}"})
+            if plan_filled:
+                self._audit(
+                    tx,
+                    incident,
+                    "plan.live_preconditions",
+                    "policy",
+                    "One-replica scale-up filled from live managed deployment",
+                )
             incident.status = "remediating"
             incident.executed_at = now()
             incident.verification_deadline = now() + timedelta(
