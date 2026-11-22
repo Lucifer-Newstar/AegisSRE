@@ -52,7 +52,7 @@ Implemented on the runtime-integration branch:
   HTTP APIs, restarts application processes and checks persistence/deletion.
 - The Prometheus alert file is now mounted where its configuration expects it.
 
-Local checks: 91 tests pass; two PostgreSQL-only tests are deliberately skipped
+Local checks: 94 tests pass; two PostgreSQL-only tests are deliberately skipped
 without an isolated test database. Ruff, strict typing, contracts, YAML and docs
 links are checked. Hosted PostgreSQL and Compose results must pass before merge.
 The complete telemetry worker, gateway, LLM/RAG, console and kind bootstrap remain

@@ -17,7 +17,8 @@ pytestmark = pytest.mark.skipif(not DATABASE_URL, reason="AEGIS_TEST_DATABASE_UR
 
 
 def test_postgres_transactions_serialize_duplicate_ingestion() -> None:
-    repositories = [Repository(DATABASE_URL) for _ in range(4)]
+    with ThreadPoolExecutor(max_workers=4) as constructors:
+        repositories = list(constructors.map(lambda _: Repository(DATABASE_URL), range(4)))
     loops = [ReliabilityLoop(repo, Settings(dev_mode=True)) for repo in repositories]
     event = Event(
         id=f"pg-{uuid.uuid4().hex}",

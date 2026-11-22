@@ -235,7 +235,10 @@ class Repository:
             if ":memory:" in url:
                 options["poolclass"] = StaticPool
         self.engine = create_engine(url, **options)
-        metadata.create_all(self.engine)
+        with self.engine.begin() as connection:
+            if self.engine.dialect.name == "postgresql":
+                connection.execute(text("SELECT pg_advisory_xact_lock(87018200)"))
+            metadata.create_all(connection)
 
     @contextmanager
     def transaction(self) -> Iterator[Transaction]:
