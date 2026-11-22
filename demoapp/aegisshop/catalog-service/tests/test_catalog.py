@@ -4,6 +4,7 @@ Covers the API contract (list/get products, 404 handling) and the health/
 metrics endpoints inherited from the service template conventions.
 """
 
+import pytest
 from catalog_service.main import app
 from fastapi.testclient import TestClient
 
@@ -54,3 +55,21 @@ class TestObservabilityContract:
         resp = client.get("/faults")
         assert resp.status_code == 200
         assert "planned" in resp.json()
+
+
+def test_invalid_catalog_configuration_refuses_startup() -> None:
+    import pytest
+    from catalog_service.config import Settings
+    from pydantic import ValidationError
+
+    for invalid in (0, -1, 1001, "not-a-number"):
+        with pytest.raises(ValidationError):
+            Settings(catalog_max_products=invalid)  # type: ignore[arg-type]
+
+
+def test_catalog_limit_is_a_real_runtime_setting(monkeypatch: pytest.MonkeyPatch) -> None:
+    from catalog_service.config import settings
+
+    monkeypatch.setattr(settings, "catalog_max_products", 2)
+    response = client.get("/products")
+    assert response.status_code == 200 and len(response.json()) == 2
