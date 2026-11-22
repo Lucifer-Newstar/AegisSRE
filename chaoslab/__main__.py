@@ -24,7 +24,7 @@ from chaoslab.traffic import TRAFFIC_PROGRAM
 ROOT = Path(__file__).resolve().parents[1]
 HOOKS = {"http-5xx", "network-latency", "cpu-saturation", "memory-pressure", "memory-exhaustion"}
 DATABASES = {"database-outage": "shop-postgres", "dependency-failure": "shop-redis"}
-FAULTS = HOOKS | set(DATABASES) | {"container-crash", "config-error", "traffic-spike"}
+FAULTS = HOOKS | set(DATABASES) | {"container-crash", "config-error", "traffic-spike", "faulty-deployment"}
 WRITE_CONTROL = (
     "import os,sys;from pathlib import Path;"
     "p=Path('/tmp/aegisshop-fault.json');"
@@ -90,6 +90,11 @@ def _run(api: ModuleType, fault: str, seconds: int, output: Path) -> Path:
             api.kubectl("scale", kind + "/" + target, "--replicas=0", "--namespace", api.NS)
             api.kubectl("wait", "--for=delete", "pod/" + target + "-0", "--namespace", api.NS,
                         "--timeout=90s", timeout=100)
+        elif fault == "faulty-deployment":
+            api.kubectl("set", "image", "deployment/" + target,
+                        "catalog-service=aegisshop/catalog-service:ci-faulty", "--namespace", api.NS)
+            api.kubectl("rollout", "status", "deployment/" + target,
+                        "--namespace", api.NS, "--timeout=180s", timeout=200)
         elif fault == "traffic-spike":
             counts = json.loads(api.kubectl(
                 "exec", "deployment/" + target, "--namespace", api.NS, "-i", "--",
@@ -136,6 +141,12 @@ def _run(api: ModuleType, fault: str, seconds: int, output: Path) -> Path:
                 if fault in DATABASES:
                     api.kubectl("scale", kind + "/" + target, "--replicas=1", "--namespace", api.NS)
                     api.kubectl("rollout", "status", kind + "/" + target,
+                                "--namespace", api.NS, "--timeout=180s", timeout=200)
+                elif fault == "faulty-deployment":
+                    image = original["spec"]["template"]["spec"]["containers"][0]["image"]
+                    api.kubectl("set", "image", "deployment/" + target,
+                                "catalog-service=" + image, "--namespace", api.NS)
+                    api.kubectl("rollout", "status", "deployment/" + target,
                                 "--namespace", api.NS, "--timeout=180s", timeout=200)
                 elif fault == "traffic-spike":
                     # The bounded child exits before restoration. No workload
