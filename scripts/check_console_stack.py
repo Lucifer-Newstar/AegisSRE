@@ -30,17 +30,35 @@ def main() -> None:
         assert "ci-runtime" in text and "simulation" in text
     assert any(cookie.name == "aegis_session" and cookie.has_nonstandard_attr("HttpOnly")
                for cookie in jar)
+    from check_runtime_stack import api
+    incidents=api("/incidents?service=ci-runtime")
+    assert incidents, "Expected persisted transport-fixture incident"
+    identity=incidents[0]["id"]
     for path, heading in [
         ("/services", "Services"), ("/incidents", "Incidents"),
         ("/approvals", "Approvals"), ("/postmortems", "Postmortems"),
         ("/runbooks", "Runbooks"), ("/ask", "Ask Aegis"),
         ("/deployments", "Deployments"), ("/audit", "Audit log"),
+        ("/services/catalog-service", "Registry and SLO configuration"),
+        ("/incidents/"+urllib.parse.quote(identity,safe=""), "Incident timeline"),
     ]:
         with opener.open(ORIGIN + path, timeout=30) as response:
             text = response.read().decode()
             assert response.status == 200 and heading in text
             assert os.environ["AEGIS_API_TOKEN"] not in text
             assert "Mock data" not in text and "mock payload" not in text
+            assert "Incident unavailable" not in text
+            # ci-runtime is a transport fixture deliberately outside the
+            # configured knowledge/metric service scope. Its base incident
+            # must render, but those scoped panels must not disclose data.
+            if not path.startswith("/incidents/"):
+                assert "No data substituted" not in text and "API connection failed" not in text
+                assert "API unavailable" not in text
+    with opener.open(ORIGIN+"/services/catalog-service",timeout=30) as response:
+        content=response.read().decode()
+        assert "24h observed metric history" in content
+        assert "observed samples over 24 hours" in content
+        assert "API unavailable" not in content and "No data substituted" not in content
     try:
         opener.open(urllib.request.Request(
             ORIGIN + "/api/decision", data=b"id=fixture&decision=approve",

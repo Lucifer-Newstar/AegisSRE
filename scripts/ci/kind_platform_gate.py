@@ -407,13 +407,14 @@ def verify() -> None:
             kubectl("wait", "--for=delete", "pod/shop-postgres-0", "--namespace", NS,
                     "--timeout=90s", timeout=100)
             wait_for(unavailable, "actual shop DB outage gives readiness/domain 503", 90)
-            assert request("/api/v1/ready")["status"] == "ready"
+            wait_for(lambda: request("/api/v1/ready")["status"] == "ready",
+                     "platform source convergence during isolated shop dependency outage", 120)
             assert api("/deployments/ci-runtime-deploy", port=8701)["revision"] == "ci-observed-revision"
         finally:
             kubectl("scale", "statefulset/shop-postgres", "--replicas=1", "--namespace", NS)
         wait_for(lambda: shop_request(9003, "/ready")[0] == 200 and retained(order),
                  "same persisted order after actual shop database restoration", 180)
-        print("Actual shop order survived app restart and isolated database outage/restoration; platform stayed ready")
+        print("Actual shop order survived app restart and isolated database outage/restoration; platform readiness observed during the outage")
         cart_before = shop_request(9002, "/cart/ci-persistent-order")[1]
         kubectl("rollout", "restart", "deployment/cart-service", "--namespace", NS)
         kubectl("rollout", "status", "deployment/cart-service", "--namespace", NS,
@@ -431,7 +432,8 @@ def verify() -> None:
                 and shop_request(9002, "/cart/ci-persistent-order")[0] == 503
                 and shop_request(9003, "/orders", {"user_id": "ci-persistent-order"})[0] == 503
             ), "real Redis outage affects cart/checkout but not process liveness", 90)
-            assert request("/api/v1/ready")["status"] == "ready"
+            wait_for(lambda: request("/api/v1/ready")["status"] == "ready",
+                     "platform source convergence during isolated shop dependency outage", 120)
             assert retained(order)
         finally:
             kubectl("scale", "statefulset/shop-redis", "--replicas=1", "--namespace", NS)
@@ -439,7 +441,7 @@ def verify() -> None:
             shop_request(9002, "/ready")[0] == 200
             and shop_request(9002, "/cart/ci-persistent-order") == (200, cart_before)
         ), "same AOF-persisted cart after Redis outage/restoration", 180)
-        print("Actual Redis cart survived app restart and isolated Redis outage/restoration; platform stayed ready")
+        print("Actual Redis cart survived app restart and isolated Redis outage/restoration; platform readiness observed during the outage")
         # Enable hooks only in this newly owned demo fixture, not base manifests.
         kubectl("set", "env", "deployment/catalog-service", "AEGIS_SHOP_FAULTS_ENABLED=true",
                 "--namespace", NS)
@@ -733,6 +735,8 @@ def verify() -> None:
         (release_dir / "independent-proof.json").write_text(json.dumps(release_proof, indent=2))
         print("Actual separately built faulty release503 and original-image restoration200 independently verified")
         run([sys.executable, str(ROOT / "scripts/check_console_stack.py")], timeout=240)
+        run(["env", "AEGIS_VISUAL_OUTPUT=" + str(directory() / "diagnostics" / "visual"),
+             "node", str(ROOT / "scripts/visual/console.mjs")], timeout=180)
         with urllib.request.urlopen("http://127.0.0.1:3030/login", timeout=15) as response:
             assert response.status == 200
         print(
