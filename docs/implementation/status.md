@@ -67,19 +67,49 @@ Housekeeping can trim idle streams too. Unit regressions and a fresh actual-Redi
 CI gate cover this behavior. The telemetry worker and transactional outbox delivery
 are not yet wired by this library-only step.
 
+## Milestone 2c: live telemetry runtime
+
+Implemented collectors now read fixed, service/environment-scoped Prometheus
+rates, histograms and process gauges, plus registry health/SLO metadata and real
+deployment envelopes. Process CPU/memory are exported by each demo service.
+Missing, stale, non-finite or zero-traffic measurements cannot prove recovery.
+The recovery-window SLI is not labelled as 30-day availability/error budget.
+
+The runtime stages inputs in PostgreSQL, publishes via the transactional outbox,
+consumes Redis with commit-before-ACK, reclaims crashed consumers, quarantines
+permanent poison/conflict/order failures, and emits audit/domain events back to
+canonical streams. Unexpected internal/storage errors remain pending. Anomaly
+windows now begin at the actual oldest baseline sample, not a guessed duration.
+
+The reliability API has a non-root image, runtime-only pinned dependencies,
+protected readiness/progress endpoints and Compose wiring. Published local ports
+are loopback-only. Compose requires an operator-supplied token and fixes the
+executor to simulation. Single-process embedded runtime is supported; distributed
+execution ownership and the authenticated console gateway are still ahead.
+
+Local checks: 132 tests, Ruff, strict mypy, YAML and API contracts. A dedicated
+hosted gate starts the actual runtime, observes real Prometheus/deployment data,
+checks controlled Redis-to-incident/outbox/poison fixtures, restarts the API and
+checks persisted business state plus pending-entry recovery. Those fixtures are
+transport proof, not the ten-fault chaos/evaluation acceptance benchmark.
+
+Earlier merged transport/storage proofs: [PR 2](https://github.com/Lucifer-Newstar/AegisSRE/pull/2)
+and [PR 3](https://github.com/Lucifer-Newstar/AegisSRE/pull/3). The live gateway,
+LLM/RAG/tool suite, full console, cluster bootstrap and evaluation remain open.
+
 ## Feature-by-feature status
 
 | ID | Implementation state | Acceptance still required |
 |---|---|---|
-| A1 Observability | Existing stack; core input and durable outbox added | Live collectors, Redis delivery/recovery, trace joins, startup timing |
-| A2 Registry | Durable CRUD, owner/SLO metadata and timed allowlisted probes implemented | Hosted restart/storage checks and live console integration |
+| A1 Observability | Live scoped metrics/health/deployment collectors and durable Redis delivery implemented | Log/trace tool suite, trace joins, full-stack startup timing |
+| A2 Registry | Durable CRUD, owner/SLO metadata and timed allowlisted probes implemented; hosted restart proof passed | Live console integration and full-stack timing |
 | A3 Detection | Statistical + Isolation Forest code and unit tests | Held-out ten-fault precision/recall/F1 and measured detection latency |
-| A4 Incidents | Lifecycle, grouping, append-only audit and API implemented | Redis consumption, live timing and timeline UI |
+| A4 Incidents | Lifecycle, Redis consumption/outbox, append-only audit and API implemented | Measured live timing and timeline UI |
 | A5 Evidence/RCA | Persisted evidence and cited deterministic hypotheses | Full read-only tool suite, LLM adapter, ranked evaluation, postmortem UI |
 | A6 Policy | Versioned typed policies, risk matrix and hard execution bounds | Runtime policy update, complete action matrix and safety evaluation |
 | A7 Approvals | Approve/reject/defer API and audit implemented | Authorized console flow, impact view and click-count check |
 | A8 Autonomy | Conservative decision gates, kill switch and executor code | Auto scheduler, least-privilege cluster integration, eligible-action success rate |
-| A9 Recovery | Sample + health/error/latency/SLO gate, timeout escalation | Live collection, cancellation/undo and ground-truth accuracy evaluation |
+| A9 Recovery | Live fresh-metric + health/error/latency/SLI gate, timeout escalation | Cancellation/undo, longer-window budget context and ground-truth accuracy evaluation |
 | A10 Dashboard | Existing four-page scaffold | Live overview, service/incident details, approvals and honest MTTD/MTTR |
 | A11 Chaoslab | Catalog's existing fault-hook stub | All ten isolated faults, restoration and experiment manifests |
 | A12 Evaluation | Existing protocol | Reproducible >=10 runs per fault, baseline comparison, mean/std report |
@@ -88,13 +118,13 @@ are not yet wired by this library-only step.
 | C1 Eight pages | Four-page scaffold | Complete live eight-page console and UI checks |
 | C3 Runbooks | Not implemented | List, viewer, indexing and incident links |
 | C4 Postmortems | Verified-closure API implemented | Viewer, evidence/timeline/action rendering and metrics |
-| C5 Audit | Durable append-only store and filtered API implemented | Console viewer and filtering |
+| C5 Audit | Durable append-only store, transactional Redis emission and filtered API implemented | Console viewer and filtering |
 | D1 kind | Existing app manifests | Full dependencies, least privilege, kind boot and behavior checks |
 | D5 CI/CD | Existing lint/tests/build checks; reliability tests added | Publish workflow and agreed registry verification |
 | D6 SLOs | Existing dashboard/alert configs | Live per-service panels, multiwindow burn alerts, firing checks |
 | E2 Comparison | Not implemented | Real comparative results; no invented human-response timings |
 | E4 Documentation | This milestone and contracts recorded | Continue updating evidence and limitations at each milestone |
-| DI-1 Tracking | Durable producer-time history and conflict-safe idempotency implemented | Live deployment hook and per-service timeline |
+| DI-1 Tracking | Durable producer-time history, conflict-safe idempotency and live polling into the reliability loop implemented | Deployment hook workflow and per-service timeline |
 | DI-2 Risk | Not implemented | Trained risk scorer, pre/post inputs and held-out recall |
 | DI-3 Correlation | Evidence-timing correlation implemented | Deployment attribution evaluation and UI |
 | DI-4 Bad rollout | Not implemented | Window evaluator and measured detection bound |

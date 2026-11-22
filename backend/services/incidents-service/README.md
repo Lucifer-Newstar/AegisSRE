@@ -10,8 +10,9 @@ Python 3.12 or newer:
 ```bash
 python -m venv .venv
 . .venv/bin/activate
-pip install -r backend/services/incidents-service/requirements.lock
-pip install --no-deps -e backend/services/incidents-service
+pip install -r backend/services/incidents-service/requirements-runtime.lock
+pip install --no-deps -e backend/libs/telemetry -e backend/libs/eventbus \
+  -e backend/services/incidents-service
 AEGIS_DEV_MODE=true python -m uvicorn incidents_service.main:create_app \
   --factory --host 127.0.0.1 --port 8201
 ```
@@ -45,7 +46,8 @@ explicit local dev mode.
 | `GET /postmortems` / `GET /postmortems/{id}` | Postmortems after verified closure only |
 | `GET /audit?incident_id=...` | Append-only audit records |
 | `GET /autonomy` / `POST /autonomy` | Policy view; set observe/recommend/auto-safe |
-| `GET /ready` / `GET /metrics` | Database readiness and API counters |
+| `GET /ready` / `GET /metrics` | Dependency/worker readiness and API counters |
+| `GET /runtime` | Worker progress, collection failures and delivery counts |
 
 A bearer token identifies a single operator/integration principal. The `actor`
 field is an asserted audit label, not independent identity verification or a
@@ -98,14 +100,58 @@ required context is missing. No real cluster action has been verified yet.
 submitted to Kubernetes cannot be retroactively prevented by a flag change.
 Interrupted/uncertain executions escalate and are never automatically retried.
 
+## Live collection and delivery
+
+The optional background runtime now collects fixed Prometheus queries, registry
+readiness/SLO metadata and deployment history. Enable `AEGIS_WORKER_ENABLED` with
+`AEGIS_REDIS_URL`; enable `AEGIS_COLLECTOR_ENABLED` with all three configured
+origins: `AEGIS_PROMETHEUS_URL`, `AEGIS_REGISTRY_URL`, `AEGIS_DEPLOYMENTS_URL`.
+The default collection interval is 15 seconds. Redis delivery is checked each
+worker cycle. HTTP requests are not blocked by collection.
+
+`docker compose up --build incidents-service catalog-service` starts this loop
+against actual PostgreSQL, Redis and Prometheus. Supply `AEGIS_API_TOKEN` through
+your local environment or secret manager first. The default fails closed if it
+is absent; Compose does not enable unauthenticated dev mode. All published local
+stack ports bind to loopback. The executor remains simulation-only in Compose.
+
+Inputs are staged in the PostgreSQL outbox before Redis publication. Consumers
+ACK only after the ingest transaction commits. A crash between publish/delete
+or commit/ACK can repeat a delivery, but stable event IDs prevent duplicate
+business effects. Pending messages are reclaimed after 30 seconds. Invalid,
+conflicting or out-of-order entries go to bounded `dlq:<type>` streams; unexpected
+database/runtime failures remain pending. Inspect DLQs instead of hiding them.
+
+Metrics are rates/gauges, scoped by service and environment, with stale and
+non-finite results excluded. CPU is percent of one process core, not percent of
+a container's CPU quota. Recovery needs traffic, fresh readiness and passing
+error/latency measurements. Its one-minute SLI check does not claim a 30-day SLO
+or known remaining error budget. Missing series and zero traffic never prove
+recovery. Loki/Tempo read-only evidence tools and trace joins remain later work.
+
+The current embedded runtime uses one API process per deployment. PostgreSQL
+serializes business transactions and separate dispatchers can repeat safe
+at-least-once delivery, but multi-replica execution ownership is not yet a
+supported deployment mode. Do not start multiple API replicas against an active
+executor. An operator restart escalates interrupted actions for reconciliation.
+
 ## Tests
+
+Install the root `requirements-dev.txt` before running the complete tests. The
+process-metric checks exercise all four demo packages too.
 
 ```bash
 pytest backend/services/incidents-service
 ruff check backend/services/incidents-service
-mypy backend/services/incidents-service
+mypy backend/libs/telemetry backend/libs/eventbus backend/services/incidents-service
 ```
 
-The checked-in lock contains the dependency versions used for this milestone.
-Unit tests use isolated SQLite databases and mock subprocess calls. They do not
-claim a real PostgreSQL, Kubernetes or full Compose acceptance test.
+Unit tests use isolated SQLite and in-memory Redis, with injected failure paths.
+CI separately runs actual PostgreSQL/Redis and Compose collection/restart checks
+through `scripts/check_runtime_stack.py`. Its controlled telemetry fixtures prove
+wiring, not real fault recovery, detection accuracy, RCA accuracy or the full
+acceptance targets. No real Kubernetes action has been verified yet.
+
+`requirements.lock` pins external development dependencies. The runtime-only
+subset is in `requirements-runtime.lock`; local telemetry/eventbus packages are
+installed from this repository, never fetched as unrelated packages from PyPI.
