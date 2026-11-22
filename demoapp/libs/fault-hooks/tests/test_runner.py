@@ -148,3 +148,11 @@ def test_oom_requires_fixed_application_memory_limit(tmp_path: Path, monkeypatch
     assert len(api.kubectl.call_args_list) == 1
     assert not list(tmp_path.glob("*.jsonl"))
 
+
+
+def test_traffic_program_has_fixed_local_destination_and_worker_bound() -> None:
+    from chaoslab.traffic import TRAFFIC_PROGRAM
+    assert 'http://127.0.0.1:9001/products' in TRAFFIC_PROGRAM
+    assert 'max_workers=8' in TRAFFIC_PROGRAM
+    assert '1<=seconds<=120' in TRAFFIC_PROGRAM
+    compile(TRAFFIC_PROGRAM, '<fixed-traffic-program>', 'exec')
