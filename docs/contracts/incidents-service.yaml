@@ -3,6 +3,140 @@ info:
   title: AegisSRE Reliability API
   version: 0.1.0
 paths:
+  /intelligence/status:
+    get:
+      summary: Intelligence Status
+      operationId: intelligence_status_intelligence_status_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Intelligence Status Intelligence Status Get
+      security:
+      - HTTPBearer: []
+  /intelligence/tools:
+    get:
+      summary: Intelligence Tools
+      operationId: intelligence_tools_intelligence_tools_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: service
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Service
+      - name: question
+        in: query
+        required: false
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          default: service health
+          title: Question
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Intelligence Tools Intelligence Tools Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ask:
+    post:
+      summary: Ask
+      operationId: ask_ask_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AskRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AskResult'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - HTTPBearer: []
+  /incidents/{incident_id}/investigate:
+    post:
+      summary: Investigate
+      operationId: investigate_incidents__incident_id__investigate_post
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: incident_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Incident Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Investigate Incidents  Incident Id  Investigate Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /incidents/{incident_id}/investigation:
+    get:
+      summary: Investigation
+      operationId: investigation_incidents__incident_id__investigation_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: incident_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Incident Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Investigation Incidents  Incident Id  Investigation
+                  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /health:
     get:
       summary: Health
@@ -565,6 +699,105 @@ paths:
       - HTTPBearer: []
 components:
   schemas:
+    AskRequest:
+      properties:
+        service:
+          type: string
+          maxLength: 63
+          minLength: 1
+          pattern: ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$
+          title: Service
+        question:
+          type: string
+          maxLength: 2000
+          minLength: 1
+          title: Question
+      additionalProperties: false
+      type: object
+      required:
+      - service
+      - question
+      title: AskRequest
+    AskResult:
+      properties:
+        id:
+          type: string
+          title: Id
+        engine:
+          type: string
+          enum:
+          - evidence-only-v1
+          - structured-llm-v1
+          title: Engine
+        inference_status:
+          type: string
+          enum:
+          - disabled
+          - complete
+          - failed
+          title: Inference Status
+        diagnostic:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Diagnostic
+        model:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Model
+        answer:
+          $ref: '#/components/schemas/CitedAnswer'
+        snapshot:
+          $ref: '#/components/schemas/EvidenceSnapshot'
+        caveat:
+          type: string
+          title: Caveat
+          default: Model output is an unverified interpretation, not proof of cause,
+            current health, or authority to act.
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - engine
+      - inference_status
+      - answer
+      - snapshot
+      title: AskResult
+    CitedAnswer:
+      properties:
+        summary:
+          type: string
+          maxLength: 1500
+          minLength: 1
+          title: Summary
+        evidence_ids:
+          items:
+            type: string
+          type: array
+          maxItems: 15
+          title: Evidence Ids
+        hypotheses:
+          items:
+            $ref: '#/components/schemas/Hypothesis'
+          type: array
+          maxItems: 5
+          title: Hypotheses
+        limitations:
+          items:
+            type: string
+          type: array
+          maxItems: 8
+          minItems: 1
+          title: Limitations
+      additionalProperties: false
+      type: object
+      required:
+      - summary
+      - evidence_ids
+      - hypotheses
+      - limitations
+      title: CitedAnswer
     Decision:
       properties:
         actor:
@@ -675,6 +908,82 @@ components:
       - service
       - payload
       title: Event
+    EvidenceItem:
+      properties:
+        id:
+          type: string
+          title: Id
+        source_ref:
+          type: string
+          title: Source Ref
+        kind:
+          type: string
+          title: Kind
+        observed_at:
+          type: string
+          title: Observed At
+        stale:
+          type: boolean
+          title: Stale
+        content:
+          additionalProperties: true
+          type: object
+          title: Content
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - source_ref
+      - kind
+      - observed_at
+      - stale
+      - content
+      title: EvidenceItem
+    EvidenceSnapshot:
+      properties:
+        service:
+          type: string
+          title: Service
+        environment:
+          type: string
+          title: Environment
+        captured_at:
+          type: string
+          title: Captured At
+        evidence:
+          items:
+            $ref: '#/components/schemas/EvidenceItem'
+          type: array
+          title: Evidence
+        tool_calls:
+          items:
+            $ref: '#/components/schemas/ToolCall'
+          type: array
+          title: Tool Calls
+        read_only:
+          type: boolean
+          const: true
+          title: Read Only
+          default: true
+        authorizes_actions:
+          type: boolean
+          const: false
+          title: Authorizes Actions
+          default: false
+        redaction:
+          type: string
+          title: Redaction
+          default: Selected bounded fields with best-effort secret redaction, not
+            a guarantee of complete removal.
+      additionalProperties: false
+      type: object
+      required:
+      - service
+      - environment
+      - captured_at
+      - evidence
+      - tool_calls
+      title: EvidenceSnapshot
     HTTPValidationError:
       properties:
         detail:
@@ -684,6 +993,49 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
+    Hypothesis:
+      properties:
+        cause:
+          type: string
+          enum:
+          - database_outage
+          - memory_exhaustion
+          - container_crash
+          - config_error
+          - dependency_failure
+          - network_latency
+          - http_5xx
+          - faulty_deployment
+          - cpu_saturation
+          - traffic_spike
+          - unknown
+          title: Cause
+        confidence:
+          type: string
+          enum:
+          - low
+          - medium
+          title: Confidence
+        explanation:
+          type: string
+          maxLength: 700
+          minLength: 1
+          title: Explanation
+        evidence_ids:
+          items:
+            type: string
+          type: array
+          maxItems: 12
+          minItems: 1
+          title: Evidence Ids
+      additionalProperties: false
+      type: object
+      required:
+      - cause
+      - confidence
+      - explanation
+      - evidence_ids
+      title: Hypothesis
     KnowledgeSearch:
       properties:
         query:
@@ -743,6 +1095,47 @@ components:
       - actor
       - mode
       title: ModeIn
+    ToolCall:
+      properties:
+        name:
+          type: string
+          enum:
+          - get_metrics
+          - get_logs
+          - get_traces
+          - get_health
+          - get_deployments
+          - get_k8s_events
+          - search_runbooks
+          title: Name
+        status:
+          type: string
+          enum:
+          - available
+          - missing
+          - stale
+          - unavailable
+          title: Status
+        checked_at:
+          type: string
+          title: Checked At
+        evidence_ids:
+          items:
+            type: string
+          type: array
+          title: Evidence Ids
+        detail:
+          type: string
+          title: Detail
+      additionalProperties: false
+      type: object
+      required:
+      - name
+      - status
+      - checked_at
+      - evidence_ids
+      - detail
+      title: ToolCall
     ValidationError:
       properties:
         loc:

@@ -85,6 +85,8 @@ def test_disabled_provider_never_constructs_a_network_client() -> None:
     "url,remote",
     [
         ("https://remote.invalid/v1", False),
+        ("http://192.168.1.10:11434", False),
+        ("http://169.254.169.254", False),
         ("http://remote.invalid/v1", True),
         ("file:///etc/passwd", True),
         ("https://name:password@remote.invalid/v1", True),

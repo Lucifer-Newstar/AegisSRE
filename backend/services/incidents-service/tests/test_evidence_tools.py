@@ -86,6 +86,7 @@ def test_fresh_stale_future_and_opaque_citations() -> None:
 
 def test_redaction_and_bounded_provider_payload() -> None:
     assert "hunter2" not in clean_text("password=hunter2")
+    assert "db-password" not in clean_text("postgresql://user:db-password@database/internal")
     assert "abc.def" not in clean_text("Bearer abc.def")
     assert "user:pass" not in clean_text("https://user:pass@site.invalid/private?value=secret")
     assert minimize({"API_KEY": "private", "safe": "ok"}) == {"API_KEY": "[REDACTED]", "safe": "ok"}

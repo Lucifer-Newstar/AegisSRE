@@ -44,7 +44,10 @@ ASSIGNMENT = re.compile(
 )
 BEARER = re.compile(r"\bBearer\s+[A-Za-z0-9._~+/-]+=*", re.I)
 JWT = re.compile(r"\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b")
-URL = re.compile(r"https?://[^\s<>\"']+", re.I)
+URL = re.compile(
+    r"(?:https?|postgres(?:ql)?(?:\+psycopg)?|mysql|redis|mongodb(?:\+srv)?|amqps?)://[^\s<>\"']+",
+    re.I,
+)
 
 
 def clean_text(value: str, limit: int = 700) -> str:

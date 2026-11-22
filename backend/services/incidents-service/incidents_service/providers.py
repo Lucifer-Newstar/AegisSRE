@@ -54,7 +54,7 @@ class ProviderConfig(BaseModel):
         local = parsed.hostname in {"localhost", "ollama", "host.docker.internal"}
         with suppress(ValueError):
             address = ipaddress.ip_address(parsed.hostname)
-            local = local or address.is_loopback or address.is_private
+            local = local or address.is_loopback
         if not local and not self.allow_remote:
             raise ValueError("Remote inference requires explicit opt-in to send selected evidence")
         if not local and parsed.scheme != "https":
@@ -122,7 +122,7 @@ class StructuredProvider:
             raise ProviderError("provider_disabled")
         try:
             encoded = json.dumps(payload, ensure_ascii=False, allow_nan=False)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError, RecursionError):
             raise ProviderError("invalid_provider_input") from None
         if len(encoded.encode()) > 24000:
             raise ProviderError("input_exceeds_bound")
@@ -153,7 +153,7 @@ class StructuredProvider:
                     "store": False,
                 }
             )
-        headers = {"Accept": "application/json"}
+        headers = {"Accept": "application/json", "Accept-Encoding": "identity"}
         if self.config.api_key:
             headers["Authorization"] = "Bearer " + self.config.api_key
         assert self.client is not None
@@ -167,6 +167,8 @@ class StructuredProvider:
                     follow_redirects=False,
                 ) as response:
                     response.raise_for_status()
+                    if response.headers.get("content-encoding", "identity").lower() != "identity":
+                        raise ProviderError("unsupported_response_encoding")
                     pieces: list[bytes] = []
                     size = 0
                     async for chunk in response.aiter_bytes():
@@ -190,7 +192,7 @@ class StructuredProvider:
             raise ProviderError("provider_timeout") from None
         except httpx.HTTPError:
             raise ProviderError("provider_request_failed") from None
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError):
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError, RecursionError):
             raise ProviderError("invalid_provider_output") from None
 
     async def close(self) -> None:

@@ -10,6 +10,7 @@ class Route:
     methods: tuple[str, ...] = ("GET",)
     queries: tuple[str, ...] = ()
     asserted_actor: bool = False
+    timeout_seconds: int = 10
 
 
 ROUTES = (
@@ -26,6 +27,8 @@ ROUTES = (
     Route("/incidents", "incidents", queries=("service", "limit")),
     Route("/incidents/{incident_id}", "incidents"),
     Route("/incidents/{incident_id}/context", "incidents"),
+    Route("/incidents/{incident_id}/investigate", "incidents", ("POST",), timeout_seconds=135),
+    Route("/incidents/{incident_id}/investigation", "incidents"),
     Route("/incidents/{incident_id}/{decision}", "incidents", ("POST",), asserted_actor=True),
     Route("/actions/{incident_id}/execute", "incidents", ("POST",), asserted_actor=True),
     Route("/postmortems", "incidents"),
@@ -33,6 +36,9 @@ ROUTES = (
     Route("/audit", "incidents", queries=("incident_id", "limit")),
     Route("/autonomy", "incidents", ("GET", "POST"), asserted_actor=True),
     Route("/runtime", "incidents"),
+    Route("/ask", "incidents", ("POST",), timeout_seconds=135),
+    Route("/intelligence/status", "incidents"),
+    Route("/intelligence/tools", "incidents", queries=("service", "question")),
     Route("/knowledge/status", "incidents"),
     Route("/knowledge/search", "incidents", ("POST",)),
     Route("/runbooks", "incidents"),
