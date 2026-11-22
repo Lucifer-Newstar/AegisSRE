@@ -110,6 +110,10 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "Kubernetes evidence requires delivery worker, projected token and CA paths"
                 )
+            if self.dev_mode or not self.api_token:
+                raise ValueError("Kubernetes evidence requires authenticated non-dev mode")
+            if parsed.port is not None and not 1 <= parsed.port <= 65535:
+                raise ValueError("Invalid Kubernetes API port")
         if self.worker_enabled and not self.redis_url:
             raise ValueError("The worker requires AEGIS_REDIS_URL")
         if self.collector_enabled and not self.worker_enabled:
