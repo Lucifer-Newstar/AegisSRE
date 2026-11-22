@@ -8,8 +8,10 @@ processes. SQLite runs one process and uses a process-local lock.
 from __future__ import annotations
 
 import threading
+import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import (
@@ -103,18 +105,17 @@ class Transaction:
             )
         )
 
+    def baseline_samples(self, series: str, limit: int = 60) -> list[tuple[str, float]]:
+        rows = self.conn.execute(
+            select(events.c.timestamp, events.c.value)
+            .where(events.c.series == series, events.c.normal.is_(True))
+            .order_by(events.c.timestamp.desc())
+            .limit(limit)
+        ).all()
+        return [(str(row.timestamp), float(row.value)) for row in reversed(rows)]
+
     def baseline(self, series: str, limit: int = 60) -> list[float]:
-        rows = (
-            self.conn.execute(
-                select(events.c.value)
-                .where(events.c.series == series, events.c.normal.is_(True))
-                .order_by(events.c.timestamp.desc())
-                .limit(limit)
-            )
-            .scalars()
-            .all()
-        )
-        return [float(v) for v in reversed(rows)]
+        return [value for _, value in self.baseline_samples(series, limit)]
 
     def latest_sample(self, series: str) -> dict[str, Any] | None:
         row = self.conn.execute(
@@ -188,8 +189,42 @@ class Transaction:
         else:
             self.conn.execute(insert(incidents).values(id=item.id, **values))
 
-    def append_audit(self, incident_id: str | None, document: dict[str, Any]) -> None:
+    def append_audit(
+        self,
+        incident_id: str | None,
+        document: dict[str, Any],
+        *,
+        service: str = "incidents-service",
+        environment: str = "dev",
+    ) -> None:
         self.conn.execute(insert(audit).values(incident_id=incident_id, document=document))
+        action = str(document.get("action", "unknown"))
+        outcome = (
+            "denied"
+            if action.endswith("denied")
+            else "failed"
+            if action.endswith("failed")
+            else "success"
+        )
+        self.emit(
+            {
+                "id": f"audit_{uuid.uuid4().hex}",
+                "schema_version": "0.2",
+                "timestamp": document.get("at", datetime.now(UTC).isoformat()),
+                "source": "policy",
+                "type": "audit",
+                "service": service,
+                "environment": environment,
+                "severity": "info" if outcome == "success" else "warning",
+                "payload": {
+                    "actor": str(document.get("actor", "system")),
+                    "action": action,
+                    "target": incident_id or "platform",
+                    "outcome": outcome,
+                    "reason": str(document.get("detail", "")),
+                },
+            }
+        )
 
     def audits(self, incident_id: str | None = None, limit: int = 200) -> list[dict[str, Any]]:
         query = select(audit.c.seq, audit.c.incident_id, audit.c.document)

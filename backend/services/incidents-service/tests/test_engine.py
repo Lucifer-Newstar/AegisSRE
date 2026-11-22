@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 import pytest
@@ -57,7 +57,18 @@ def test_baseline_incident_correlation_and_persistence(loop: ReliabilityLoop) ->
         assert incident.plan.action == "restart"
         assert incident.analysis.hypotheses[0]["cause"] == "memory_exhaustion"
         assert "log-1" in incident.analysis.evidence_ids
-        assert len(tx.pending()) == 2
+        pending = [event for _, event in tx.pending()]
+        assert len(pending) == 4
+        anomaly = next(event for event in pending if event["type"] == "anomaly")
+        first_sample = tx.event("warm-0")
+        assert first_sample is not None
+        assert datetime.fromisoformat(
+            anomaly["payload"]["window"]["start"]
+        ) == datetime.fromisoformat(first_sample["timestamp"])
+        audit_events = [event for event in pending if event["type"] == "audit"]
+        assert len(audit_events) == 2
+        assert all(event["service"] == "catalog-service" for event in audit_events)
+        assert all(event["payload"]["target"] == incident_id for event in audit_events)
         assert len(tx.audits(incident_id)) == 2
     sample(loop, "fault-2", 800.0, 0)
     with loop.repo.transaction() as tx:
