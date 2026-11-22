@@ -2,6 +2,8 @@
 
 The automatic worker can evaluate a rollback only when current Kubernetes revision
 matches the explicitly identified, unambiguous bad window linked to this incident.
+Both current and prior producer records must carry the current Kubernetes
+workload UID. Revision numbers from a recreated Deployment cannot match.
 The target must be one unique earlier observed-healthy rollout, assessed before
 the bad rollout began, with an existing scored risk snapshot. Missing data denies
 automatic execution. Plans do not accept image tags or Git SHAs as Kubernetes

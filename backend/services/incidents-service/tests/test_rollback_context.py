@@ -26,6 +26,7 @@ def test_rollback_requires_linked_bad_rollout_and_unique_known_healthy_target() 
     )
     current = Rollout(
         id="current",
+        workload_uid="owned",
         service="catalog-service",
         environment="dev",
         deployment_id="current",
@@ -59,7 +60,7 @@ def test_rollback_requires_linked_bad_rollout_and_unique_known_healthy_target() 
     with repo.transaction() as tx:
         tx.save_rollout(current.model_dump(mode="json"))
         tx.save_rollout(prior.model_dump(mode="json"))
-        assert context(tx, item, "4") == {}
+        assert context(tx, item, "4", "owned") == {}
         tx.put_state(
             "risk:prior",
             {
@@ -68,10 +69,11 @@ def test_rollback_requires_linked_bad_rollout_and_unique_known_healthy_target() 
                 "deployment_started_at": prior.started_at.isoformat(),
             },
         )
-        result = context(tx, item, "4")
+        result = context(tx, item, "4", "owned")
         assert result["rollout_bad"] and result["deployment_risk"] == 0.2
         assert 180 <= result["deploy_age_seconds"] < 185
-        assert context(tx, item, "5") == {}
+        assert context(tx, item, "5", "owned") == {}
+        assert context(tx, item, "4", "different-workload") == {}
         current.ambiguous = True
         tx.save_rollout(current.model_dump(mode="json"))
-        assert context(tx, item, "4") == {}
+        assert context(tx, item, "4", "owned") == {}

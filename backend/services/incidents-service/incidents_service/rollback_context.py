@@ -9,7 +9,9 @@ from incidents_service.models import Incident, now
 from incidents_service.repository import Transaction
 
 
-def context(tx: Transaction, incident: Incident, live_revision: str) -> dict[str, Any]:
+def context(
+    tx: Transaction, incident: Incident, live_revision: str, live_uid: str
+) -> dict[str, Any]:
     if not incident.change_correlation or not incident.plan.revision:
         return {}
     documents = tx.list_rollouts(
@@ -23,7 +25,8 @@ def context(tx: Transaction, incident: Incident, live_revision: str) -> dict[str
         return {}
     row = bad[0]
     if (
-        not row.identity_explicit
+        row.workload_uid != live_uid
+        or not row.identity_explicit
         or row.ambiguous
         or row.outcome != "bad"
         or row.revision != live_revision
@@ -37,7 +40,8 @@ def context(tx: Transaction, incident: Incident, live_revision: str) -> dict[str
     prior = [
         item
         for item in rows
-        if item.revision == incident.plan.revision
+        if item.workload_uid == live_uid
+        and item.revision == incident.plan.revision
         and item.identity_explicit
         and not item.ambiguous
         and item.outcome == "healthy"

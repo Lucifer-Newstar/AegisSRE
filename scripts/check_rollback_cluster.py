@@ -96,6 +96,7 @@ def main() -> None:
         )
         prior = Rollout(
             id="fixture-prior",
+            workload_uid=original["metadata"]["uid"],
             service="catalog-service",
             environment="dev",
             deployment_id="fixture-prior",
@@ -113,6 +114,7 @@ def main() -> None:
         )
         bad = Rollout(
             id="fixture-bad",
+            workload_uid=original["metadata"]["uid"],
             service="catalog-service",
             environment="dev",
             deployment_id="fixture-bad",

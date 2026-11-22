@@ -287,7 +287,7 @@ class ReliabilityLoop:
             if incident.plan.action == "rollback" and live_revision is not None:
                 from incidents_service.rollback_context import context as rollback_context
 
-                observed_context = rollback_context(tx, incident, live_revision)
+                observed_context = rollback_context(tx, incident, live_revision, str(target_uid))
                 if not observed_context:
                     context_error = True
                 context.update(observed_context)
