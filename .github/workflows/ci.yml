@@ -50,6 +50,11 @@ jobs:
       - name: docker-compose.yml is valid
         run: docker compose config --quiet
 
+      - name: Parse and exercise actual PromQL SLO rules
+        run: |
+          docker run --rm --entrypoint /bin/promtool -v "$PWD/infra/prometheus:/rules:ro" prom/prometheus:v2.53.0 check rules /rules/alerts.yml
+          docker run --rm --entrypoint /bin/promtool -v "$PWD/infra/prometheus:/rules:ro" prom/prometheus:v2.53.0 test rules /rules/slo.test.yml
+
   # 2 ── K8s manifests are real (ADR-0005: compose ⇄ K8s parity) ─────────────
   k8s-manifests:
     name: K8s manifests (kubeconform + kustomize)
