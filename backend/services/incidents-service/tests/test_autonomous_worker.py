@@ -256,3 +256,18 @@ def test_kill_switch_during_slow_preflight_wins(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setattr(loop.executor, "policy_context", preflight)
     monkeypatch.setattr(loop.executor, "run", lambda _: pytest.fail("Kill switch ignored"))
     assert loop.run_automatic() == 0
+
+
+def test_live_plan_fill_cannot_refresh_a_stale_incident(monkeypatch: pytest.MonkeyPatch) -> None:
+    loop, key = configured()
+    with loop.repo.transaction() as tx:
+        item = tx.incident(key)
+        assert item
+        item.plan.replicas = None
+        item.updated_at = now() - timedelta(seconds=61)
+        tx.save_incident(item)
+    monkeypatch.setattr(loop.executor, "policy_context", lambda _: {"current_replicas": 2})
+    assert loop.run_automatic() == 0
+    with loop.repo.transaction() as tx:
+        item = tx.incident(key)
+        assert item and item.plan.replicas is None

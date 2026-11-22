@@ -276,6 +276,11 @@ class ReliabilityLoop:
             mode = str(tx.get_state("autonomy", {"mode": "recommend"})["mode"])
             if observed.plan != incident.plan or observed.updated_at != incident.updated_at:
                 context, context_error = {}, True
+            if automatic_only and (
+                incident.approval != "pending"
+                or not 0 <= (now() - incident.updated_at).total_seconds() <= 60
+            ):
+                return incident
             if (
                 not context_error
                 and mode == "auto-safe"
@@ -293,11 +298,6 @@ class ReliabilityLoop:
                     "One-replica scale-up filled from live managed deployment",
                 )
                 tx.save_incident(incident)
-            if automatic_only and (
-                incident.approval != "pending"
-                or not 0 <= (now() - incident.updated_at).total_seconds() <= 60
-            ):
-                return incident
             history: list[dict[str, str]] = tx.get_state("executions", [])
             recent = [
                 x
@@ -328,7 +328,7 @@ class ReliabilityLoop:
                 **context,
             )
             if automatic_only and (
-                not verdict.automatic or (now() - incident.updated_at).total_seconds() > 60
+                not verdict.automatic or (now() - observed.updated_at).total_seconds() > 60
             ):
                 return incident
             if not verdict.allowed:
