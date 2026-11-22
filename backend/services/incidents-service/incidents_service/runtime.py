@@ -47,6 +47,10 @@ class Runtime:
                     self.collector_failures[f"input:{event.type}"] = type(exc).__name__
             self.last_collection = time.monotonic()
         self.last_counts = self.delivery.tick()
+        # Missing source evidence blocks autonomous work, not just readiness.
+        self.last_counts["automatic_actions"] = (
+            self.loop.run_automatic() if not self.collector_failures else 0
+        )
         self.last_tick, self.last_error = now(), None
 
     def snapshot(self) -> dict[str, Any]:
