@@ -7,3 +7,5 @@ opentelemetry-sdk>=1.26
 opentelemetry-exporter-otlp-proto-grpc>=1.26
 opentelemetry-instrumentation-fastapi>=0.47b0
 pydantic>=2.7
+
+aegissre-storage>=0.1.0

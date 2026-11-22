@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     service_name: str = "deployments-service"
     service_port: int = 8701
     environment: str = "dev"
+    database_url: str = "sqlite:///./aegis-deployments.db"
+    deployment_revision: str = ""
     otel_exporter_otlp_endpoint: str = ""
 
 

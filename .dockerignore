@@ -1,0 +1,17 @@
+.git
+.venv
+**/node_modules
+**/.next
+**/__pycache__
+**/*.egg-info
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+.env
+.env.*
+*.db
+*.db-*
+*.sqlite3
+*.log
+*.pid
+.gitignore

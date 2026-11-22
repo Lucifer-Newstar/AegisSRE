@@ -51,4 +51,6 @@ def test_heartbeat_updates() -> None:
     before = client.get("/services/catalog-service").json()["last_heartbeat_at"]
     resp = client.post("/services/catalog-service/heartbeat")
     assert resp.status_code == 200
-    assert resp.json()["last_heartbeat_at"] >= before
+    after = resp.json()["last_heartbeat_at"]
+    assert after is not None
+    assert before is None or after >= before

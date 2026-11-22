@@ -119,24 +119,14 @@ jobs:
 
       - name: Install packages (editable, with dev extras)
         run: |
-          pip install -c backend/services/incidents-service/requirements.lock pyyaml \
-                      -e backend/libs/telemetry[dev] \
-                      -e backend/libs/eventbus[dev] \
-                      -e backend/services/_template[dev] \
-                      -e backend/services/registry-service[dev] \
-                      -e backend/services/deployments-service[dev] \
-                      -e backend/services/incidents-service[dev] \
-                      -e demoapp/aegisshop/catalog-service[dev] \
-                      -e demoapp/aegisshop/cart-service[dev] \
-                      -e demoapp/aegisshop/order-service[dev] \
-                      -e demoapp/aegisshop/payment-service[dev]
+          pip install -r requirements-dev.txt
 
       - name: Style (ruff)
         run: ruff check backend demoapp
 
       - name: Types (mypy --strict)
         run: >
-          mypy backend/libs/telemetry backend/libs/eventbus
+          mypy backend/libs/telemetry backend/libs/eventbus backend/libs/storage
           backend/services/_template
           backend/services/registry-service
           backend/services/deployments-service
@@ -148,7 +138,7 @@ jobs:
 
       - name: Tests (pytest)
         run: >
-          pytest backend/libs/telemetry backend/libs/eventbus
+          pytest backend/libs/telemetry backend/libs/eventbus backend/libs/storage
           backend/services/_template
           backend/services/registry-service
           backend/services/deployments-service
@@ -185,9 +175,19 @@ jobs:
       - name: Build the registry-service image
         uses: docker/build-push-action@v6
         with:
-          context: ./backend/services/registry-service
+          context: .
           file: ./backend/services/registry-service/Dockerfile
           tags: aegissre/registry-service:ci-${{ github.sha }}
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build the deployments-service image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./backend/services/deployments-service/Dockerfile
+          tags: aegissre/deployments-service:ci-${{ github.sha }}
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -235,6 +235,34 @@ jobs:
       - name: Install locked reliability dependencies
         run: |
           pip install -r backend/services/incidents-service/requirements.lock
-          pip install --no-deps -e backend/services/incidents-service
+          pip install --no-deps -e backend/services/incidents-service -e backend/libs/storage
       - name: Exercise real PostgreSQL transactions and concurrent ingestion
-        run: pytest backend/services/incidents-service/tests/test_postgres.py
+        run: pytest backend/services/incidents-service/tests/test_postgres.py backend/libs/storage/tests/test_postgres_storage.py
+
+  metadata-compose:
+    name: Metadata APIs (Compose restart persistence)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and start actual metadata services and dependencies
+        run: docker compose up -d --build --wait --wait-timeout 180 postgres registry-service deployments-service
+      - name: Seed through the public APIs
+        run: python3 scripts/check_metadata_stack.py --seed
+      - name: Restart application processes without deleting the database
+        run: docker compose restart registry-service deployments-service
+      - name: Verify persisted catalogue, deletion and deployment data
+        run: python3 scripts/check_metadata_stack.py --verify
+      - name: Collect stack diagnostics
+        if: always()
+        run: |
+          docker compose ps -a
+          docker compose logs --no-color --tail 200 > metadata-stack.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: metadata-stack-diagnostics
+          path: metadata-stack.log
+      - name: Clean up the isolated CI stack
+        if: always()
+        run: docker compose down -v

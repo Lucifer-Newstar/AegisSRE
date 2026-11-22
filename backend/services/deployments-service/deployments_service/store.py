@@ -1,10 +1,12 @@
-"""In-memory deployment history (DI-1)."""
+"""Durable DI-1 deployment history. No invented deployment seeds."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
+
+from aegis_storage import DocumentStore
 
 
 def _now() -> datetime:
@@ -27,85 +29,90 @@ class DeploymentRecord:
             "revision": self.revision,
             "status": self.status,
             "envelope": self.envelope,
-            "stored_at": self.stored_at.isoformat().replace("+00:00", "Z"),
+            "stored_at": self.stored_at.isoformat(),
         }
 
-
-def _startup_envelope(service: str, revision: str = "v0.1.0") -> dict[str, Any]:
-    ts = _now().isoformat().replace("+00:00", "Z")
-    return {
-        "id": f"evt_startup_{service}_{revision}",
-        "schema_version": "0.2",
-        "source": "deployment",
-        "type": "deployment",
-        "service": service,
-        "environment": "dev",
-        "severity": "info",
-        "timestamp": ts,
-        "payload": {
-            "action": "deploy",
-            "revision": revision,
-            "triggered_by": "platform",
-            "status": "succeeded",
-        },
-    }
+    @classmethod
+    def from_dict(cls, body: dict[str, Any]) -> DeploymentRecord:
+        values = dict(body)
+        values["stored_at"] = datetime.fromisoformat(str(values["stored_at"]))
+        return cls(**values)
 
 
 class DeploymentStore:
-    def __init__(self) -> None:
-        self._items: dict[str, DeploymentRecord] = {}
+    def __init__(self, url: str | None = None) -> None:
+        from deployments_service.config import settings
+
+        self.documents = DocumentStore("deployments", url or settings.database_url)
         self.seed_startup_deploys()
 
     def seed_startup_deploys(self) -> None:
-        """DI-1 pipeline hook: every process start records the running revision."""
-        for service in (
-            "catalog-service",
-            "cart-service",
-            "order-service",
-            "payment-service",
-            "registry-service",
-            "deployments-service",
-        ):
-            envelope = _startup_envelope(service)
-            rec = DeploymentRecord(
-                event_id=str(envelope["id"]),
-                service=service,
-                revision="v0.1.0",
-                status="succeeded",
-                envelope=envelope,
-            )
-            self.put(rec)
+        """Only record this process's real, explicitly supplied running revision."""
+        from deployments_service.config import settings
+
+        if not settings.deployment_revision:
+            return
+        service, revision = settings.service_name, settings.deployment_revision
+        envelope = {
+            "id": f"startup-{service}-{revision}",
+            "schema_version": "0.2",
+            "source": "deployment",
+            "type": "deployment",
+            "service": service,
+            "environment": settings.environment,
+            "timestamp": _now().isoformat(),
+            "payload": {
+                "action": "deploy",
+                "revision": revision,
+                "triggered_by": "platform",
+                "status": "succeeded",
+            },
+        }
+        record = DeploymentRecord(
+            event_id=str(envelope["id"]),
+            service=service,
+            revision=revision,
+            status="succeeded",
+            envelope=envelope,
+        )
+        self.documents.put(record.event_id, record.as_dict(), if_absent=True)
 
     def reset(self) -> None:
-        self._items.clear()
+        self.documents.clear()
 
     def get(self, event_id: str) -> DeploymentRecord | None:
-        return self._items.get(event_id)
+        body = self.documents.get(event_id)
+        return DeploymentRecord.from_dict(body) if body else None
 
-    def put(self, rec: DeploymentRecord) -> tuple[DeploymentRecord, bool]:
-        existing = self._items.get(rec.event_id)
-        if existing is not None:
-            return existing, False
-        self._items[rec.event_id] = rec
-        return rec, True
+    def put(self, record: DeploymentRecord) -> tuple[DeploymentRecord, bool]:
+        body, created = self.documents.put(record.event_id, record.as_dict(), if_absent=True)
+        existing = DeploymentRecord.from_dict(body)
+        if existing.envelope != record.envelope:
+            raise ValueError("Deployment event id already exists with different content")
+        return existing, created
 
     def list(
         self, service: str | None = None, status: str | None = None, limit: int = 50
     ) -> list[DeploymentRecord]:
-        rows = list(self._items.values())
-        if service:
-            rows = [r for r in rows if r.service == service]
-        if status:
-            rows = [r for r in rows if r.status == status]
-        rows.sort(key=lambda r: r.stored_at, reverse=True)
-        return rows[: max(0, min(limit, 500))]
+        records = [DeploymentRecord.from_dict(body) for body in self.documents.list()]
+        records = [
+            record
+            for record in records
+            if (not service or record.service == service)
+            and (not status or record.status == status)
+        ]
+        records.sort(
+            key=lambda record: (
+                datetime.fromisoformat(str(record.envelope["timestamp"]).replace("Z", "+00:00")),
+                record.stored_at,
+            ),
+            reverse=True,
+        )
+        return records[: max(0, min(limit, 500))]
 
     def latest(self, service: str) -> DeploymentRecord | None:
-        rows = [r for r in self._items.values() if r.service == service]
-        if not rows:
-            return None
-        rows.sort(key=lambda r: r.stored_at, reverse=True)
-        return rows[0]
+        records = self.list(service=service, limit=1)
+        return records[0] if records else None
 
 
 store = DeploymentStore()

@@ -24,6 +24,11 @@ spec:
             - containerPort: 8701
               name: http
           env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: aegissre-database
+                  key: url
             - name: SERVICE_NAME
               value: deployments-service
             - name: SERVICE_PORT
