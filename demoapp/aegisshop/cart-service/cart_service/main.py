@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from aegisshop_faults import configure_fault_hooks
 from fastapi import HTTPException
 from pydantic import BaseModel, Field
 from redis.exceptions import RedisError
@@ -65,4 +66,5 @@ def add_item(user_id: str, body: AddItem) -> dict[str, Any]:
         raise HTTPException(status_code=503, detail="cart Redis unavailable") from None
 
 
+configure_fault_hooks(app)
 instrument_middleware(app)

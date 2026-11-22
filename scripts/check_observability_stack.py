@@ -18,7 +18,8 @@ def read(path: str, *, port: int, headers: dict[str, str] | None = None) -> Any:
 
 
 def main() -> None:
-    identity = uuid4().hex
+    # Exercise Tempo search/lookup canonicalization, including leading zeroes.
+    identity = "00" + uuid4().hex[2:]
     headers = {"traceparent": f"00-{identity}-{uuid4().hex[:16]}-01"}
     authorization = {"Authorization": "Bearer " + os.environ["AEGIS_API_TOKEN"]}
     deadline = time.monotonic() + 150

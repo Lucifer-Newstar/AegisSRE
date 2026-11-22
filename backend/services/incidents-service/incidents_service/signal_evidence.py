@@ -138,7 +138,12 @@ class SignalEvidence:
             raise ValueError("Excessive Tempo search results")
         if not candidates:
             return []
-        identity = trace_id(str(_object(candidates[0])["traceID"]))
+        # Tempo search trims leading zeroes from hexadecimal IDs. Normalize
+        # only this protocol field; OTLP/log identifiers keep strict parsing.
+        candidate = str(_object(candidates[0])["traceID"])
+        if not re.fullmatch(r"[0-9a-fA-F]{1,32}", candidate):
+            raise ValueError("Invalid Tempo search trace identifier")
+        identity = trace_id(candidate.zfill(32))
         return self.trace(service, identity, at)
 
     def trace(self, service: str, identity: str, at: datetime) -> list[EventEnvelope]:
