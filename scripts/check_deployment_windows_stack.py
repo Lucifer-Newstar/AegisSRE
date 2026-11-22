@@ -141,6 +141,14 @@ def verify() -> None:
     report = query("summary", service=SERVICE, since=saved["since"])
     assert report["identified_deployments"] == report["confirmed_bad"] == 1, report
     assert report["change_failure_rate"] == 1 and report["unknown_outcomes"] == 0
+    trends = query("trends", service=SERVICE)
+    assert len(trends["points"]) == 30
+    assert sum(day["identified"] for day in trends["points"]) == 1
+    review = query("review", service=SERVICE, rollout_id=row["id"])
+    assert review["rollout"]["outcome"] == "bad"
+    assert review["frozen_risk"] == risk["prediction"]
+    assert review["source_event_ids"] and review["observation_ids"]
+    assert not review["incident_report_available"]
     redis = Redis.from_url("redis://127.0.0.1:6379/0", decode_responses=True)
     try:
 

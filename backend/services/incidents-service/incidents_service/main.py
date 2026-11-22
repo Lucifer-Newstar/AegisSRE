@@ -267,9 +267,33 @@ def create_app(
             generate_latest(metrics), media_type="text/plain; version=0.0.4; charset=utf-8"
         )
 
+    @application.get("/deployment-intelligence/trends", dependencies=[Depends(authorized)])
+    def deployment_trends(service: str) -> dict[str, Any]:
+        from incidents_service.deployment_trends import trend
+
+        if service not in config.allowed_targets:
+            raise HTTPException(422, "Select an allowed service")
+        with repo.transaction() as tx:
+            return trend(tx, service, config.environment, datetime.now(UTC))
+
+    @application.get("/deployment-intelligence/review", dependencies=[Depends(authorized)])
+    def deployment_review(service: str, rollout_id: str = Query(max_length=80)) -> dict[str, Any]:
+        from incidents_service.deployment_trends import report
+
+        if service not in config.allowed_targets:
+            raise HTTPException(422, "Select an allowed service")
+        with repo.transaction() as tx:
+            result = report(tx, rollout_id, service, config.environment)
+        if result is None:
+            raise HTTPException(404, "Deployment review not found")
+        return result
+
     @application.get("/deployment-intelligence/risk", dependencies=[Depends(authorized)])
-    def deployment_risk(service: str, limit: int = Query(default=50, ge=1, le=100)) -> dict[str, Any]:
+    def deployment_risk(
+        service: str, limit: int = Query(default=50, ge=1, le=100)
+    ) -> dict[str, Any]:
         from incidents_service.deployment_risk import scores
+
         if service not in config.allowed_targets:
             raise HTTPException(422, "Select an allowed service")
         with repo.transaction() as tx:
