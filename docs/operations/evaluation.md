@@ -22,10 +22,10 @@ vs. conventional monitoring/response workflow on the *same* injected failures.
 
 | Metric | Definition |
 |---|---|
-| Precision | anomalies flagged / true anomalies (of flagged) |
-| Recall | true anomalies flagged / all true anomalies |
+| Precision | TP / (TP + FP) |
+| Recall | TP / (TP + FN) |
 | F1 | harmonic mean of precision & recall |
-| False-positive rate | normal points flagged / normal points |
+| False-positive rate | FP / (FP + TN) |
 | Detection latency | time from anomaly onset to first flag (per experiment) |
 
 Ground truth comes from chaoslab experiment manifests: we know exactly when and what was
@@ -60,11 +60,34 @@ held-out experiment set, never on the evaluation set.
    failure; measure MTTD/MTTR and correctness manually.
 3. **Platform runs** — same failures with AegisSRE at increasing autonomy levels
    (observe → recommend → approval → safe-auto).
-4. **Repetition** — N ≥ 5 runs per fault type for statistical stability; report mean ± std.
+4. **Repetition** — N ≥ 10 runs per fault type for statistical stability; report mean ± std.
 5. **Fairness** — identical telemetry, identical environment, same fault manifests;
    only the *response layer* differs.
 6. **Reporting** — results table per fault type + aggregate summary committed to
    `docs/evaluation-results/` as each milestone completes.
+
+### Timing and leakage rules
+
+The postmortem API separates `incident_duration_seconds` (incident creation to
+recorded recovery) from `mttr_seconds` (recorded ground-truth fault onset to
+recorded verified recovery). Without fault onset, research MTTD/MTTR are null,
+not incident duration or an assumed zero. Missing, naive or reversed timestamps
+are not measured intervals. Retain simulation labels and the experiment's source
+clock/provenance. A software closure is still checked against independent fault
+and recovery truth during evaluation.
+
+Record unresolved runs and timeouts explicitly. Do not drop them or turn them
+into successful zero-duration recoveries. Report completed/censored counts and
+coverage alongside mean and standard deviation. Manual baseline timings must be
+observed, never filled from an assumed human-response delay.
+
+Freeze training/tuning/test manifests and the retrieval corpus before held-out
+measurement. Historical investigation excludes the target incident, later-indexed
+closed cases and current service metadata. Runbooks/patterns remain reference
+material, not historical observations. Those guards alone are not proof of a
+leakage-free evaluation: use the frozen corpus and independently reviewed labels.
+Small authored retrieval regressions and synthetic transport fixtures are not
+ten-fault research results.
 
 ## 6. Experiment Matrix (initial; refined at M7)
 
