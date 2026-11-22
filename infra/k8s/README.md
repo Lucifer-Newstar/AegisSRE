@@ -4,11 +4,17 @@ Per **ADR-0005**, the platform is developed with Docker Compose but structured t
 Kubernetes-ready: every service has (or will have) a 1:1 Kustomize base in `base/`,
 using the same image tags, environment variable names, and config mounts as Compose.
 
-## Current state (M1)
+## Current state
 
 - `base/kustomization.yaml` is the anchor; manifests land incrementally as services
   are implemented (M2+).
 - CI lints every manifest in this directory with kubeconform.
+- Registry/deployment workloads require a namespace-local `aegissre-database`
+  Secret with key `url` for `DATABASE_URL`. No actual database credentials are
+  committed.
+- A complete dependency/bootstrap path and real kind integration test are still
+  pending in the [acceptance ledger](../../docs/implementation/status.md).
+  Manifest validation alone is not a running-cluster claim.
 
 ## Conventions
 

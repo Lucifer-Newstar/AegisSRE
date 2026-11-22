@@ -1,28 +1,18 @@
-# AegisSRE — registry-service contract (A2)
-# Port: 8101 · Version: 1.0.0 · Owner: Navin Jairam · Freeze: 2026-09-08
-#
-# Service registry & live health: every platform + AegisShop service
-# registers on startup and heartbeats periodically. The registry answers
-# "what is running and is it actually healthy" — the Command Center's data
-# source.
-#
-# Changelog:
-#  1.0.0  initial contract (P2 start)
+# Registry contract v1.1: persistent CRUD, real readiness and owner/SLO metadata.
 openapi: 3.1.0
 info:
   title: AegisSRE Registry Service (A2)
-  version: 1.0.0
+  version: 1.1.0
   description: Service registry and live health aggregation.
 servers:
-  - url: http://localhost:8101
-    description: local compose
-
+- url: http://localhost:8101
+  description: local compose
 paths:
   /health:
     get:
       summary: Liveness probe (template standard)
       responses:
-        "200":
+        '200':
           description: process is up
           content:
             application/json:
@@ -32,45 +22,47 @@ paths:
                   status:
                     type: string
                     const: healthy
-
   /ready:
     get:
-      summary: Readiness probe — registry depends on Postgres + Redis
+      summary: Readiness of the configured durable catalogue store
       responses:
-        "200":
+        '200':
           description: dependencies reachable
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Ready"
-        "503":
+                $ref: '#/components/schemas/Ready'
+        '503':
           description: a dependency is unreachable
-
   /services:
     get:
       summary: List all registered services with live status
       parameters:
-        - name: status
-          in: query
-          required: false
-          schema:
-            type: string
-            enum: [healthy, degraded, unhealthy, unknown]
-        - name: include_heartbeats
-          in: query
-          required: false
-          schema:
-            type: boolean
-            default: true
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - healthy
+          - degraded
+          - unhealthy
+          - unknown
+      - name: include_heartbeats
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
       responses:
-        "200":
+        '200':
           description: service list
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/ServiceInfo"
+                  $ref: '#/components/schemas/ServiceInfo'
     post:
       summary: Register a service (called by a service on startup)
       requestBody:
@@ -78,56 +70,107 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/RegisterRequest"
+              $ref: '#/components/schemas/RegisterRequest'
       responses:
-        "201":
+        '201':
           description: registered
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ServiceInfo"
-        "422":
+                $ref: '#/components/schemas/ServiceInfo'
+        '422':
           description: invalid payload
-
   /services/{service_id}:
     get:
       summary: Get one service
       parameters:
-        - name: service_id
-          in: path
-          required: true
-          schema:
-            type: string
-            example: catalog-service
+      - name: service_id
+        in: path
+        required: true
+        schema:
+          type: string
+          example: catalog-service
       responses:
-        "200":
+        '200':
           description: service info
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ServiceInfo"
-        "404":
+                $ref: '#/components/schemas/ServiceInfo'
+        '404':
           description: unknown service
-
+    put:
+      summary: Update Service
+      operationId: update_service_services__service_id__put
+      parameters:
+      - name: service_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Service Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Update Service Services  Service Id  Put
+        '404':
+          description: unknown service
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      summary: Delete Service
+      operationId: delete_service_services__service_id__delete
+      parameters:
+      - name: service_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Service Id
+      responses:
+        '204':
+          description: Successful Response
+        '404':
+          description: unknown service
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /services/{service_id}/heartbeat:
     post:
       summary: Heartbeat (periodic liveness from the service)
       parameters:
-        - name: service_id
-          in: path
-          required: true
-          schema:
-            type: string
+      - name: service_id
+        in: path
+        required: true
+        schema:
+          type: string
       responses:
-        "200":
+        '200':
           description: heartbeat recorded; returns updated info
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ServiceInfo"
-        "404":
+                $ref: '#/components/schemas/ServiceInfo'
+        '404':
           description: unknown service (must register first)
-
 components:
   schemas:
     Ready:
@@ -140,33 +183,67 @@ components:
           type: object
           additionalProperties:
             type: string
-            enum: [ok, down]
+            enum:
+            - ok
+            - down
           example:
-            postgres: ok
-            redis: ok
-
+            postgresql: ok
     RegisterRequest:
-      type: object
-      required: [id, name, url]
       properties:
         id:
           type: string
-          description: stable service id, equals the compose/K8s service name
-          example: catalog-service
+          maxLength: 63
+          minLength: 1
+          pattern: ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$
+          title: Id
         name:
           type: string
-          example: AegisShop Catalog
+          maxLength: 160
+          minLength: 1
+          title: Name
         url:
           type: string
+          maxLength: 2083
+          minLength: 1
           format: uri
-          example: http://catalog-service:9001
+          title: Url
         version:
           type: string
-          example: 0.1.0
-
+          maxLength: 100
+          title: Version
+          default: 0.1.0
+        owner: &id001
+          type: string
+          maxLength: 160
+          title: Owner
+          default: unassigned
+        availability_slo: &id002
+          type: number
+          exclusiveMaximum: 1.0
+          exclusiveMinimum: 0.0
+          title: Availability Slo
+          default: 0.999
+        latency_slo_seconds: &id003
+          type: number
+          maximum: 3600.0
+          exclusiveMinimum: 0.0
+          title: Latency Slo Seconds
+          default: 1.0
+      type: object
+      required:
+      - id
+      - name
+      - url
+      title: RegisterRequest
+      description: Body for POST /services.
     ServiceInfo:
       type: object
-      required: [id, name, url, status, registered_at]
+      required:
+      - id
+      - name
+      - url
+      - status
+      - registered_at
       properties:
         id:
           type: string
@@ -179,11 +256,55 @@ components:
           type: string
         status:
           type: string
-          enum: [healthy, degraded, unhealthy, unknown]
+          enum:
+          - healthy
+          - degraded
+          - unhealthy
+          - unknown
           description: aggregated from /ready probes; degraded = ready but slow/partial
         last_heartbeat_at:
-          type: string
-          format: date-time
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
         registered_at:
           type: string
           format: date-time
+        owner: *id001
+        availability_slo: *id002
+        latency_slo_seconds: *id003
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError

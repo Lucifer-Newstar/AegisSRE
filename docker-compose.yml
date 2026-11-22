@@ -71,6 +71,7 @@ services:
       - "9090:9090"
     volumes:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus-data:/prometheus
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:9090/-/healthy"]
@@ -227,34 +228,42 @@ services:
     logging: *default-logging
 
   registry-service:
-    build: ./backend/services/registry-service
+    build:
+      context: .
+      dockerfile: backend/services/registry-service/Dockerfile
     image: aegissre/registry-service:0.1.0
     container_name: aegissre-registry
     environment:
+      DATABASE_URL: ${PLATFORM_DATABASE_URL:-postgresql+psycopg://aegis:aegis@postgres:5432/aegissre}
       SERVICE_NAME: registry-service
       SERVICE_PORT: "8101"
       ENVIRONMENT: dev
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       REGISTRY_PROBE: "true"
     ports:
-      - "8101:8101"
+      - "127.0.0.1:8101:8101"
     depends_on:
+      postgres: { condition: service_healthy }
       otel-collector: { condition: service_started }
     networks: [aegissre]
     logging: *default-logging
 
   deployments-service:
-    build: ./backend/services/deployments-service
+    build:
+      context: .
+      dockerfile: backend/services/deployments-service/Dockerfile
     image: aegissre/deployments-service:0.1.0
     container_name: aegissre-deployments
     environment:
+      DATABASE_URL: ${PLATFORM_DATABASE_URL:-postgresql+psycopg://aegis:aegis@postgres:5432/aegissre}
       SERVICE_NAME: deployments-service
       SERVICE_PORT: "8701"
       ENVIRONMENT: dev
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
     ports:
-      - "8701:8701"
+      - "127.0.0.1:8701:8701"
     depends_on:
+      postgres: { condition: service_healthy }
       otel-collector: { condition: service_started }
     networks: [aegissre]
     logging: *default-logging

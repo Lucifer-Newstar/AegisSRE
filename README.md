@@ -157,7 +157,7 @@ AegisSRE/
 ├── .github/workflows/    CI pipeline (GitHub Actions)
 ├── backend/              Platform services + shared libs (Python / FastAPI)
 │   ├── libs/             telemetry envelope, Redis Streams eventbus
-│   └── services/         _template, registry-service, deployments-service
+│   └── services/         _template, registry-service, deployments-service, incidents-service
 ├── demoapp/aegisshop/    AegisShop demo app (catalog, cart, order, payment)
 ├── docs/                 Documentation hub (index: docs/README.md)
 │   ├── project/          Proposal & roadmap
@@ -211,15 +211,8 @@ Run the test suite (mirrors CI):
 
 ```bash
 python3.12 -m venv .venv && source .venv/bin/activate
-pip install -e backend/libs/telemetry[dev] -e backend/libs/eventbus[dev] \
-            -e backend/services/_template[dev] \
-            -e backend/services/registry-service[dev] \
-            -e backend/services/deployments-service[dev] \
-            -e demoapp/aegisshop/catalog-service[dev] \
-            -e demoapp/aegisshop/cart-service[dev] \
-            -e demoapp/aegisshop/order-service[dev] \
-            -e demoapp/aegisshop/payment-service[dev]
-pytest            # 54 tests
+pip install -r requirements-dev.txt
+pytest            # unit suite; PostgreSQL integration runs in hosted CI
 ruff check backend demoapp
 ```
 

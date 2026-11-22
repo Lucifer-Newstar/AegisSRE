@@ -37,12 +37,33 @@ to prove that a real workload recovered.
 - PostgreSQL integration, container startup, real cluster actions and evaluation
   acceptance targets are not yet verified at this milestone.
 
+## Milestone 2a: durable metadata integration
+
+Implemented on the runtime-integration branch:
+
+- Shared transactional document storage for registry/deployment metadata.
+- Registry create/read/update/delete, owner/SLO metadata, persistent deletion,
+  bounded allowlisted probes and a 15-second background health cadence.
+- Real storage readiness, durable deployment history and producer-time ordering.
+  Startup no longer invents deployments for other services.
+- Root-context images with the local storage package, PostgreSQL wiring in
+  Compose, loopback-bound metadata APIs and Secret references in K8s workloads.
+- A hosted integration gate that starts actual containers, seeds through their
+  HTTP APIs, restarts application processes and checks persistence/deletion.
+- The Prometheus alert file is now mounted where its configuration expects it.
+
+Local checks: 94 tests pass; two PostgreSQL-only tests are deliberately skipped
+without an isolated test database. Ruff, strict typing, contracts, YAML and docs
+links are checked. Hosted PostgreSQL and Compose results must pass before merge.
+The complete telemetry worker, gateway, LLM/RAG, console and kind bootstrap remain
+subsequent work. This does not declare milestone 2 as a whole complete.
+
 ## Feature-by-feature status
 
 | ID | Implementation state | Acceptance still required |
 |---|---|---|
 | A1 Observability | Existing stack; core input and durable outbox added | Live collectors, Redis delivery/recovery, trace joins, startup timing |
-| A2 Registry | Existing catalogue and probes | CRUD update/delete, owner/SLO metadata, durable storage, timed refresh |
+| A2 Registry | Durable CRUD, owner/SLO metadata and timed allowlisted probes implemented | Hosted restart/storage checks and live console integration |
 | A3 Detection | Statistical + Isolation Forest code and unit tests | Held-out ten-fault precision/recall/F1 and measured detection latency |
 | A4 Incidents | Lifecycle, grouping, append-only audit and API implemented | Redis consumption, live timing and timeline UI |
 | A5 Evidence/RCA | Persisted evidence and cited deterministic hypotheses | Full read-only tool suite, LLM adapter, ranked evaluation, postmortem UI |
@@ -64,7 +85,7 @@ to prove that a real workload recovered.
 | D6 SLOs | Existing dashboard/alert configs | Live per-service panels, multiwindow burn alerts, firing checks |
 | E2 Comparison | Not implemented | Real comparative results; no invented human-response timings |
 | E4 Documentation | This milestone and contracts recorded | Continue updating evidence and limitations at each milestone |
-| DI-1 Tracking | Existing in-memory tracking API | Durable deployment history, live hook and per-service timeline |
+| DI-1 Tracking | Durable producer-time history and conflict-safe idempotency implemented | Live deployment hook and per-service timeline |
 | DI-2 Risk | Not implemented | Trained risk scorer, pre/post inputs and held-out recall |
 | DI-3 Correlation | Evidence-timing correlation implemented | Deployment attribution evaluation and UI |
 | DI-4 Bad rollout | Not implemented | Window evaluator and measured detection bound |

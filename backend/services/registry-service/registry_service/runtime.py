@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -71,7 +72,6 @@ def _init_tracing() -> None:
     FastAPIInstrumentor().instrument()
 
 
-
 def _init_otel_logs() -> None:
     """Best-effort OTLP log export so Loki can query service logs (A1)."""
     if not settings.otel_exporter_otlp_endpoint:
@@ -105,13 +105,31 @@ def _init_otel_logs() -> None:
         logger.warning(f"otel log export unavailable: {exc}")
 
 
-
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     _init_tracing()
     _init_otel_logs()
     logger.info("service starting", extra={"port": settings.service_port})
-    yield
+    from registry_service.store import store
+
+    async def refresh() -> None:
+        while True:
+            started = asyncio.get_running_loop().time()
+            try:
+                await asyncio.to_thread(store.refresh_all)
+            except Exception as exc:
+                logger.warning(
+                    "registry health refresh failed", extra={"error_type": type(exc).__name__}
+                )
+            await asyncio.sleep(max(0, 15 - (asyncio.get_running_loop().time() - started)))
+
+    task = asyncio.create_task(refresh())
+    try:
+        yield
+    finally:
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
     logger.info("service stopped")
 
 
@@ -137,9 +155,9 @@ def instrument_middleware(application: FastAPI) -> None:
         REQUESTS.labels(
             settings.service_name, request.method, request.url.path, str(response.status_code)
         ).inc()
-        REQUEST_DURATION.labels(
-            settings.service_name, request.method, request.url.path
-        ).observe(duration)
+        REQUEST_DURATION.labels(settings.service_name, request.method, request.url.path).observe(
+            duration
+        )
         return response
 
 
