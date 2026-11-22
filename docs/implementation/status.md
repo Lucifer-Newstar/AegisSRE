@@ -468,3 +468,20 @@ through this CLI before merge. The other hook/runner operations still need real
 cluster proof; crash, actual OOM, config error, faulty deployment and traffic-spike
 experiments remain. A11/A12, measured accuracy/MTTR/autonomy and the full project
 are not complete. Details and current operation matrix: [chaos CLI](../../chaoslab/README.md).
+
+## Console reports, runbooks and observed-history follow-up
+
+Structured closure reports and authenticated Markdown export now preserve null
+fault-onset timing and simulation labels. Generic follow-up checklists are not
+presented as confirmed lessons. Incident retrieval links open a text-only runbook
+viewer with raw HTML and resource embeds inactive.
+
+Bounded 24h persisted metric history returns aggregate Prometheus bucket
+mean/min/max, evidence IDs, missing coverage and truncation. Other sources,
+environments and revision/canary series are not silently merged. Console charts
+leave gaps and label incident-context shading honestly. The stronger real-stack
+console gate must reject substituted-error pages and show actual chart content.
+Local build/tests and inspected [report](../screenshots/console-reports/README.md)
+and [chart](../screenshots/console-charts/README.md) fixture visuals pass. Hosted
+proof remains required. SLO budget/burn, true anomaly windows, deployment risk
+and canary views and measured fault evaluation are not complete.
