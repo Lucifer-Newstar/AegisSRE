@@ -410,6 +410,13 @@ class ReliabilityLoop:
                 environment=self.settings.environment,
             )
 
+    @staticmethod
+    def _duration(start: datetime | None, end: datetime | None) -> float | None:
+        if start is None or end is None or start.tzinfo is None or end.tzinfo is None:
+            return None
+        seconds = (end - start).total_seconds()
+        return seconds if seconds >= 0 else None
+
     def postmortem(self, incident_id: str) -> dict[str, Any]:
         with self.repo.transaction() as tx:
             incident = self._get(tx, incident_id)
@@ -417,19 +424,17 @@ class ReliabilityLoop:
                 raise DomainError("Postmortem is available only after verified closure")
             return {
                 "incident": incident.model_dump(mode="json"),
-                "mttd_seconds": max(
-                    0, (incident.created_at - incident.fault_started_at).total_seconds()
-                )
-                if incident.fault_started_at
-                else None,
-                "detection_event_lag_seconds": max(
-                    0, (incident.created_at - incident.detected_event_at).total_seconds()
-                )
-                if incident.detected_event_at
-                else None,
-                "mttr_seconds": (incident.resolved_at - incident.created_at).total_seconds()
-                if incident.resolved_at
-                else None,
+                "mttd_seconds": self._duration(incident.fault_started_at, incident.created_at),
+                "detection_event_lag_seconds": self._duration(
+                    incident.detected_event_at, incident.created_at
+                ),
+                "mttr_seconds": self._duration(incident.fault_started_at, incident.resolved_at),
+                "incident_duration_seconds": self._duration(
+                    incident.created_at, incident.resolved_at
+                ),
+                "timing_caveats": [
+                    "Fault-onset MTTD/MTTR require recorded ground-truth onset and valid aware timestamp order; missing or invalid intervals are null. Incident duration is not research MTTR."
+                ],
                 "lessons": [
                     "Confirm the probable cause with an operator",
                     "Add a regression test for the triggering failure",

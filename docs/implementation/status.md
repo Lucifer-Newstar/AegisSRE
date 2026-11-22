@@ -178,8 +178,8 @@ Durable shared request reservations precede inference, including failed attempts
 Calls run outside SQL transactions and the telemetry worker. Structured answers
 must cite supplied IDs; a cause hypothesis needs a non-stale observation. The
 model cannot change a plan, approval, policy or execution state. Incident sidecar
-writes reject changed revisions and expired snapshots. Investigations currently
-read current service evidence, not an arbitrary historical incident window.
+writes reject changed revisions and expired snapshots. The initial milestone read current service evidence; milestone 2h below adds
+historical incident-window reconstruction.
 
 Local checks: 197 passing tests, five external-server tests skipped locally,
 Ruff, strict mypy, YAML and eight API contracts. New hosted gates exercise actual
@@ -189,6 +189,31 @@ Compose gate deliberately disables inference. None are live model/accuracy proof
 See [Read-only intelligence](../operations/intelligence.md) for egress, request
 limits, redaction limits, failure states and configuration.
 
+## Milestone 2h: historical evidence and honest timing
+
+Incident investigation now uses a bounded detection-time window and preserves
+qualifying-event references before selecting other evidence. Later recovery
+measurements cannot replace the incident's anomaly. Source timestamps with
+mixed UTC offsets sort/filter as instants on SQLite and PostgreSQL without
+rewriting old data. The capture timestamp remains the actual read time.
+
+Historical retrieval excludes the target incident, later-indexed closed cases
+and current service metadata. Existing deterministic diagnosis prose is not fed
+back as the model's question. Newer completed snapshots cannot be overwritten by
+older in-flight results. These guards do not replace a frozen held-out corpus.
+
+Postmortems separate fault-onset research MTTR from incident duration. Unknown
+onset and invalid timestamp intervals stay null. The evaluation protocol now
+matches the core requirement of at least ten runs per fault and records censored
+runs rather than inventing successful durations or manual baseline times.
+
+Local checks: 204 passing tests, six external-server skips, Ruff, strict mypy and
+API contracts. Hosted tests additionally exercise actual PostgreSQL offset/window
+queries and reconstruct a historical incident through the running gateway using
+explicit synthetic CI history. This is wiring proof, not a real fault, model run
+or accuracy benchmark. PR8's actual quota and evidence-only Ask gates passed
+before its nine-check ordinary merge.
+
 ## Feature-by-feature status
 
 | ID | Implementation state | Acceptance still required |
@@ -197,7 +222,7 @@ limits, redaction limits, failure states and configuration.
 | A2 Registry | Durable CRUD, owner/SLO metadata and timed allowlisted probes implemented; hosted restart proof passed | Live console integration and full-stack timing |
 | A3 Detection | Statistical + Isolation Forest code and unit tests | Held-out ten-fault precision/recall/F1 and measured detection latency |
 | A4 Incidents | Lifecycle, Redis consumption/outbox, append-only audit and API implemented | Measured live timing and timeline UI |
-| A5 Evidence/RCA | Fixed read-only tool suite, cited deterministic hypotheses, optional structured inference and revision-safe sidecars | Historical-window reconstruction, actual model/accuracy evaluation, Kubernetes collection and postmortem UI |
+| A5 Evidence/RCA | Fixed read-only tool suite, cited deterministic hypotheses, optional structured inference and revision-safe sidecars | Actual model/accuracy evaluation, Kubernetes collection and postmortem UI |
 | A6 Policy | Versioned typed policies, risk matrix and hard execution bounds | Runtime policy update, complete action matrix and safety evaluation |
 | A7 Approvals | Approve/reject/defer API and audit implemented | Authorized console flow, impact view and click-count check |
 | A8 Autonomy | Conservative decision gates, kill switch and executor code | Auto scheduler, least-privilege cluster integration, eligible-action success rate |
@@ -206,7 +231,7 @@ limits, redaction limits, failure states and configuration.
 | A11 Chaoslab | Catalog's existing fault-hook stub | All ten isolated faults, restoration and experiment manifests |
 | A12 Evaluation | Existing protocol | Reproducible >=10 runs per fault, baseline comparison, mean/std report |
 | B1 RAG | Scoped pgvector retrieval, local lexical embeddings, incremental indexing, RCA context and hosted actual-vector proof | Recall@5 on real evaluation faults |
-| B2 Ask Aegis | Authenticated API, seven read-only tools, visible citations/freshness, disabled/failed inference labels and no write tools | Hosted evidence-only gate, actual chosen-model acceptance and console view |
+| B2 Ask Aegis | Authenticated API, seven read-only tools, visible citations/freshness, disabled/failed inference labels and no write tools | Actual chosen-model acceptance and console view; hosted evidence-only gate passed on PR8 |
 | C1 Eight pages | Four-page scaffold | Complete live eight-page console and UI checks |
 | C3 Runbooks | Ten packaged guides, indexing and authenticated list/detail/context APIs | Live console viewer and incident links |
 | C4 Postmortems | Verified-closure API implemented | Viewer, evidence/timeline/action rendering and metrics |

@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import uuid
+from datetime import datetime
 from typing import Literal
 
 from pydantic import Field
@@ -124,10 +125,22 @@ class Intelligence:
                 environment=self.config.environment,
             )
 
-    async def ask(self, request: AskRequest) -> AskResult:
+    async def ask(
+        self,
+        request: AskRequest,
+        *,
+        incident_anchor: datetime | None = None,
+        required_event_ids: tuple[str, ...] = (),
+        excluded_document: str | None = None,
+    ) -> AskResult:
         try:
             snapshot = await asyncio.to_thread(
-                self.tools.collect, request.service, request.question
+                self.tools.collect,
+                request.service,
+                request.question,
+                incident_anchor=incident_anchor,
+                required_event_ids=required_event_ids,
+                excluded_document=excluded_document,
             )
         except ValueError:
             raise IntelligenceError(422, "invalid_evidence_scope_or_query") from None
@@ -185,12 +198,21 @@ class Intelligence:
         incident = await asyncio.to_thread(self.incident_snapshot, identity)
         expected = revision(incident)
         question = (
-            "Investigate this incident using scoped evidence. "
-            + incident.analysis.summary
-            + " "
-            + " ".join(item.metric for item in incident.signals)
+            "Rank possible causes for the incident's anomalous metrics. Do not infer current health from the historical window. "
+            + "; ".join(
+                f"{item.metric}: observed {item.observed:g}, baseline {item.baseline_mean:g}"
+                for item in incident.signals
+            )
         )[:2000]
-        result = await self.ask(AskRequest(service=incident.service, question=question))
+        required = tuple(
+            dict.fromkeys([*[item.event_id for item in incident.signals], *incident.evidence_ids])
+        )
+        result = await self.ask(
+            AskRequest(service=incident.service, question=question),
+            incident_anchor=incident.detected_event_at or incident.created_at,
+            required_event_ids=required,
+            excluded_document="incident:" + incident.id,
+        )
         document = {
             "incident_id": identity,
             "incident_revision": expected,
@@ -204,11 +226,16 @@ class Intelligence:
                 current = tx.incident(identity)
                 if current is None or revision(current) != expected:
                     raise IntelligenceError(409, "incident_changed_during_investigation")
-                from datetime import datetime
-
                 captured = datetime.fromisoformat(result.snapshot.captured_at)
                 if (now() - captured).total_seconds() > 120:
                     raise IntelligenceError(409, "investigation_snapshot_expired")
+                previous = tx.get_state("investigation:" + identity)
+                if previous is not None:
+                    previous_capture = datetime.fromisoformat(
+                        str(previous["result"]["snapshot"]["captured_at"])
+                    )
+                    if previous_capture > captured:
+                        raise IntelligenceError(409, "newer_investigation_already_saved")
                 # Sidecar only. Do not modify Incident.analysis, plan, approval or state.
                 tx.put_state("investigation:" + identity, document)
 
@@ -216,9 +243,16 @@ class Intelligence:
         return document
 
     def investigation(self, identity: str) -> dict[str, object]:
-        incident = self.incident_snapshot(identity)
         with self.repo.transaction() as tx:
+            incident = tx.incident(identity)
             document = tx.get_state("investigation:" + identity)
+        if incident is None:
+            raise IntelligenceError(404, "unknown_incident")
+        if (
+            incident.service not in self.config.allowed_targets
+            or incident.environment != self.config.environment
+        ):
+            raise IntelligenceError(422, "incident_outside_scope")
         if document is None:
             raise IntelligenceError(404, "no_investigation")
         return {

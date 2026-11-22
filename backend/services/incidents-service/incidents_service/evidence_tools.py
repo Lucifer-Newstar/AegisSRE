@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Literal
 
 from pydantic import Field
@@ -99,6 +99,10 @@ class EvidenceSnapshot(StrictModel):
     service: str
     environment: str
     captured_at: str
+    temporal_scope: Literal["current", "incident_window"] = "current"
+    evidence_anchor: str | None = None
+    window_start: str | None = None
+    window_end: str | None = None
     evidence: list[EvidenceItem]
     tool_calls: list[ToolCall]
     read_only: Literal[True] = True
@@ -112,9 +116,13 @@ class EvidenceSnapshot(StrictModel):
             "service": self.service,
             "environment": self.environment,
             "captured_at": self.captured_at,
+            "temporal_scope": self.temporal_scope,
+            "evidence_anchor": self.evidence_anchor,
+            "window_start": self.window_start,
+            "window_end": self.window_end,
             "evidence": [item.model_dump(exclude={"source_ref"}) for item in self.evidence],
             "tool_calls": [item.model_dump() for item in self.tool_calls],
-            "requirements": "Rank hypotheses only. Cite supplied IDs. Stale or missing evidence cannot establish current health. Never claim a verified cause or an executed action.",
+            "requirements": "Rank hypotheses only. Cite supplied IDs. Freshness is relative to evidence_anchor. An incident_window is historical and cannot establish current health. Never claim a verified cause or an executed action.",
         }
 
 
@@ -131,28 +139,68 @@ class ReadOnlyTools:
         self.allowed_targets, self.environment = frozenset(allowed_targets), environment
 
     def collect(
-        self, service: str, question: str, *, at: datetime | None = None
+        self,
+        service: str,
+        question: str,
+        *,
+        at: datetime | None = None,
+        incident_anchor: datetime | None = None,
+        required_event_ids: tuple[str, ...] = (),
+        excluded_document: str | None = None,
     ) -> EvidenceSnapshot:
         if service not in self.allowed_targets:
             raise ValueError("Select an allowed service")
         clock = at or now()
+        if clock.tzinfo is None or (incident_anchor is not None and incident_anchor.tzinfo is None):
+            raise ValueError("Evidence windows require timezones")
+        if incident_anchor is not None and incident_anchor > clock:
+            raise ValueError("Incident anchor is in the future")
+        anchor = incident_anchor or clock
         captured = clock.isoformat()
+        start = anchor - timedelta(minutes=30) if incident_anchor is not None else None
+        end = min(clock, anchor + timedelta(minutes=3)) if incident_anchor is not None else None
         evidence: list[EvidenceItem] = []
         calls: list[ToolCall] = []
         # One short consistent DB snapshot. No search embedding or network while held.
         with self.repo.transaction() as tx:
             batches = [
-                (name, kind, ttl, tx.recent_events(service, self.environment, kind, 2))
+                (
+                    name,
+                    kind,
+                    ttl,
+                    tx.recent_events(
+                        service, self.environment, kind, 2, not_before=start, not_after=end
+                    ),
+                )
                 for name, kind, ttl in TOOLS
             ]
+            required = [tx.event(identity) for identity in required_event_ids[:12]]
         for name, kind, ttl, rows in batches:
+            selected = []
+            for item in required:
+                if (
+                    item is None
+                    or item["service"] != service
+                    or item["environment"] != self.environment
+                    or item["type"] != kind
+                ):
+                    continue
+                timestamp = datetime.fromisoformat(str(item["timestamp"]).replace("Z", "+00:00"))
+                if (start is not None and timestamp < start) or (
+                    end is not None and timestamp > end
+                ):
+                    continue
+                selected.append(item)
+            identities = {item["id"] for item in selected}
+            rows = (selected + [item for item in rows if item["id"] not in identities])[:2]
             ids: list[str] = []
             current = False
             for row in rows:
                 timestamp = datetime.fromisoformat(str(row["timestamp"]).replace("Z", "+00:00"))
-                age = (clock - timestamp).total_seconds()
-                # Future evidence is not current evidence, even within ingest skew.
-                stale = not 0 <= age <= ttl
+                age = (anchor - timestamp).total_seconds()
+                # Historical context can include three minutes after the anomaly,
+                # but never observations later than this snapshot was captured.
+                stale = not (-180 if incident_anchor is not None else 0) <= age <= ttl
                 current = current or not stale
                 identity = "event:" + hashlib.sha256(str(row["id"]).encode()).hexdigest()[:24]
                 content = minimize(row["payload"])
@@ -179,7 +227,7 @@ class ReadOnlyTools:
                     status="available" if current else "stale" if rows else "missing",
                     checked_at=captured,
                     evidence_ids=ids,
-                    detail="Bounded persisted telemetry, not a live source probe. Freshness is event age, not proof of healthy ingestion.",
+                    detail="Bounded persisted telemetry, not a live source probe. Freshness is relative to evidence_anchor, not proof of current health or healthy ingestion.",
                 )
             )
         if self.knowledge is None:
@@ -195,7 +243,12 @@ class ReadOnlyTools:
         else:
             try:
                 results = self.knowledge.search(
-                    question[:2000], service=service, environment=self.environment, limit=3
+                    question[:2000],
+                    service=service,
+                    environment=self.environment,
+                    limit=3,
+                    historical_at=incident_anchor,
+                    excluded_document=excluded_document,
                 )
             except ValueError:
                 calls.append(
@@ -240,6 +293,10 @@ class ReadOnlyTools:
             service=service,
             environment=self.environment,
             captured_at=captured,
+            temporal_scope="incident_window" if incident_anchor is not None else "current",
+            evidence_anchor=anchor.isoformat(),
+            window_start=start.isoformat() if start else None,
+            window_end=end.isoformat() if end else None,
             evidence=evidence,
             tool_calls=calls,
         )
@@ -294,13 +351,17 @@ class CitedAnswer(StrictModel):
 def evidence_only(snapshot: EvidenceSnapshot) -> CitedAnswer:
     observations = [item for item in snapshot.evidence if item.kind != "knowledge"]
     fresh = [item for item in observations if not item.stale]
-    answer = CitedAnswer(
-        summary=f"{len(fresh)} recent persisted observations for {snapshot.service}. "
-        + (
+    if snapshot.temporal_scope == "incident_window":
+        summary = f"{len(fresh)} persisted observations near the incident anchor for {snapshot.service}. Historical evidence cannot establish current health."
+    else:
+        summary = f"{len(fresh)} recent persisted observations for {snapshot.service}. "
+        summary += (
             "Review the cited measurements and tool freshness before drawing conclusions. This readout does not establish overall health."
             if fresh
             else "Current health is unknown: no fresh scoped observations were found."
-        ),
+        )
+    answer = CitedAnswer(
+        summary=summary,
         evidence_ids=[item.id for item in observations][:12]
         or [item.id for item in snapshot.evidence][:3],
         hypotheses=[],

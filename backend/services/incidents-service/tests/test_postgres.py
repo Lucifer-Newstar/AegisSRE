@@ -41,3 +41,64 @@ def test_postgres_transactions_serialize_duplicate_ingestion() -> None:
     finally:
         for repo in repositories:
             repo.close()
+
+
+def test_postgres_historical_windows_compare_offsets_as_instants() -> None:
+    from datetime import timedelta, timezone
+
+    from incidents_service.models import now
+    from incidents_service.repository import events
+    from sqlalchemy import update
+
+    repo = Repository(DATABASE_URL)
+    environment = "window-" + uuid.uuid4().hex[:8]
+    clock = now()
+    older = Event(
+        id="old-" + uuid.uuid4().hex,
+        source="prometheus",
+        type="metric",
+        service="catalog-service",
+        environment=environment,
+        timestamp=clock - timedelta(seconds=90),
+        payload={"name": "window_metric", "value": 1},
+    )
+    newer = older.model_copy(
+        update={
+            "id": "new-" + uuid.uuid4().hex,
+            "timestamp": clock - timedelta(seconds=30),
+            "payload": {"name": "window_metric", "value": 2},
+        }
+    )
+    legacy = older.model_copy(
+        update={"timestamp": older.timestamp.astimezone(timezone(timedelta(hours=5, minutes=30)))}
+    )
+    try:
+        with repo.transaction() as tx:
+            tx.add_event(older, normal=True)
+            tx.add_event(newer, normal=True)
+            tx.conn.execute(
+                update(events)
+                .where(events.c.id == older.id)
+                .values(
+                    timestamp=legacy.timestamp.isoformat(), document=legacy.model_dump(mode="json")
+                )
+            )
+            assert [item["id"] for item in tx.recent_events("catalog-service", environment)] == [
+                newer.id,
+                older.id,
+            ]
+            assert [
+                item["id"]
+                for item in tx.recent_events(
+                    "catalog-service", environment, not_after=clock - timedelta(seconds=60)
+                )
+            ] == [older.id]
+            assert [
+                item["id"]
+                for item in tx.recent_events(
+                    "catalog-service", environment, not_before=clock - timedelta(seconds=60)
+                )
+            ] == [newer.id]
+            assert tx.baseline(newer.series()) == [1, 2]
+    finally:
+        repo.close()
