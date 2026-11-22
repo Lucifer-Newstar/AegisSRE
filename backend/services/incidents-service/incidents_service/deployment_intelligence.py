@@ -52,6 +52,7 @@ class Rollout(StrictModel):
     flag_latency_seconds: float | None = None
     incident_id: str | None = None
     revision_number: int = 1
+    assessed_at: AwareDatetime | None = None
 
 
 def _save(tx: Transaction, row: Rollout) -> None:
@@ -63,6 +64,7 @@ def _bad(tx: Transaction, row: Rollout, event: Event, reason: str, incident_id: 
         return
     clock = now()
     row.outcome, row.reason = "bad", reason
+    row.assessed_at = clock
     row.flagged_at, row.bad_observed_at = clock, event.timestamp
     row.flag_latency_seconds = (
         (clock - row.started_at).total_seconds()
@@ -195,6 +197,10 @@ def register(tx: Transaction, event: Event) -> None:
         _bad(tx, row, event, "Producer reported an actual rollout failure", None)
     _save(tx, row)
     tx.map_rollout_event(event.id, row.id)
+    from incidents_service.deployment_risk import score
+
+    if tx.get_state("risk:" + row.id, None) is None:
+        tx.put_state("risk:" + row.id, score(tx, row))
 
 
 def observe(
@@ -276,6 +282,7 @@ def finalize(tx: Transaction, clock: datetime | None = None) -> None:
             for name in REQUIRED_METRICS
         )
         health_good = row.health_ok and row.health_at is not None and row.health_at >= cutoff
+        row.assessed_at = point
         row.outcome = (
             "healthy"
             if metrics_good
