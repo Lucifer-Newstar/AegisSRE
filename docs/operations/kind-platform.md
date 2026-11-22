@@ -1,6 +1,6 @@
 # Complete local-demo kind platform
 
-`infra/kustomization.yaml` assembles all seventeen current Compose services in a
+`infra/kustomization.yaml` assembles all eighteen current Compose services in a
 dedicated `aegissre-demo` namespace. The seven existing app bases remain usable
 independently. The added platform resources include PostgreSQL/pgvector, Redis,
 Prometheus, Grafana, Loki, Tempo, OpenTelemetry Collector, the reliability runtime
@@ -96,7 +96,7 @@ every kubectl call, and deletes a cluster only with this run/attempt/job's owner
 marker. It builds all application images, loads them into kind, creates only
 fixture credentials and applies the complete Kustomization.
 
-The gate requires all seventeen workloads to roll out, then reuses the running
+The gate requires all eighteen workloads to roll out, then reuses the running
 HTTP/SQL/Redis proofs for real Prometheus collection, OTLP log/trace joins,
 pgvector retrieval, read-only Ask, deployment-window results and restart recovery.
 Synthetic source history stays labelled as synthetic. It checks actual
@@ -118,7 +118,7 @@ costs before using private repositories, paid runners or cloud infrastructure.
 
 ## Isolated shop order database
 
-The seventeenth workload, `shop-postgres`, has its own StatefulSet, service,
+The eighteenth workload, `shop-postgres`, has its own StatefulSet, service,
 credentials and `shop-postgres-data` PVC. Order-service uses `SHOP_DATABASE_URL`
 from `aegisshop-database`, never the platform evidence database. No host port is
 published for this shop database in Compose. Do not reuse platform credentials
@@ -136,5 +136,28 @@ restart, scale only its newly owned `shop-postgres` to zero, observe domain and
 readiness 503 while liveness/platform APIs remain up, restore the StatefulSet in
 a `finally` block, and read the unchanged order. This is one integration proof,
 not the A11 CLI, ten-fault coverage, recovery acceptance or an evaluation result.
-The cart still uses the prior in-memory implementation; Redis-backed carts are
-remaining work, not implied by the order database change.
+The cart dependency is described below; neither dependency gate completes the
+chaos-lab CLI or its ten-fault measured evaluation.
+
+## Isolated shop cart Redis
+
+`shop-redis` is a different server and PVC from platform Redis streams. Compose
+and kind configure `SHOP_REDIS_URL=redis://shop-redis:6379/0`; no host port is
+published. Like the existing local platform Redis, this local-demo server has
+no Redis authentication or tenant isolation. Do not expose it to an untrusted
+network. Network policy/authentication hardening is not implied.
+
+Cart quantities use Redis hashes and atomic `HINCRBY`; user identifiers are
+hashed into bounded namespace-prefixed keys. Both runtimes configure AOF with
+`appendfsync always`. Requests do not fall back to local state when Redis fails;
+readiness/domain calls return 503 and liveness remains up. Test cleanup refuses
+to flush configured Redis. The empty-URL in-process fallback is for standalone
+development/tests only. Product prices are the fixed demo catalogue prices, not
+a live pricing service. A lost-response retry can increment twice; idempotent
+cart mutation is not claimed.
+
+The actual kind gate additionally restarts the cart app, stops only its owned
+shop Redis, observes cart and checkout 503 while platform and retained order
+reads stay healthy, restores replicas in `finally`, and requires the unchanged
+cart after Redis/AOF replacement. This is dependency preservation proof, not
+a benchmark result or autonomous remediation.
