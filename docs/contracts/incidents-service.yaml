@@ -950,6 +950,28 @@ components:
         captured_at:
           type: string
           title: Captured At
+        temporal_scope:
+          type: string
+          enum:
+          - current
+          - incident_window
+          title: Temporal Scope
+          default: current
+        evidence_anchor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Evidence Anchor
+        window_start:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Window Start
+        window_end:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Window End
         evidence:
           items:
             $ref: '#/components/schemas/EvidenceItem'

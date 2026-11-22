@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import Field
@@ -195,7 +196,15 @@ class KnowledgeStore:
         return dict(json.loads(str(row))) if row is not None else None
 
     def search(
-        self, query: str, *, service: str, environment: str, limit: int = 5, kind: str | None = None
+        self,
+        query: str,
+        *,
+        service: str,
+        environment: str,
+        limit: int = 5,
+        kind: str | None = None,
+        historical_at: datetime | None = None,
+        excluded_document: str | None = None,
     ) -> list[dict[str, Any]]:
         if not 1 <= len(query) <= 2000 or not 1 <= limit <= 10:
             raise ValueError("Retrieval query or limit is outside bounds")
@@ -210,6 +219,14 @@ class KnowledgeStore:
             "query": json.dumps(vector),
         }
         scope = "(c.service=:service OR c.service='*') AND (c.environment=:environment OR c.environment='*') AND c.embedding_model=:model"
+        if excluded_document is not None:
+            scope += " AND d.id <> :excluded_document"
+            parameters["excluded_document"] = excluded_document
+        if historical_at is not None:
+            if historical_at.tzinfo is None:
+                raise ValueError("Historical retrieval requires a timezone")
+            scope += " AND d.kind <> 'service' AND (d.kind <> 'incident' OR d.updated_at <= :historical_at)"
+            parameters["historical_at"] = historical_at.astimezone(UTC).isoformat()
         if kind is not None:
             if kind not in {"runbook", "incident", "service", "failure_pattern"}:
                 raise ValueError("Unknown knowledge kind")
