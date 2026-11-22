@@ -16,6 +16,10 @@ health_routes(app)
 
 
 class DeploymentPayloadIn(BaseModel):
+    deployment_id: str | None = Field(
+        default=None, min_length=1, max_length=160, pattern=r"^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    )
+    started_at: AwareDatetime | None = None
     action: Literal["deploy", "rollback", "scale", "restart"]
     revision: str = Field(min_length=1, max_length=200)
     previous_revision: str | None = None
@@ -60,12 +64,17 @@ def ready() -> Any:
     },
 )
 def record_deployment(body: DeploymentEnvelopeIn) -> Any:
+    document = body.model_dump(mode="json")
+    # Preserve canonical old envelopes when optional lifecycle fields are absent.
+    for field in ("deployment_id", "started_at"):
+        if document["payload"].get(field) is None:
+            document["payload"].pop(field, None)
     rec = DeploymentRecord(
         event_id=body.id,
         service=body.service,
         revision=body.payload.revision,
         status=body.payload.status,
-        envelope=body.model_dump(mode="json"),
+        envelope=document,
     )
     try:
         stored, created = store.put(rec)

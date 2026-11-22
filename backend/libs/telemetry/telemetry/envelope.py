@@ -24,8 +24,32 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 SCHEMA_VERSION: Literal["0.2"] = "0.2"
 
 #: Allowed values for the routing fields (unknown values are rejected at ingestion).
-EVENT_SOURCES = {"prometheus", "loki", "tempo", "k8s", "deployment", "chaoslab", "ml", "ai", "policy", "executor", "registry"}
-EVENT_TYPES = {"metric", "log", "trace", "k8s_event", "deployment", "anomaly", "incident", "remediation", "audit", "health"}
+EVENT_SOURCES = {
+    "prometheus",
+    "loki",
+    "tempo",
+    "k8s",
+    "deployment",
+    "chaoslab",
+    "ml",
+    "ai",
+    "policy",
+    "executor",
+    "registry",
+}
+EVENT_TYPES = {
+    "metric",
+    "log",
+    "trace",
+    "k8s_event",
+    "deployment",
+    "anomaly",
+    "incident",
+    "remediation",
+    "audit",
+    "health",
+    "rollout.bad",
+}
 SEVERITIES = {"info", "warning", "critical"}
 
 
@@ -54,16 +78,26 @@ class EventEnvelope(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str = Field(..., min_length=1, description="Unique, stable event id (ULID or UUIDv7)")
-    schema_version: Literal["0.2"] = Field(default=SCHEMA_VERSION, description="Envelope contract version")
-    timestamp: datetime = Field(default_factory=_utcnow, description="Producer time (not ingestion time)")
+    schema_version: Literal["0.2"] = Field(
+        default=SCHEMA_VERSION, description="Envelope contract version"
+    )
+    timestamp: datetime = Field(
+        default_factory=_utcnow, description="Producer time (not ingestion time)"
+    )
     source: str = Field(..., description="Producer of the event (see EVENT_SOURCES)")
     type: str = Field(..., description="Event type (see EVENT_TYPES)")
     service: str = Field(..., min_length=1, description="Emitting service name")
     environment: str = Field(default="dev", description="Environment (dev | staging | prod)")
-    correlation_id: str | None = Field(default=None, description="Correlates events from one request/experiment")
-    trace_id: str | None = Field(default=None, description="W3C trace id when a distributed trace exists")
+    correlation_id: str | None = Field(
+        default=None, description="Correlates events from one request/experiment"
+    )
+    trace_id: str | None = Field(
+        default=None, description="W3C trace id when a distributed trace exists"
+    )
     severity: Literal["info", "warning", "critical"] = Field(default="info")
-    deployment: DeploymentContext | None = Field(default=None, description="Deployment context (DI-1)")
+    deployment: DeploymentContext | None = Field(
+        default=None, description="Deployment context (DI-1)"
+    )
     payload: dict[str, Any] = Field(default_factory=dict, description="Type-specific body")
 
     @field_validator("source")
@@ -86,12 +120,16 @@ class EventEnvelope(BaseModel):
 # Keeping them here (instead of in every service) is what enforces the contract.
 
 
-def metric_payload(name: str, labels: dict[str, str], value: float, unit: str = "") -> dict[str, Any]:
+def metric_payload(
+    name: str, labels: dict[str, str], value: float, unit: str = ""
+) -> dict[str, Any]:
     """Canonical payload for a single metric sample (type: ``metric``)."""
     return {"name": name, "labels": labels, "value": value, "unit": unit}
 
 
-def log_payload(message: str, level: str = "INFO", attributes: dict[str, Any] | None = None) -> dict[str, Any]:
+def log_payload(
+    message: str, level: str = "INFO", attributes: dict[str, Any] | None = None
+) -> dict[str, Any]:
     """Canonical payload for a log line (type: ``log``)."""
     return {"message": message, "level": level.upper(), "attributes": attributes or {}}
 
@@ -112,7 +150,7 @@ def anomaly_payload(
         "score": score,
         "threshold": threshold,
         "model": model,
-        "window": window,    # {"start": ..., "end": ...} RFC 3339
+        "window": window,  # {"start": ..., "end": ...} RFC 3339
         "baseline": baseline,  # {"mean": ..., "std": ...}
     }
 
@@ -124,6 +162,8 @@ def deployment_payload(
     triggered_by: str = "github-actions",
     status: str = "succeeded",
     # ── v0.2 Deployment Intelligence fields (all optional) ──
+    deployment_id: str | None = None,
+    started_at: datetime | None = None,
     risk_score: float | None = None,
     risk_factors: list[str] | None = None,
     canary: dict[str, Any] | None = None,
@@ -137,12 +177,18 @@ def deployment_payload(
       * ``rollout``                      → DI-4 (deploy-window evaluation state)
     """
     payload: dict[str, Any] = {
-        "action": action,          # deploy | rollback | scale | restart
+        "action": action,  # deploy | rollback | scale | restart
         "revision": revision,
         "previous_revision": previous_revision,
         "triggered_by": triggered_by,
-        "status": status,          # succeeded | failed | in_progress
+        "status": status,  # succeeded | failed | in_progress
     }
+    if deployment_id is not None:
+        payload["deployment_id"] = deployment_id
+    if started_at is not None:
+        if started_at.tzinfo is None:
+            raise ValueError("Deployment start requires a timezone")
+        payload["started_at"] = started_at.astimezone(UTC).isoformat()
     if risk_score is not None:
         payload["risk_score"] = risk_score
     if risk_factors:
