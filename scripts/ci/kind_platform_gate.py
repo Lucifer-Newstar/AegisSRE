@@ -166,6 +166,7 @@ def create() -> None:
     )
     kubectl("create", "namespace", NS)
     secrets = {
+        "aegissre-console": {"session-secret": "ci-disposable-console-session-secret-value"},
         "aegisshop-postgres": {
             "username": "shop", "password": "ci-disposable-shop", "database": "aegisshop"
         },
@@ -423,7 +424,8 @@ def verify() -> None:
             and shop_request(9002, "/cart/ci-persistent-order") == (200, cart_before)
         ), "same AOF-persisted cart after Redis outage/restoration", 180)
         print("Actual Redis cart survived app restart and isolated Redis outage/restoration; platform stayed ready")
-        with urllib.request.urlopen("http://127.0.0.1:3030/", timeout=15) as response:
+        run([sys.executable, str(ROOT / "scripts/check_console_stack.py")], timeout=240)
+        with urllib.request.urlopen("http://127.0.0.1:3030/login", timeout=15) as response:
             assert response.status == 200
         print(
             json.dumps(
