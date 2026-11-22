@@ -17,7 +17,17 @@ class Settings(BaseSettings):
     dev_mode: bool = False
     executor: Literal["simulation", "kubernetes"] = "simulation"
     kube_context: str = ""
-    kube_namespace: str = "aegissre-demo"
+    kube_namespace: str = Field(
+        default="aegissre-demo",
+        min_length=1,
+        max_length=63,
+        pattern=r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+    )
+    kube_evidence_enabled: bool = False
+    kube_api_url: str = ""
+    kube_token_path: str = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+    kube_ca_path: str = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+    kube_poll_seconds: int = Field(default=30, ge=15, le=300)
     allowed_targets: list[str] = Field(
         default_factory=lambda: [
             "catalog-service",
@@ -84,6 +94,26 @@ class Settings(BaseSettings):
                     raise ValueError(
                         "Evidence origins must be HTTP(S) URLs without credentials/query/fragment"
                     )
+        if self.kube_evidence_enabled:
+            parsed = urlsplit(self.kube_api_url)
+            if (
+                parsed.scheme != "https"
+                or not parsed.hostname
+                or parsed.username
+                or parsed.password
+                or parsed.query
+                or parsed.fragment
+                or parsed.path not in {"", "/"}
+            ):
+                raise ValueError("Kubernetes evidence requires an explicit HTTPS API origin")
+            if not self.worker_enabled or not self.kube_token_path or not self.kube_ca_path:
+                raise ValueError(
+                    "Kubernetes evidence requires delivery worker, projected token and CA paths"
+                )
+            if self.dev_mode or not self.api_token:
+                raise ValueError("Kubernetes evidence requires authenticated non-dev mode")
+            if parsed.port is not None and not 1 <= parsed.port <= 65535:
+                raise ValueError("Invalid Kubernetes API port")
         if self.worker_enabled and not self.redis_url:
             raise ValueError("The worker requires AEGIS_REDIS_URL")
         if self.collector_enabled and not self.worker_enabled:

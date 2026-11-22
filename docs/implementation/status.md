@@ -214,15 +214,35 @@ explicit synthetic CI history. This is wiring proof, not a real fault, model run
 or accuracy benchmark. PR8's actual quota and evidence-only Ask gates passed
 before its nine-check ordinary merge.
 
+## Milestone 2i: optional read-only Kubernetes event source
+
+An independently scheduled, disabled-by-default source reads one configured
+namespace over verified HTTPS using a projected service-account token. It maps
+Deployment/ReplicaSet/Pod UIDs to allowlisted demo services and stages selected
+events through the existing durable delivery path. Names alone cannot attribute
+recreated objects. Missing/unmapped events remain unknown, not healthy.
+
+Authentication, response/list/time bounds, token rotation, failed-source readiness
+and stop-on-throttling/access-denial behavior are explicit. Separate example
+namespace Roles grant only list permissions, with no Secret, exec or workload
+write permission. See [Kubernetes evidence](../operations/kubernetes-evidence.md)
+for the broader namespace read scope and current attribution limits.
+
+Local checks: 222 passing tests and six real-server skips, with Ruff, strict mypy,
+YAML and API contracts. Source tests use explicit HTTP mock transports; background
+wiring uses a fake worker. No existing cluster was contacted. Actual kind,
+least-privilege behavior and fault capture remain acceptance work, not a claimed
+live Kubernetes proof.
+
 ## Feature-by-feature status
 
 | ID | Implementation state | Acceptance still required |
 |---|---|---|
-| A1 Observability | Scoped metrics/health/deployment/log/trace collectors, durable Redis delivery and hosted trace/log join proof | Kubernetes events, full-stack startup timing |
+| A1 Observability | Scoped metrics/health/deployment/log/trace collectors, optional UID-scoped Kubernetes source, durable delivery and hosted trace/log join proof | Actual Kubernetes capture/RBAC proof and full-stack startup timing |
 | A2 Registry | Durable CRUD, owner/SLO metadata and timed allowlisted probes implemented; hosted restart proof passed | Live console integration and full-stack timing |
 | A3 Detection | Statistical + Isolation Forest code and unit tests | Held-out ten-fault precision/recall/F1 and measured detection latency |
 | A4 Incidents | Lifecycle, Redis consumption/outbox, append-only audit and API implemented | Measured live timing and timeline UI |
-| A5 Evidence/RCA | Fixed read-only tool suite, cited deterministic hypotheses, optional structured inference and revision-safe sidecars | Actual model/accuracy evaluation, Kubernetes collection and postmortem UI |
+| A5 Evidence/RCA | Fixed read-only tool suite, cited deterministic hypotheses, optional structured inference and revision-safe sidecars | Actual model/accuracy evaluation, live Kubernetes acceptance and postmortem UI |
 | A6 Policy | Versioned typed policies, risk matrix and hard execution bounds | Runtime policy update, complete action matrix and safety evaluation |
 | A7 Approvals | Approve/reject/defer API and audit implemented | Authorized console flow, impact view and click-count check |
 | A8 Autonomy | Conservative decision gates, kill switch and executor code | Auto scheduler, least-privilege cluster integration, eligible-action success rate |
