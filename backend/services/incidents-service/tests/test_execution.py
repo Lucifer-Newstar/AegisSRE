@@ -153,3 +153,46 @@ def test_rollback_restores_only_uniquely_owned_template_with_compare_and_swap(
     rs["metadata"]["ownerReferences"][0]["uid"] = "another-deployment"
     with pytest.raises(ExecutionError, match="uniquely owned"):
         executor.run(rollback)
+
+
+def test_live_rollback_preflight_rejects_config_changes_and_changed_current_revision(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    executor = Executor(Settings(api_token="test", executor="kubernetes", kube_context="kind-test"))
+    template: dict[str, Any] = {
+        "metadata": {"labels": {"app": "catalog-service"}},
+        "spec": {"containers": [{"name": "catalog-service", "image": "new"}]},
+    }
+    obj: dict[str, Any] = {
+        "metadata": {
+            "namespace": "aegissre-demo",
+            "uid": "owned",
+            "resourceVersion": "42",
+            "generation": 1,
+            "labels": {"aegissre.managed": "true"},
+            "annotations": {"deployment.kubernetes.io/revision": "4"},
+        },
+        "spec": {"replicas": 1, "template": template},
+        "status": {"observedGeneration": 1},
+    }
+    prior = json.loads(json.dumps(template))
+    prior["spec"]["containers"][0]["image"] = "prior"
+    monkeypatch.setattr(executor, "_kubectl", lambda args: json.dumps(obj))
+    monkeypatch.setattr(executor, "_rollback_template", lambda *_: prior)
+    rollback = Plan(
+        action="rollback", target="catalog-service", revision="3", risk="low", reason="unit"
+    )
+    context = executor.policy_context(rollback)
+    assert context["rollback_distance"] == 1 and context["live_revision"] == "4"
+    with pytest.raises(ExecutionError, match="revision changed"):
+        executor.run(
+            rollback,
+            automatic=True,
+            expected_uid="owned",
+            expected_revision="5",
+            expected_template_digest=context["target_template_digest"],
+            dispatch_allowed=lambda: True,
+        )
+    prior["spec"]["containers"][0]["env"] = [{"name": "MIGRATION", "value": "unsafe"}]
+    with pytest.raises(ExecutionError, match="image-only"):
+        executor.policy_context(rollback)

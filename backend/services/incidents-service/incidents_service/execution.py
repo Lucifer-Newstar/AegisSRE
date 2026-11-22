@@ -49,12 +49,12 @@ class Executor:
         return result.stdout[:32000]
 
     def policy_context(self, plan: Plan) -> dict[str, Any]:
-        """Read live scale preconditions. Simulation never invents a replica count.
+        """Live managed-deployment and retained rollback-template preconditions.
 
-        Rollback remains fail-closed until observed risk/rollout context is wired.
-        The scale executor reads again and uses Kubernetes' replica precondition.
+        Scale uses a replica precondition, rollback uses UID/resourceVersion.
+        Missing observed rollout/risk context is independently denied by policy.
         """
-        if self.settings.executor != "kubernetes" or plan.action != "scale":
+        if self.settings.executor != "kubernetes" or plan.action not in {"scale", "rollback"}:
             return {}
         if plan.target not in self.settings.allowed_targets:
             raise ExecutionError("Target not allowlisted")
@@ -68,10 +68,45 @@ class Executor:
             or obj.get("status", {}).get("observedGeneration", 0) < meta.get("generation", 1)
         ):
             raise ExecutionError("Automatic scale requires an observed managed deployment")
+        if plan.action == "rollback":
+            current = str(meta.get("annotations", {}).get("deployment.kubernetes.io/revision", ""))
+            if not current.isdigit() or not plan.revision or not plan.revision.isdigit():
+                raise ExecutionError(
+                    "Automatic rollback requires numeric Kubernetes revision identity"
+                )
+            distance = int(current) - int(plan.revision)
+            if not 1 <= distance <= 2:
+                raise ExecutionError("Automatic rollback revision distance is not bounded")
+            target = self._rollback_template(plan, str(meta["uid"]))
+            # Auto-safe rollback is only a container-image substitution. Any other
+            # config, secret, volume, probe or init-container change requires review.
+            import copy
+
+            before, after = copy.deepcopy(spec["template"]), copy.deepcopy(target)
+            for template in (before, after):
+                template.get("metadata", {}).get("labels", {}).pop("pod-template-hash", None)
+                for container in template.get("spec", {}).get("containers", []):
+                    container.pop("image", None)
+            if before != after or spec.get("replicas") != 1:
+                raise ExecutionError(
+                    "Automatic rollback is limited to a single-replica image-only change"
+                )
+            return {
+                "target_uid": str(meta["uid"]),
+                "rollback_distance": distance,
+                "live_revision": current,
+                "target_template_digest": self._template_digest(target),
+            }
         replicas = spec.get("replicas")
         if isinstance(replicas, bool) or not isinstance(replicas, int) or not 1 <= replicas < 10:
             raise ExecutionError("Automatic scale requires a known bounded replica count")
         return {"current_replicas": replicas, "target_uid": str(meta["uid"])}
+
+    @staticmethod
+    def _template_digest(template: dict[str, Any]) -> str:
+        import hashlib
+
+        return hashlib.sha256(json.dumps(template, sort_keys=True).encode()).hexdigest()
 
     def _rollback_template(self, plan: Plan, uid: str) -> dict[str, Any]:
         replicasets = json.loads(self._kubectl(["get", "replicasets", "-o", "json"]))
@@ -105,6 +140,8 @@ class Executor:
         *,
         automatic: bool = False,
         expected_uid: str | None = None,
+        expected_template_digest: str | None = None,
+        expected_revision: str | None = None,
         dispatch_allowed: Callable[[], bool] | None = None,
     ) -> ExecutionResult:
         if plan.target not in self.settings.allowed_targets:
@@ -142,6 +179,8 @@ class Executor:
             "action": plan.action,
         }
         if plan.action == "rollback":
+            if automatic and (not expected_revision or revision != expected_revision):
+                raise ExecutionError("Current rollout revision changed after preflight")
             if not plan.revision or not plan.revision.isdigit() or not revision.isdigit():
                 raise ExecutionError(
                     "Kubernetes rollback requires numeric rollout revisions, not image tags or git SHAs"
@@ -151,6 +190,11 @@ class Executor:
             if not meta.get("uid") or not meta.get("resourceVersion"):
                 raise ExecutionError("Rollback requires a current UID and resource version")
             template = self._rollback_template(plan, str(meta["uid"]))
+            if automatic and (
+                not expected_template_digest
+                or self._template_digest(template) != expected_template_digest
+            ):
+                raise ExecutionError("Retained rollback template changed after preflight")
             patch = [
                 {"op": "test", "path": "/metadata/uid", "value": meta["uid"]},
                 {
