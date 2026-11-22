@@ -32,8 +32,7 @@ Supported runner operations so far:
 | `database-outage` | shop DB replicas 1 to 0, then back to 1 | controller restoration is not app-health recovery |
 | `dependency-failure` | shop Redis replicas 1 to 0, then back to 1 | same health limitation |
 
-Actual OOM, faulty deployment and traffic-spike experiments remain
-unimplemented. Container crash and invalid configuration are implemented
+Faulty deployment and traffic-spike experiments remain unimplemented. Container crash and invalid configuration are implemented
 below, with real hosted proof required. The final A11 ten-fault catalogue is not
 complete. The current hook/runner set must not be reported as meeting it.
 
@@ -78,3 +77,16 @@ The owned-kind proof independently checks a failed new process, validation log,
 non-ready container, exact Pod-template restoration and domain response. It is
 not a fabricated HTTP failure switch or an evaluation accuracy result. Hosted
 proof is required before merge; only local tests have passed so far.
+
+
+## Actual memory exhaustion
+
+`memory-exhaustion` is distinct from bounded `memory-pressure`. It requires
+the owned catalog Deployment to have exactly the fixed 256Mi application
+memory limit, then allocates and touches up to 384Mi in the request-serving
+process. The runner does not remove the memory limit or alter host resources.
+The actual hosted check must observe same-Pod restart and Kubernetes
+`OOMKilled` reason with exit137, then a healthy business request. Allocation,
+connection loss and runner completion alone are not OOM proof. The ephemeral
+control file disappears on container restart and is explicitly removed at
+restoration. No hosted OOM result or evaluation accuracy is claimed yet.

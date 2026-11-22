@@ -137,3 +137,13 @@ asyncio.run(check())
     result = subprocess.run([sys.executable, "-c", program],
         env={**os.environ, "AEGIS_SHOP_FAULTS_ENABLED": "true"}, timeout=10)
     assert result.returncode == -9
+
+
+def test_oom_requires_fixed_application_memory_limit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    api = fixture_driver()
+    api.directory = lambda: tmp_path
+    monkeypatch.setattr(runner, "driver", lambda: api)
+    with pytest.raises(RuntimeError, match="fixed 256Mi"):
+        runner.run("memory-exhaustion", 1, tmp_path)
+    assert len(api.kubectl.call_args_list) == 1
+    assert not list(tmp_path.glob("*.jsonl"))
