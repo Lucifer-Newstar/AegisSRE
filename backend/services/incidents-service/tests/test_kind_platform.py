@@ -126,7 +126,11 @@ def test_full_platform_has_compose_image_parity_and_only_internal_services() -> 
         image = services[name]["image"]
         if image.startswith("${AEGIS_POSTGRES_IMAGE:-"):
             image = image[len("${AEGIS_POSTGRES_IMAGE:-") : -1]
-        assert doc["spec"]["template"]["spec"]["containers"][0]["image"] == image
+        containers = doc["spec"]["template"]["spec"]["containers"]
+        assert containers[0]["image"] == image
+        for container in containers:
+            names = [entry["name"] for entry in container.get("env", [])]
+            assert len(names) == len(set(names)), f"Duplicate environment names in {name}"
     assert all(
         doc["spec"].get("type", "ClusterIP") == "ClusterIP"
         for doc in documents
