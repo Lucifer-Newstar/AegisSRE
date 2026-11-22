@@ -460,8 +460,7 @@ def verify() -> None:
                     # remains scoped to this owned, identity-checked workload.
                     kubectl("exec", "deployment/catalog-service", "--namespace", NS, "--",
                             "python", "-c",
-                            "from contextlib import suppress
-from pathlib import Path;Path('/tmp/aegisshop-fault.json').unlink(missing_ok=True)")
+                            "from pathlib import Path;Path('/tmp/aegisshop-fault.json').unlink(missing_ok=True)")
         wait_for(lambda: shop_request(9001, "/products")[0] == 200,
                  "catalog restored after actual CLI experiment", 60)
         journal_files = list(experiment_dir.glob("*.jsonl"))
