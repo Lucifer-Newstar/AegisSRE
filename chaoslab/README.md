@@ -48,3 +48,15 @@ The full-kind gate must demonstrate real HTTP failure, independent liveness,
 CLI completion, restored normal response and the journal stages. Other hooks
 currently have native safety tests only. Full fault coverage, independent health
 truth, split manifests, evaluation repetitions and research comparisons remain.
+
+## Container process crash
+
+`python -m chaoslab container-crash --seconds 5 --output PATH` sends a fixed
+SIGKILL to PID1 only inside the current owned catalog-service container. The
+runner has no caller-selected command/PID/namespace/target. Kubernetes restart
+is the restoration mechanism; a successful rollout wait is not proof of
+business recovery. The kind gate independently requires the same Pod UID,
+increased container restart count, last exit137 and restored `/products`200,
+then saves that proof separately from the ground-truth journal. No real run is
+claimed until this hosted gate passes. It is not OOM, node deletion, detection
+accuracy or an A12 trial. Other missing faults/evaluation remain.

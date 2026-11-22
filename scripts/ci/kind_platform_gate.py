@@ -481,7 +481,11 @@ def verify() -> None:
         crash_dir = experiment_dir / "container-crash"
         run([sys.executable, "-m", "chaoslab", "container-crash", "--seconds", "5",
              "--output", str(crash_dir)], timeout=240)
-        after_crash = catalog_container()
+        def restarted_container() -> Any:
+            item = catalog_container()
+            return item if item["restartCount"] > before_crash["restartCount"] and item.get("ready") else None
+
+        after_crash = wait_for(restarted_container, "independent restarted container readiness", 180)
         assert after_crash["uid"] == before_crash["uid"]
         assert after_crash["restartCount"] > before_crash["restartCount"]
         terminated = after_crash["lastState"]["terminated"]
