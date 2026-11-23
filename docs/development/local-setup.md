@@ -4,6 +4,10 @@ The [implementation ledger](../implementation/status.md) distinguishes implement
 code, live integration and acceptance results. The existing design documents are
 targets, not a claim that every phase is complete.
 
+For the controlled Windows/WSL2 comparison, use the separate
+[local-owned trial runbook](windows-local-trials.md). It does not adopt an
+existing Kubernetes cluster.
+
 ## Prerequisites
 
 - Python 3.12 or newer, Git, and a shell.

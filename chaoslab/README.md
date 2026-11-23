@@ -1,7 +1,7 @@
 # Isolated chaos CLI foundation
 
-This first runner is deliberately restricted to the current newly owned
-full-platform GitHub-runner kind fixture. It cannot use an ambient context,
+The runner is restricted to a newly owned full-platform disposable fixture,
+either the CI fixture or the explicit [local Windows/WSL2 path](../docs/development/windows-local-trials.md). It cannot use an ambient context,
 existing cluster, arbitrary target, arbitrary namespace or caller command.
 A current ownership marker, expected shop labels and unchanged workload UID
 are required. An exclusive active-run marker prevents concurrent experiments;
