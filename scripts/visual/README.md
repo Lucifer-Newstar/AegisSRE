@@ -28,3 +28,12 @@ not change. Cross-origin and invalid-CSRF posts must be rejected first. It store
 a JSON proof and final screenshot for separate pixel inspection. The integration
 incident is seeded test evidence, not a naturally detected fault. This test does
 not approve a plan, invoke an action or call a model.
+
+`approval.mjs` verifies the A7 click bound through the live console against the
+unique seeded `ci-runtime` incident. From the authenticated command center,
+it clicks Approvals and approve, after checking that reason/impact are present.
+Login is excluded and recorded separately. It confirms the gateway actor,
+audit increment and unchanged action state, and does not invoke execution. It
+first defers only that existing seeded fixture so the approval is pending again.
+A JSON proof and screenshot are retained; this is interaction evidence, not
+fault-detection, inferred RCA or autonomous remediation acceptance.
