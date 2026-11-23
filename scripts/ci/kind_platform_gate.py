@@ -20,7 +20,10 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
-NAME = "aegis-platform"
+sys.path.insert(0, str(ROOT))
+from scripts.ci import local_identity  # noqa: E402
+
+NAME = local_identity.LOCAL_NAME if local_identity.enabled() else "aegis-platform"
 NS = "aegissre-demo"
 APPS = [
     "catalog-service",
@@ -41,6 +44,11 @@ FIXTURE = {
 
 
 def directory() -> Path:
+    if local_identity.enabled():
+        base = local_identity.base()
+        local_identity.owner()
+        base.mkdir(parents=True, exist_ok=True)
+        return base
     if os.environ.get("GITHUB_ACTIONS") != "true" or not os.environ.get("RUNNER_TEMP"):
         raise RuntimeError("Only a disposable GitHub runner may use this fixture")
     base = Path(os.environ["RUNNER_TEMP"]) / "aegis-kind-platform"
@@ -49,6 +57,8 @@ def directory() -> Path:
 
 
 def owner() -> str:
+    if local_identity.enabled():
+        return local_identity.owner()
     return ":".join(
         os.environ[key] for key in ("GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "GITHUB_JOB")
     )
@@ -56,7 +66,8 @@ def owner() -> str:
 
 def owned() -> bool:
     marker = directory() / "owned"
-    return marker.is_file() and marker.read_text() == owner()
+    matches = marker.is_file() and marker.read_text() == owner()
+    return matches and (not local_identity.enabled() or local_identity.verify_node())
 
 
 def run(
@@ -161,6 +172,8 @@ def create() -> None:
         ],
         timeout=300,
     )
+    if local_identity.enabled():
+        local_identity.record_node()
     (base / "owned").write_text(owner())
     selected = images()
     run(
