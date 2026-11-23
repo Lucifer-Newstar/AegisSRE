@@ -58,7 +58,11 @@ def main() -> None:
         assert original["payload"]["value"] == item["content"]["value"]
     assert any("No language model" in line for line in result["answer"]["limitations"])
     # Explicit synthetic CI history, not a real fault or benchmark result.
-    assert not request("/api/v1/incidents?service=payment-service")
+    # Live resource telemetry can legitimately open unrelated payment incidents.
+    # Isolation is by the dedicated metric/labels and exact source-event IDs,
+    # not by assuming that a healthy service never has statistical novelty.
+    existing = request("/api/v1/incidents?service=payment-service")
+    assert not any("ci-history-qualifying" in item.get("evidence_ids", []) for item in existing)
     anchor = datetime.now(UTC) - timedelta(days=1)
 
     def fixture(identity: str, at: datetime, value: float) -> dict[str, object]:
