@@ -294,17 +294,17 @@ passed before its ordinary merge. Open PRs are not completed work.
 
 | ID | Merged implementation/proof | Acceptance still required |
 |---|---|---|
-| A1 | Complete16-workload kind assembly, actual metrics/log-trace join, projected-SA Kubernetes capture, durable delivery, restart/PVC proof ([14](https://github.com/Lucifer-Newstar/AegisSRE/pull/14)) | Measured startup-to-Grafana timing and evaluation coverage |
+| A1 | Complete18-workload kind assembly, actual metrics/log-trace join, projected-SA Kubernetes capture, durable delivery, restart/PVC proof ([14](https://github.com/Lucifer-Newstar/AegisSRE/pull/14)) | Measured startup-to-Grafana timing and evaluation coverage |
 | A2 | Authenticated persistent CRUD/probes and actual console reads ([18](https://github.com/Lucifer-Newstar/AegisSRE/pull/18)) | Full interaction/refresh acceptance review |
 | A3 | Statistical/Isolation Forest detection, committed anomaly events and isolated baselines | Held-out precision/recall/F1>=.85 and latency<60s |
 | A4 | Transactional lifecycle/timeline/audit, live console | Measured creation bound on real qualifying faults |
 | A5 | Read-only evidence/citations, deterministic hypotheses, optional guarded model adapters, closure reports | Chosen-model trial, top1>=70% on real faults, reviewed reports |
-| A6 | Versioned policies and hard safety bounds | Complete supported-action/risk matrix and live policy-update demonstration |
+| A6 | Durable versioned policy updates, observe-only CAS and actual restart persistence ([45](https://github.com/Lucifer-Newstar/AegisSRE/pull/45)); guarded cancellation and one-attempt scale undo ([48](https://github.com/Lucifer-Newstar/AegisSRE/pull/48)) | Full supported-action/risk interaction review and repeated safety acceptance |
 | A7 | Authorized console approve/reject/defer with audit | Formal three-click check and full impact review |
 | A8 | Automatic-only scheduler with fresh candidates, real one-replica scale and final kill-switch callback ([31](https://github.com/Lucifer-Newstar/AegisSRE/pull/31), [37](https://github.com/Lucifer-Newstar/AegisSRE/pull/37)) | >=80% eligible-action success and repeated safety trials. Seeded scale proof is not this benchmark |
 | A9 | Fresh metric/health/error/latency/SLO recovery gate and timeout escalation | Ground-truth>=90% verdict accuracy, repeated unrecovered-close safety |
-| A10/C1 | Authenticated API-backed pages, charts, evidence, reports and15s refresh ([18](https://github.com/Lucifer-Newstar/AegisSRE/pull/18), [20](https://github.com/Lucifer-Newstar/AegisSRE/pull/20)) | Full product-vision interaction/visual acceptance, remaining overview sparklines/deployment markers |
-| A11 | Actual owned CLI HTTP fault, latency, boundedCPUwork/RSS, OOM/crash/config/faulty-image/traffic and dependency outage proofs ([17](https://github.com/Lucifer-Newstar/AegisSRE/pull/17), [22](https://github.com/Lucifer-Newstar/AegisSRE/pull/22), [23](https://github.com/Lucifer-Newstar/AegisSRE/pull/23), [24](https://github.com/Lucifer-Newstar/AegisSRE/pull/24), [25](https://github.com/Lucifer-Newstar/AegisSRE/pull/25), [26](https://github.com/Lucifer-Newstar/AegisSRE/pull/26), [27](https://github.com/Lucifer-Newstar/AegisSRE/pull/27)) | CPU work is not sustained saturation; application delay is not packet shaping. Repeat full manifest-controlled trials |
+| A10/C1 | Authenticated API-backed pages, charts, evidence, reports and15s refresh ([18](https://github.com/Lucifer-Newstar/AegisSRE/pull/18), [20](https://github.com/Lucifer-Newstar/AegisSRE/pull/20)) | Full product-vision interaction/visual acceptance and any remaining overview sparklines. Exact detector samples, producer deployment markers and live SLO panels are merged in PRs35/36/44 |
+| A11 | Actual owned CLI HTTP fault, latency, boundedCPUwork/RSS, OOM/crash/config/faulty-image/traffic and dependency outage proofs ([17](https://github.com/Lucifer-Newstar/AegisSRE/pull/17), [22](https://github.com/Lucifer-Newstar/AegisSRE/pull/22), [23](https://github.com/Lucifer-Newstar/AegisSRE/pull/23), [24](https://github.com/Lucifer-Newstar/AegisSRE/pull/24), [25](https://github.com/Lucifer-Newstar/AegisSRE/pull/25), [26](https://github.com/Lucifer-Newstar/AegisSRE/pull/26), [27](https://github.com/Lucifer-Newstar/AegisSRE/pull/27)) | Sustained application CPU against its fixed quota is demonstrated in [46](https://github.com/Lucifer-Newstar/AegisSRE/pull/46), not host/capacity acceptance. Application delay is not packet shaping. Repeat full manifest-controlled trials |
 | A12/E2 | Paired held-out schema/report command with censoring, mean/std and provenance ([29](https://github.com/Lucifer-Newstar/AegisSRE/pull/29)) | Actual reviewed dataset>=10 runs/fault/workflow, genuine human manual comparator, committed results |
 | B1 | Actual pgvector retrieval/persistence and runbook/context wiring ([7](https://github.com/Lucifer-Newstar/AegisSRE/pull/7)) | Real evaluation-fault recall@5>=.8, frozen corpus |
 | B2 | Read-only tools, visible cited Ask, guarded optional inference and evidence-only fallback | Chosen live model and reviewed actual question/citation trials |
@@ -314,22 +314,26 @@ passed before its ordinary merge. Open PRs are not completed work.
 | D5 | Eleven CI jobs test/lint/build and real disposable integration | Agreed image registry/audience and publish verification, not yet approved |
 | D6 | Shared actual Grafana SLO panels and real120sHTTP fault causing2minfast-burn alert ([21](https://github.com/Lucifer-Newstar/AegisSRE/pull/21), [32](https://github.com/Lucifer-Newstar/AegisSRE/pull/32)) | Full1h/30day coverage is not established by shortCI |
 | E4 | Milestone notes, operating guides, labelled screenshots and proof limits | Continue recording exact results and remaining gates |
-| DI-1 | Durable explicit deployment identity, producer times, timeline/history | Deployment markers on metric charts and preview hook workflow |
-| DI-2 | Frozen empirical service-history baseline with timed training provenance ([33](https://github.com/Lucifer-Newstar/AegisSRE/pull/33)) | Change-attribute pre/post scorer in open39, real faulty-deploy recall>=.7 |
+| DI-1 | Durable explicit deployment identity, producer times, timeline/history and actual producer markers on metric charts ([44](https://github.com/Lucifer-Newstar/AegisSRE/pull/44)) | Preview hook workflow interaction review |
+| DI-2 | Frozen empirical service-history baseline with timed training provenance ([33](https://github.com/Lucifer-Newstar/AegisSRE/pull/33)) | Chronological change-attribute preview scorer merged ([39](https://github.com/Lucifer-Newstar/AegisSRE/pull/39)); real faulty-deploy recall>=.7 remains unmeasured |
 | DI-3 | Evidence-timing correlation and UI | Ambiguity-safe evaluated top1>=.8; timing is not causal proof |
 | DI-4 | Transactional180swindow and idempotent bad flag | Actual faulty-rollout detection latency<3min and repeated trials |
-| DI-5 | Conservative recommendation/defaultapproval, scoped executor | Open40/41 live rollback work, inferred end-to-end>=80% recovery and zero violations |
-| DI-6 | Open34 actual stable/canary comparison | Final combined cluster gate and pixels still pending |
-| DI-7 | Observed CFR/coverage/unknown bounds on actual API ([30](https://github.com/Lucifer-Newstar/AegisSRE/pull/30)) | Open38 daily trends/reviews, CFR in measured evaluation |
+| DI-5 | Retained-template rollback and automatic live prerequisite guards, each with actual faulty503 to restored200/template proof ([40](https://github.com/Lucifer-Newstar/AegisSRE/pull/40), [41](https://github.com/Lucifer-Newstar/AegisSRE/pull/41)) | Inferred end-to-end>=80% recovery and zero violations. Seeded policy/window prerequisites are not detector acceptance |
+| DI-6 | Separate actual stable/canary traffic and comparison, integrated cluster gate and inspected final console pixels ([34](https://github.com/Lucifer-Newstar/AegisSRE/pull/34)) | Repeated evaluation and broader product interaction review |
+| DI-7 | Observed CFR/coverage/unknown bounds on actual API ([30](https://github.com/Lucifer-Newstar/AegisSRE/pull/30)) | Daily observed cohorts and reviews merged ([38](https://github.com/Lucifer-Newstar/AegisSRE/pull/38)); CFR in measured evaluation remains |
 
-Current open feature PRs: [34](https://github.com/Lucifer-Newstar/AegisSRE/pull/34)
-canary, [35](https://github.com/Lucifer-Newstar/AegisSRE/pull/35) consoleSLO,
-[36](https://github.com/Lucifer-Newstar/AegisSRE/pull/36) exact detector flags,
-[38](https://github.com/Lucifer-Newstar/AegisSRE/pull/38) CFRcohorts/reviews,
-[39](https://github.com/Lucifer-Newstar/AegisSRE/pull/39) change-attribute risk,
-[40](https://github.com/Lucifer-Newstar/AegisSRE/pull/40) retained rollback,
-[41](https://github.com/Lucifer-Newstar/AegisSRE/pull/41) automatic rollback context.
-Neither open PRs nor green unit checks establish their remaining numeric gates.
+PRs34 through48 are merged, including runtime policy updates, sustained application
+CPU quota proof, append-only operator context and guarded cancellation/scale undo.
+Operator notes are also available to closed-case retrieval as unverified context
+([47](https://github.com/Lucifer-Newstar/AegisSRE/pull/47)). These are implementation
+and scoped integration proofs, not substitutes for numeric acceptance targets.
+
+The next evaluation change is the raw capture work in
+[49](https://github.com/Lucifer-Newstar/AegisSRE/pull/49), still open when this ledger
+was reconciled. The existing reporters validate external reviewed records only.
+No full measured dataset or genuine manual comparator is committed. The chosen
+live model, manual observer, image registry/audience and permission for a large
+hosted trial run remain decisions, not completed work.
 
 ## Next milestones
 
