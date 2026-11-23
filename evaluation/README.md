@@ -41,3 +41,44 @@ This is reporting infrastructure only. No measured dataset is supplied. The
 manifest/corpus digests and review/source references are declarations, not
 independently certified by the reporter. Human truth review, a frozen held-out
 corpus, repeated faults and genuine manual response observations remain needed.
+
+## Frozen raw capture, not a benchmark result
+
+On a clean committed checkout, first freeze the exact source revision, Kubernetes
+manifest files and the selected reviewed corpus. Keep output outside the checkout:
+
+```sh
+python -m evaluation.capture freeze /tmp/aegis-manifest.json --corpus docs/operations
+python -m evaluation.capture trial /tmp/aegis-manifest.json /tmp/aegis-trial-01 \
+  --fault http-5xx --seconds 30 --repeat 1
+```
+
+The second command requires the current run's newly owned disposable kind fixture
+from `scripts/ci/kind_platform_gate.py`. It refuses other clusters. It performs
+one bounded Aegis trial only, never a hosted matrix. The frozen manifest enumerates
+100 paired experiment IDs, ten repetitions for each of ten faults, but neither
+command automatically launches that schedule or generates human observations.
+The example operations directory is a corpus input, not a claim that it is a
+reviewed held-out evaluation corpus.
+
+Capture verifies source cleanliness, revision and actual file hashes before each
+trial. A fresh exclusive output directory stores the manifest, observed workload/
+Pod specifications, independent request status/latency, raw application metrics,
+and platform incident snapshots. The separate chaos control journal records
+injection/restoration operations. No fault label is sent to the platform. Reads
+are fixed localhost fixture endpoints, bounded, without redirects or proxies.
+Capture includes ten seconds before injection and thirty seconds after the
+runner returns; the collector samples sequentially with a two-second pause, so
+request/timeout duration can lengthen the cadence. Sample timestamps are not
+certified symptom-onset or detection timestamps. A restarted Pod can invalidate
+a port-forward; connection errors are retained, not called an outage or recovery.
+
+The index hashes all successful capture files and is explicitly
+`captured_not_reviewed`. Incomplete runs leave their partial files without a
+success index. No report-schema dataset, claimed MTTD/MTTR, manual baseline,
+causal diagnosis, safety verdict, or acceptance result is manufactured. Control
+restoration after the bounded fault must not be credited to Aegis remediation.
+Review independently observed symptom onset, first qualifying detection, actual
+recovery, action attribution and any censored/failed intervals before creating
+`report.py` inputs. A human must actually perform and record manual trials;
+matching `pair_id` strings alone do not prove identical environments.
