@@ -282,6 +282,26 @@ def create_app(
         if service not in config.allowed_targets:
             raise HTTPException(422, "Select an allowed service")
         return analyze(config, service)
+    @application.get("/deployment-intelligence/trends", dependencies=[Depends(authorized)])
+    def deployment_trends(service: str) -> dict[str, Any]:
+        from incidents_service.deployment_trends import trend
+
+        if service not in config.allowed_targets:
+            raise HTTPException(422, "Select an allowed service")
+        with repo.transaction() as tx:
+            return trend(tx, service, config.environment, datetime.now(UTC))
+
+    @application.get("/deployment-intelligence/review", dependencies=[Depends(authorized)])
+    def deployment_review(service: str, rollout_id: str = Query(max_length=80)) -> dict[str, Any]:
+        from incidents_service.deployment_trends import report
+
+        if service not in config.allowed_targets:
+            raise HTTPException(422, "Select an allowed service")
+        with repo.transaction() as tx:
+            result = report(tx, rollout_id, service, config.environment)
+        if result is None:
+            raise HTTPException(404, "Deployment review not found")
+        return result
     @application.post("/deployment-intelligence/risk-preview", dependencies=[Depends(authorized)])
     def risk_preview(body: RiskPreview) -> dict[str, Any]:
         from pydantic import ValidationError
