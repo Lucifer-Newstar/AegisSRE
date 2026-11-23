@@ -32,6 +32,7 @@ ROUTES = (
     Route("/incidents/{incident_id}/context", "incidents"),
     Route("/incidents/{incident_id}/investigate", "incidents", ("POST",), timeout_seconds=135),
     Route("/incidents/{incident_id}/investigation", "incidents"),
+    Route("/incidents/{incident_id}/notes", "incidents", ("POST",), asserted_actor=True),
     Route("/incidents/{incident_id}/{decision}", "incidents", ("POST",), asserted_actor=True),
     Route("/actions/{incident_id}/execute", "incidents", ("POST",), asserted_actor=True),
     Route("/postmortems", "incidents"),

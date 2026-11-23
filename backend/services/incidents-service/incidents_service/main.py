@@ -525,6 +525,10 @@ def create_app(
         with repo.transaction() as tx:
             return loop._get(tx, incident_id).model_dump(mode="json")
 
+    @application.post("/incidents/{incident_id}/notes", dependencies=[Depends(authorized)])
+    def annotate(incident_id: str, body: Decision) -> dict[str, Any]:
+        return loop.annotate(incident_id, body).model_dump(mode="json")
+
     @application.post("/incidents/{incident_id}/{decision}", dependencies=[Depends(authorized)])
     def decide(
         incident_id: str, decision: Literal["approve", "reject", "defer"], body: Decision

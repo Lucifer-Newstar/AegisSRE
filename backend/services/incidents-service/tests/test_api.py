@@ -123,3 +123,26 @@ def test_openapi_exposes_bearer_security_without_secrets() -> None:
         assert schema["components"]["securitySchemes"]["HTTPBearer"]["scheme"] == "bearer"
         assert schema["paths"]["/events"]["post"]["security"] == [{"HTTPBearer": []}]
         assert "test-token" not in http.get("/openapi.json").text
+
+
+def test_operator_note_is_append_only_context_not_an_action() -> None:
+    from incidents_service.models import Analysis, Incident, Plan
+    repo = Repository("sqlite:///:memory:")
+    item = Incident(id="note-one", service="catalog-service", environment="dev", title="note",
+        status="investigating", signals=[], evidence_ids=[], audit=[],
+        analysis=Analysis(summary="unit", confidence="low", evidence_ids=[]),
+        plan=Plan(action="escalate", target="catalog-service", risk="forbidden", reason="unit"))
+    with repo.transaction() as tx:
+        tx.save_incident(item)
+    with TestClient(create_app(Settings(api_token="unit"), repo)) as http:
+        assert http.post("/incidents/note-one/notes", json={"actor":"op", "note":"text"}).status_code == 401
+        http.headers["Authorization"] = "Bearer unit"
+        assert http.post("/incidents/note-one/notes", json={"actor":"op", "note":" "}).status_code == 422
+        for note in ("First observation", "Correction, still unverified"):
+            response = http.post("/incidents/note-one/notes", json={"actor":"op", "note":note})
+            assert response.status_code == 200
+        value = response.json()
+        assert value["status"] == "investigating" and value["approval"] == "pending"
+        assert value["plan"] == item.plan.model_dump(mode="json")
+        assert [entry["detail"] for entry in value["audit"]] == ["First observation", "Correction, still unverified"]
+        assert all(entry["action"] == "operator.note" for entry in value["audit"])
