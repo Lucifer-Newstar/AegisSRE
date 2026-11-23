@@ -285,40 +285,51 @@ production security approval or full kind bootstrap. The console remains a
 labelled scaffold until its own authenticated gateway/session integration lands.
 See [metadata authentication](../operations/metadata-auth.md).
 
-## Feature-by-feature status
+## Current feature status, reconciled November23
 
-| ID | Implementation state | Acceptance still required |
+The chronological milestone notes above and below describe what was true at
+that milestone. They are not the current pending-work list. The table here wins
+for current status. Each linked PR contains the exact head and checks that
+passed before its ordinary merge. Open PRs are not completed work.
+
+| ID | Merged implementation/proof | Acceptance still required |
 |---|---|---|
-| A1 Observability | Scoped metrics/health/deployment/log/trace collectors, UID-scoped Kubernetes source, durable delivery, hosted trace/log join and actual kind capture/RBAC proof | Full-stack startup timing and integrated kind runtime |
-| A2 Registry | Durable CRUD, owner/SLO metadata and timed allowlisted probes implemented; hosted restart proof passed | Live console integration and full-stack timing |
-| A3 Detection | Statistical + Isolation Forest code and unit tests | Held-out ten-fault precision/recall/F1 and measured detection latency |
-| A4 Incidents | Lifecycle, Redis consumption/outbox, append-only audit and API implemented | Measured live timing and timeline UI |
-| A5 Evidence/RCA | Fixed read-only tool suite, cited deterministic hypotheses, optional structured inference and revision-safe sidecars | Actual model/accuracy evaluation, broader real-fault evidence and postmortem UI |
-| A6 Policy | Versioned typed policies, risk matrix and hard execution bounds | Runtime policy update, complete action matrix and safety evaluation |
-| A7 Approvals | Approve/reject/defer API and audit implemented | Authorized console flow, impact view and click-count check |
-| A8 Autonomy | Conservative decision gates, kill switch and executor code | Auto scheduler, least-privilege cluster integration, eligible-action success rate |
-| A9 Recovery | Live fresh-metric + health/error/latency/SLI gate, timeout escalation | Cancellation/undo, longer-window budget context and ground-truth accuracy evaluation |
-| A10 Dashboard | Existing four-page scaffold | Live overview, service/incident details, approvals and honest MTTD/MTTR |
-| A11 Chaoslab | Catalog's existing fault-hook stub | All ten isolated faults, restoration and experiment manifests |
-| A12 Evaluation | Existing protocol | Reproducible >=10 runs per fault, baseline comparison, mean/std report |
-| B1 RAG | Scoped pgvector retrieval, local lexical embeddings, incremental indexing, RCA context and hosted actual-vector proof | Recall@5 on real evaluation faults |
-| B2 Ask Aegis | Authenticated API, seven read-only tools, visible citations/freshness, disabled/failed inference labels and no write tools | Actual chosen-model acceptance and console view; hosted evidence-only gate passed on PR8 |
-| C1 Eight pages | Four-page scaffold | Complete live eight-page console and UI checks |
-| C3 Runbooks | Ten packaged guides, indexing and authenticated list/detail/context APIs | Live console viewer and incident links |
-| C4 Postmortems | Verified-closure API implemented | Viewer, evidence/timeline/action rendering and metrics |
-| C5 Audit | Durable append-only store, transactional Redis emission and filtered API implemented | Console viewer and filtering |
-| D1 kind | Existing app manifests and actual isolated reader/RBAC/crash gate | Full dependencies, least privilege across the full stack, kind boot and behavior checks |
-| D5 CI/CD | Existing lint/tests/build checks; reliability tests added | Publish workflow and agreed registry verification |
-| D6 SLOs | Existing dashboard/alert configs | Live per-service panels, multiwindow burn alerts, firing checks |
-| E2 Comparison | Not implemented | Real comparative results; no invented human-response timings |
-| E4 Documentation | This milestone and contracts recorded | Continue updating evidence and limitations at each milestone |
-| DI-1 Tracking | Durable producer-time history, conflict-safe idempotency and live polling into the reliability loop implemented | Deployment hook workflow and per-service timeline |
-| DI-2 Risk | Not implemented | Trained risk scorer, pre/post inputs and held-out recall |
-| DI-3 Correlation | Evidence-timing correlation implemented | Deployment attribution evaluation and UI |
-| DI-4 Bad rollout | Not implemented | Window evaluator and measured detection bound |
-| DI-5 Rollback | Recommendation, approval/policy and scoped executor code | Live revision mapping, safe-auto predicates and verified recovery rate |
-| DI-6 Canary | Not implemented | Stable/canary comparison, demo rollout and UI |
-| DI-7 CFR | Not implemented | Analytics, trends, deployment postmortems and evaluation |
+| A1 | Complete16-workload kind assembly, actual metrics/log-trace join, projected-SA Kubernetes capture, durable delivery, restart/PVC proof ([14](https://github.com/Lucifer-Newstar/AegisSRE/pull/14)) | Measured startup-to-Grafana timing and evaluation coverage |
+| A2 | Authenticated persistent CRUD/probes and actual console reads ([18](https://github.com/Lucifer-Newstar/AegisSRE/pull/18)) | Full interaction/refresh acceptance review |
+| A3 | Statistical/Isolation Forest detection, committed anomaly events and isolated baselines | Held-out precision/recall/F1>=.85 and latency<60s |
+| A4 | Transactional lifecycle/timeline/audit, live console | Measured creation bound on real qualifying faults |
+| A5 | Read-only evidence/citations, deterministic hypotheses, optional guarded model adapters, closure reports | Chosen-model trial, top1>=70% on real faults, reviewed reports |
+| A6 | Versioned policies and hard safety bounds | Complete supported-action/risk matrix and live policy-update demonstration |
+| A7 | Authorized console approve/reject/defer with audit | Formal three-click check and full impact review |
+| A8 | Automatic-only scheduler with fresh candidates, real one-replica scale and final kill-switch callback ([31](https://github.com/Lucifer-Newstar/AegisSRE/pull/31), [37](https://github.com/Lucifer-Newstar/AegisSRE/pull/37)) | >=80% eligible-action success and repeated safety trials. Seeded scale proof is not this benchmark |
+| A9 | Fresh metric/health/error/latency/SLO recovery gate and timeout escalation | Ground-truth>=90% verdict accuracy, repeated unrecovered-close safety |
+| A10/C1 | Authenticated API-backed pages, charts, evidence, reports and15s refresh ([18](https://github.com/Lucifer-Newstar/AegisSRE/pull/18), [20](https://github.com/Lucifer-Newstar/AegisSRE/pull/20)) | Full product-vision interaction/visual acceptance, remaining overview sparklines/deployment markers |
+| A11 | Actual owned CLI HTTP fault, latency, boundedCPUwork/RSS, OOM/crash/config/faulty-image/traffic and dependency outage proofs ([17](https://github.com/Lucifer-Newstar/AegisSRE/pull/17), [22](https://github.com/Lucifer-Newstar/AegisSRE/pull/22), [23](https://github.com/Lucifer-Newstar/AegisSRE/pull/23), [24](https://github.com/Lucifer-Newstar/AegisSRE/pull/24), [25](https://github.com/Lucifer-Newstar/AegisSRE/pull/25), [26](https://github.com/Lucifer-Newstar/AegisSRE/pull/26), [27](https://github.com/Lucifer-Newstar/AegisSRE/pull/27)) | CPU work is not sustained saturation; application delay is not packet shaping. Repeat full manifest-controlled trials |
+| A12/E2 | Paired held-out schema/report command with censoring, mean/std and provenance ([29](https://github.com/Lucifer-Newstar/AegisSRE/pull/29)) | Actual reviewed dataset>=10 runs/fault/workflow, genuine human manual comparator, committed results |
+| B1 | Actual pgvector retrieval/persistence and runbook/context wiring ([7](https://github.com/Lucifer-Newstar/AegisSRE/pull/7)) | Real evaluation-fault recall@5>=.8, frozen corpus |
+| B2 | Read-only tools, visible cited Ask, guarded optional inference and evidence-only fallback | Chosen live model and reviewed actual question/citation trials |
+| C3/C4 | Incident-linked text-only runbooks, postmortem/action/evidence viewer, authenticated Markdown export ([20](https://github.com/Lucifer-Newstar/AegisSRE/pull/20)) | Reviewed actual fault closure reports; PDF optional format not yet provided |
+| C5 | Filtered audit viewer on real API | Formal interaction acceptance |
+| D1 | Owned local kind complete stack and real store/RBAC proofs ([14](https://github.com/Lucifer-Newstar/AegisSRE/pull/14)) | Not production tenancy or cloud deployment |
+| D5 | Eleven CI jobs test/lint/build and real disposable integration | Agreed image registry/audience and publish verification, not yet approved |
+| D6 | Shared actual Grafana SLO panels and real120sHTTP fault causing2minfast-burn alert ([21](https://github.com/Lucifer-Newstar/AegisSRE/pull/21), [32](https://github.com/Lucifer-Newstar/AegisSRE/pull/32)) | Full1h/30day coverage is not established by shortCI |
+| E4 | Milestone notes, operating guides, labelled screenshots and proof limits | Continue recording exact results and remaining gates |
+| DI-1 | Durable explicit deployment identity, producer times, timeline/history | Deployment markers on metric charts and preview hook workflow |
+| DI-2 | Frozen empirical service-history baseline with timed training provenance ([33](https://github.com/Lucifer-Newstar/AegisSRE/pull/33)) | Change-attribute pre/post scorer in open39, real faulty-deploy recall>=.7 |
+| DI-3 | Evidence-timing correlation and UI | Ambiguity-safe evaluated top1>=.8; timing is not causal proof |
+| DI-4 | Transactional180swindow and idempotent bad flag | Actual faulty-rollout detection latency<3min and repeated trials |
+| DI-5 | Conservative recommendation/defaultapproval, scoped executor | Open40/41 live rollback work, inferred end-to-end>=80% recovery and zero violations |
+| DI-6 | Open34 actual stable/canary comparison | Final combined cluster gate and pixels still pending |
+| DI-7 | Observed CFR/coverage/unknown bounds on actual API ([30](https://github.com/Lucifer-Newstar/AegisSRE/pull/30)) | Open38 daily trends/reviews, CFR in measured evaluation |
+
+Current open feature PRs: [34](https://github.com/Lucifer-Newstar/AegisSRE/pull/34)
+canary, [35](https://github.com/Lucifer-Newstar/AegisSRE/pull/35) consoleSLO,
+[36](https://github.com/Lucifer-Newstar/AegisSRE/pull/36) exact detector flags,
+[38](https://github.com/Lucifer-Newstar/AegisSRE/pull/38) CFRcohorts/reviews,
+[39](https://github.com/Lucifer-Newstar/AegisSRE/pull/39) change-attribute risk,
+[40](https://github.com/Lucifer-Newstar/AegisSRE/pull/40) retained rollback,
+[41](https://github.com/Lucifer-Newstar/AegisSRE/pull/41) automatic rollback context.
+Neither open PRs nor green unit checks establish their remaining numeric gates.
 
 ## Next milestones
 
@@ -331,7 +342,8 @@ See [metadata authentication](../operations/metadata-auth.md).
 4. Acceptance pass: complete feature matrix, security/failure-path review, clean
    full-stack CI, verified docs and remaining limitations.
 
-The target is November 25, with quality taking priority over the date. External
+November25 is not a reason to delay: finish steadily as soon as scope and honest
+acceptance are done, without reducing quality. External
 LLM credentials/model choice and authorization for any real cluster are separate
 configuration decisions. No real infrastructure action is assumed.
 
