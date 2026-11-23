@@ -69,6 +69,7 @@ def _session(api: Any, manifest_path: Path, manifest: dict[str, Any], output: Pa
     sampler: Thread | None = None
     errors: list[str] = []
     control_rows_seen = 0
+    safety_stop_sent = False
     load_workers: list[Thread] = []
     acknowledgement_lock = Lock()
     request: Any = None
@@ -119,7 +120,7 @@ def _session(api: Any, manifest_path: Path, manifest: dict[str, Any], output: Pa
                     journal.record("human_acknowledgement", operator=operator, acknowledgement=command)
 
     def ingest_control() -> None:
-        nonlocal control_rows_seen
+        nonlocal control_rows_seen, safety_stop_sent
         files = list((output / "control").glob("run-*.jsonl"))
         if len(files) > 1:
             raise RuntimeError("Unexpected multiple controller journals")
@@ -135,6 +136,12 @@ def _session(api: Any, manifest_path: Path, manifest: dict[str, Any], output: Pa
                     cleanup_excludes_later_remediation_credit=value["stage"] in {
                         "load_completed", "restoration_requested", "restored_control_state", "restoration_failed"})
                 control_rows_seen += 1
+                if value["stage"] in {"load_completed", "restoration_requested"} and not safety_stop_sent:
+                    # Mark before dispatch: an uncertain mode write is not replayed.
+                    safety_stop_sent = True
+                    request("/api/v1/autonomy", body={"mode": "observe", "actor": "evaluation-safety-stop"})
+                    journal.record("safety_stop_at_cleanup",
+                        ingestion_delay_must_be_reviewed=True)
 
     try:
         forwards.start(service, port, port)
@@ -150,6 +157,8 @@ def _session(api: Any, manifest_path: Path, manifest: dict[str, Any], output: Pa
         if workflow == "aegis" and before["executor"] != "kubernetes":
             raise RuntimeError("Aegis trials require the actual deployed Kubernetes executor")
         baseline_incidents = request("/api/v1/incidents?limit=500")
+        if len(baseline_incidents) >= 500:
+            raise RuntimeError("Baseline incident listing may be truncated; isolate the trial fixture")
         if workflow == "aegis" and any(item["status"] not in {"closed", "escalated"}
                                        for item in baseline_incidents):
             raise RuntimeError("Active incident carryover: isolate/reset the owned trial baseline first")
@@ -206,7 +215,8 @@ def _session(api: Any, manifest_path: Path, manifest: dict[str, Any], output: Pa
         try:
             # Block new Aegis actions BEFORE controller safety cleanup. A failed
             # mode request is not silently ignored or replayed.
-            if request is not None:
+            if request is not None and not safety_stop_sent:
+                safety_stop_sent = True
                 request("/api/v1/autonomy", body={"mode": "observe", "actor": "evaluation-safety-stop"})
         finally:
             try:
