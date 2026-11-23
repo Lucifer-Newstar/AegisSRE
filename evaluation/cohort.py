@@ -114,8 +114,11 @@ def checked_record(review: ReviewedSession) -> Run:
     if (identity["pair_id"] != record.pair_id or identity["workflow"] != record.workflow
             or len(pairs) != 1 or pairs[0]["fault"] != record.fault):
         raise ValueError("Reviewed record does not match frozen session identity")
-    if record.workflow == "manual" and (record.manual_observer != identity["operator"]
-            or identity["operator"].startswith("ci-")):
+    if identity["operator"].startswith("ci-"):
+        raise ValueError("CI smoke cannot be a held-out workflow measurement")
+    if identity.get("inputs_sha256") != manifest["inputs_sha256"]:
+        raise ValueError("Session start differs from frozen manifest anchor")
+    if record.workflow == "manual" and record.manual_observer != identity["operator"]:
         raise ValueError("Actual attributed human required; CI smoke is not a manual baseline")
     if record.manifest_digest != manifest["inputs_sha256"] or record.frozen_corpus_digest != canonical(manifest["inputs"]["corpus_files"]):
         raise ValueError("Reviewed manifest/corpus identity differs from retained source")
@@ -129,6 +132,8 @@ def checked_record(review: ReviewedSession) -> Run:
                if r["stage"] in {"load_completed", "restoration_requested"}]
     if not cleanup:
         raise ValueError("Missing controller censoring boundary")
+    if len([r for r in controller_rows if r["stage"] == "restored_control_state"]) != 1:
+        raise ValueError("Completed session requires retained control restoration")
     # Review may set an earlier boundary, e.g. hook expiry or spontaneous recovery.
     if not began <= record.onset_at < record.deadline_at <= min(ended, *cleanup):
         raise ValueError("Reviewed interval extends outside observation or beyond automatic cleanup")

@@ -25,17 +25,21 @@ def evidence(root: Path, workflow: str = "manual") -> dict[str, Any]:
     (root / "controller.log").write_text("Authored unit fixture only")
     (root / "review-required.json").write_text("{}")
     writer = TimingJournal(root / "timing.jsonl")
-    writer.record("session_started", pair_id="http-5xx-01", workflow=workflow, operator="Authored operator")
+    writer.record("session_started", pair_id="http-5xx-01", workflow=workflow,
+                  operator="Authored operator", inputs_sha256=canonical(inputs))
     writer.record("human_acknowledgement", acknowledgement="detected", operator="Authored operator")
     writer.record("human_acknowledgement", acknowledgement="action-start", operator="Authored operator")
     writer.record("authored_recovery_point")
     rows = [json.loads(line) for line in (root / "timing.jsonl").read_text().splitlines()]
     start, detection, action, recovery = [row["wall_at"] for row in rows]
     writer.record("controller_boundary", control={"stage": "restoration_requested", "recorded_at": recovery})
+    writer.record("controller_boundary", control={"stage": "restored_control_state", "recorded_at": recovery})
     writer.record("session_stopped", observer_errors=[])
     final = writer.close()
     (root / "final-digest.txt").write_text(final + "\n")
-    (root / "control/run-unit.jsonl").write_text(json.dumps({"stage": "restoration_requested", "recorded_at": recovery}) + "\n")
+    (root / "control/run-unit.jsonl").write_text(
+        json.dumps({"stage": "restoration_requested", "recorded_at": recovery}) + "\n" +
+        json.dumps({"stage": "restored_control_state", "recorded_at": recovery}) + "\n")
     index = {"schema_version": "matched-session-1", "status": "captured_not_reviewed",
         "final_sha256": final, "files": {p.relative_to(root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
             for p in root.rglob("*") if p.is_file()}}
