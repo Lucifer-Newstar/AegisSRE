@@ -60,17 +60,19 @@ def source_clean() -> bool:
                                        cwd=ROOT, text=True).strip()
 
 
-def freeze(path: Path, corpus: Path) -> None:
+def freeze(path: Path, corpus: Path, *, repeats: int = 10) -> None:
+    if repeats not in {3, 10}:
+        raise ValueError("Repetitions must be the approved small3 or original10 design")
     if not source_clean():
         raise ValueError("Commit source changes before freezing an experiment")
     inputs: dict[str, Any] = {
-        "source_revision": revision(), "corpus_root": str(corpus.resolve()),
+        "repetitions_per_fault": repeats, "source_revision": revision(), "corpus_root": str(corpus.resolve()),
         "corpus_files": tree_files(corpus),
         "workload_files": tree_files(ROOT / "infra/k8s"),
         "reporting_semantics": "raw capture only; human review required before held_out reporting",
         "schedule": [{"pair_id": f"{fault}-{repeat:02d}", "fault": fault,
                       "workflows": ["manual", "aegis"]}
-                     for fault in sorted(FAULTS) for repeat in range(1, 11)],
+                     for fault in sorted(FAULTS) for repeat in range(1, repeats + 1)],
     }
     manifest = {"schema_version": "capture-1", "frozen_at": datetime.now(UTC).isoformat(),
                 "inputs": inputs, "inputs_sha256": canonical(inputs)}
@@ -139,6 +141,8 @@ def trial(manifest_path: Path, output: Path, fault: str, seconds: int, repeat: i
         "dependency-failure": ("cart-service", 9002, "/cart/evaluation-probe"),
     }.get(fault, ("catalog-service", 9001, "/products"))
     manifest = validate_manifest(manifest_path)
+    if repeat > manifest["inputs"]["repetitions_per_fault"]:
+        raise ValueError("Repetition is outside the frozen design")
     api = driver()  # Fails before writes unless this run owns the disposable fixture.
     output.mkdir(parents=True, exist_ok=False)
     # Save real environment state, not a declaration that paired runs are identical.
@@ -222,6 +226,7 @@ def main() -> None:
     frozen = commands.add_parser("freeze")
     frozen.add_argument("manifest", type=Path)
     frozen.add_argument("--corpus", type=Path, required=True)
+    frozen.add_argument("--repeats", type=int, choices=[3, 10], default=10)
     capture = commands.add_parser("trial")
     capture.add_argument("manifest", type=Path)
     capture.add_argument("output", type=Path)
@@ -230,7 +235,7 @@ def main() -> None:
     capture.add_argument("--repeat", type=int, default=1)
     args = parser.parse_args()
     if args.command == "freeze":
-        freeze(args.manifest, args.corpus)
+        freeze(args.manifest, args.corpus, repeats=args.repeats)
     else:
         trial(args.manifest, args.output, args.fault, args.seconds, args.repeat)
 

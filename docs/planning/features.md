@@ -6,6 +6,23 @@
 
 ---
 
+## Final release clarification, November23
+
+The owner approved a genuine smaller comparison:30 manual trials with Navin and
+one friend, paired with30 Aegis trials, three repetitions per fault. This replaces
+the ten-per-fault release cohort requirement below, without pretending it meets
+that original larger research design. Results must say small sample and retain
+all failed/censored observations. Use the explicit small profile in
+[the evaluation guide](../../evaluation/README.md). Runs stay local/small; no
+hosted matrix or spending is approved.
+
+No language-model inference or deeper MLOps build is required for this final
+release. Those may be described as unbuilt roadmap ideas only. Statistical/IF
+detection, evidence-only reasoning/Ask, pgvector retrieval and the planned
+risk/canary scope are retained. No v2 implementation is being commissioned.
+Image publication is approved for GHCR under Lucifer-Newstar/AegisSRE with
+anyone-can-read access, only when the work is ready.
+
 ## 1. How to read the catalogue
 
 - **Feature ID** identifies the item. `A–E` and `DI` are separate ID families; for example, **D1** means Kubernetes, while **DI-1** means deployment tracking.
@@ -101,7 +118,7 @@ No cut feature is implicitly included as “nice to have.”
 ### A12 · Evaluation framework
 - **Outcome:** compare conventional monitoring/manual response with AegisSRE on identical faults; automate MTTD, MTTR, RCA, autonomy, and summary statistics.
 - **Needs:** A11 and E4.
-- **Done when:** one documented command produces a reproducible report with at least ten runs per fault type and mean ± standard deviation.
+- **Done when:** one documented command produces a reproducible report under the explicitly approved30-pair small-sample design, with mean ± standard deviation and censoring/coverage. The original ten-runs-per-fault design remains a clearly unmet larger study, not a claim.
 
 ---
 

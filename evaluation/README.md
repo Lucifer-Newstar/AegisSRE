@@ -89,3 +89,24 @@ endpoint and its platform records. Other faults observe catalog products. Each
 sample also retains the affected service's committed anomaly events and raw
 metrics. Empty results and connection errors remain explicit. Successful snapshot
 capture alone never certifies that an injection produced its intended symptom.
+
+## Approved final small-sample comparison (November23)
+
+The owner approved a smaller genuine comparison rather than inventing100 manual
+runs: target30 manual trials with Navin and one friend, paired with30 Aegis trials,
+three repetitions of each of the ten faults. Friend identity and actual trial
+observations remain to be supplied. Run locally and small, never a hosted matrix.
+No trial is performed merely by selecting this profile.
+
+Freeze that explicit design with `--repeats 3`. In the reviewed `report.py` input,
+set `comparison_profile` to `approved_small_3_per_fault`. The report records
+`small_sample: true` and requires three completed runs per fault/workflow plus
+pairing. The unchanged default profile still requires ten. Small-sample completion
+does not satisfy the original ten-per-fault design, establish significance, or
+waive detection, correctness and safety reporting. Failed/censored attempts remain
+visible. The owner did not authorize fake observations or a paid runner.
+
+Model inference and deeper training/registry/drift work are unbuilt roadmap ideas,
+not final-release requirements. Existing evidence-only answers, statistical/IF
+detection, retrieval and planned deployment-risk/canary scoring remain the actual
+final scope. No model downloads/calls will be made for this release.
