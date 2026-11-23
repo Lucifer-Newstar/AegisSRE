@@ -116,6 +116,21 @@ class ReliabilityLoop:
                     raise DomainError(str(exc)) from exc
             active = tx.active_incident(event.service, event.environment)
             if signal is not None:
+                from incidents_service.anomaly_windows import sample_key
+
+                tx.put_state(
+                    sample_key(event.id),
+                    {
+                        "event_id": event.id,
+                        "at": event.timestamp.isoformat(),
+                        "metric": signal.metric,
+                        "series": signal.series,
+                        "observed": signal.observed,
+                        "baseline_mean": signal.baseline_mean,
+                        "z_score": signal.z_score,
+                        "model": signal.model,
+                    },
+                )
                 active = self._on_anomaly(tx, event, signal, active, window_start)
             elif active and active.status == "verifying" and event.type in {"metric", "health"}:
                 self._verify(tx, active, event)
