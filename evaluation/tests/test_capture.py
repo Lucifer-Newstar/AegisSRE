@@ -120,3 +120,13 @@ def test_unowned_cluster_refuses_output(tmp_path: Path, monkeypatch: pytest.Monk
     with pytest.raises(RuntimeError, match="unowned"):
         capture.trial(manifest, output, "http-5xx", 1, 1)
     assert not output.exists()
+
+
+def test_small_frozen_design_is_explicit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    manifest, corpus = setup_inputs(tmp_path, monkeypatch)
+    capture.freeze(manifest, corpus, repeats=3)
+    result = capture.validate_manifest(manifest)
+    assert len(result["inputs"]["schedule"]) == 30
+    assert result["inputs"]["repetitions_per_fault"] == 3
+    with pytest.raises(ValueError, match="outside the frozen design"):
+        capture.trial(manifest, tmp_path / "unused", "http-5xx", 1, 4)

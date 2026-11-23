@@ -68,3 +68,19 @@ def test_unpaired_experiments_are_reported_not_hidden() -> None:
     result = summarize(Dataset(partition="held_out", records=[row()], review_reference="unit"))
     assert result["unpaired_experiment_ids"] == ["example-pair"]
     assert result["cohort_complete"] is False
+
+
+def test_explicit_small_profile_does_not_silently_lower_original_gate() -> None:
+    from evaluation.report import FAULTS
+    records = [row(id=f"{fault}-{index}-{workflow}", pair_id=f"{fault}-{index}",
+                   fault=fault, workflow=workflow,
+                   manual_observer="authored-human-fixture" if workflow == "manual" else None)
+               for fault in FAULTS for index in range(3) for workflow in ("aegis", "manual")]
+    original = summarize(Dataset(partition="held_out", records=records, review_reference="unit"))
+    assert original["cohort_complete"] is False
+    small = summarize(Dataset(partition="held_out", comparison_profile="approved_small_3_per_fault",
+                              records=records, review_reference="unit"))
+    assert small["cohort_complete"] is True
+    assert small["small_sample"] is True
+    assert small["required_completed_per_fault_workflow"] == 3
+    assert small["record_count"] == 60
