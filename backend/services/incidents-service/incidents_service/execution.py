@@ -46,7 +46,11 @@ class Executor:
             raise ExecutionError(
                 f"kubectl returned {result.returncode}; inspect executor logs locally"
             )
-        return result.stdout[:32000]
+        # Structured reads must remain complete. Truncating a ReplicaSet list can
+        # corrupt JSON and silently hide the uniquely owned rollback candidate.
+        if len(result.stdout) > 4_000_000:
+            raise ExecutionError("kubectl response exceeds the safe structured-read limit")
+        return result.stdout
 
     def policy_context(self, plan: Plan) -> dict[str, Any]:
         """Read live scale preconditions. Simulation never invents a replica count.
@@ -72,6 +76,32 @@ class Executor:
         if isinstance(replicas, bool) or not isinstance(replicas, int) or not 1 <= replicas < 10:
             raise ExecutionError("Automatic scale requires a known bounded replica count")
         return {"current_replicas": replicas, "target_uid": str(meta["uid"])}
+
+    def _rollback_template(self, plan: Plan, uid: str) -> dict[str, Any]:
+        replicasets = json.loads(self._kubectl(["get", "replicasets", "-o", "json"]))
+        matches = [
+            row
+            for row in replicasets.get("items", [])
+            if row.get("metadata", {}).get("namespace") == self.settings.kube_namespace
+            and row.get("metadata", {})
+            .get("annotations", {})
+            .get("deployment.kubernetes.io/revision")
+            == plan.revision
+            and any(
+                owner.get("uid") == uid
+                and owner.get("kind") == "Deployment"
+                and owner.get("controller") is True
+                for owner in row.get("metadata", {}).get("ownerReferences", [])
+            )
+        ]
+        if len(matches) != 1:
+            raise ExecutionError("Rollback target requires one uniquely owned retained ReplicaSet")
+        template = matches[0].get("spec", {}).get("template")
+        if not isinstance(template, dict) or not template.get("spec", {}).get("containers"):
+            raise ExecutionError("Rollback target has no retained workload template")
+        # Kubernetes deployment hashing is controller-generated, not desired config.
+        template.get("metadata", {}).get("labels", {}).pop("pod-template-hash", None)
+        return dict(template)
 
     def run(
         self,
@@ -122,12 +152,19 @@ class Executor:
                 )
             if not 1 <= int(revision) - int(plan.revision) <= 2:
                 raise ExecutionError("Rollback distance must be one or two revisions")
-            args = [
-                "rollout",
-                "undo",
-                f"deployment/{plan.target}",
-                f"--to-revision={plan.revision}",
+            if not meta.get("uid") or not meta.get("resourceVersion"):
+                raise ExecutionError("Rollback requires a current UID and resource version")
+            template = self._rollback_template(plan, str(meta["uid"]))
+            patch = [
+                {"op": "test", "path": "/metadata/uid", "value": meta["uid"]},
+                {
+                    "op": "test",
+                    "path": "/metadata/resourceVersion",
+                    "value": meta["resourceVersion"],
+                },
+                {"op": "replace", "path": "/spec/template", "value": template},
             ]
+            args = ["patch", "deployment/" + plan.target, "--type=json", "-p", json.dumps(patch)]
         elif plan.action == "scale":
             if (
                 plan.replicas is None
