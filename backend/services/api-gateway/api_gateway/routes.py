@@ -39,6 +39,7 @@ ROUTES = (
     Route("/autonomy", "incidents", ("GET", "POST"), asserted_actor=True),
     Route("/runtime", "incidents"),
     Route("/ask", "incidents", ("POST",), timeout_seconds=135),
+    Route("/deployment-intelligence/canary", "incidents", queries=("service",), timeout_seconds=30),
     Route("/deployment-intelligence/trends", "incidents", queries=("service",)),
     Route("/deployment-intelligence/review", "incidents", queries=("service", "rollout_id")),
     Route("/deployment-intelligence/risk-preview", "incidents", ("POST",)),
