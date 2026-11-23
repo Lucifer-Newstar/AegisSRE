@@ -415,6 +415,7 @@ jobs:
         run: |
           python3 -m evaluation.capture freeze "$RUNNER_TEMP/aegis-capture-manifest.json" --corpus docs/operations
           python3 -m evaluation.capture trial "$RUNNER_TEMP/aegis-capture-manifest.json" "$RUNNER_TEMP/aegis-kind-platform/diagnostics/capture-smoke" --fault http-5xx --seconds 5
+          python3 -m evaluation.review "$RUNNER_TEMP/aegis-kind-platform/diagnostics/capture-smoke" "$RUNNER_TEMP/aegis-kind-platform/diagnostics/capture-review.json"
       - name: Collect scoped cluster diagnostics without secrets
         if: always()
         run: python3 scripts/ci/kind_platform_gate.py diagnostics
