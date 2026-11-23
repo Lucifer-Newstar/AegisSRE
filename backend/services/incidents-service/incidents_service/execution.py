@@ -46,7 +46,11 @@ class Executor:
             raise ExecutionError(
                 f"kubectl returned {result.returncode}; inspect executor logs locally"
             )
-        return result.stdout[:32000]
+        # Structured reads must remain complete. Truncating a ReplicaSet list can
+        # corrupt JSON and silently hide the uniquely owned rollback candidate.
+        if len(result.stdout) > 4_000_000:
+            raise ExecutionError("kubectl response exceeds the safe structured-read limit")
+        return result.stdout
 
     def policy_context(self, plan: Plan) -> dict[str, Any]:
         """Read live scale preconditions. Simulation never invents a replica count.
