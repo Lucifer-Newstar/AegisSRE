@@ -82,3 +82,10 @@ Review independently observed symptom onset, first qualifying detection, actual
 recovery, action attribution and any censored/failed intervals before creating
 `report.py` inputs. A human must actually perform and record manual trials;
 matching `pair_id` strings alone do not prove identical environments.
+
+Dependency trials observe the actual affected boundary: database outage reads order
+readiness and its platform records; Redis dependency outage reads a cart-domain
+endpoint and its platform records. Other faults observe catalog products. Each
+sample also retains the affected service's committed anomaly events and raw
+metrics. Empty results and connection errors remain explicit. Successful snapshot
+capture alone never certifies that an injection produced its intended symptom.

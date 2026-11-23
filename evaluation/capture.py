@@ -102,7 +102,7 @@ def fetch(port: int, path: str, *, authenticated: bool = False) -> dict[str, Any
                              headers: Any, newurl: str) -> None:
             return None
 
-    if port not in {8201, 9001} or urlsplit(path).scheme or not path.startswith("/") or path.startswith("//"):
+    if port not in {8201, 9001, 9002, 9003} or urlsplit(path).scheme or not path.startswith("/") or path.startswith("//"):
         raise ValueError("Only fixed owned-fixture endpoints are accepted")
     headers = {"Accept": "application/json"}
     if authenticated:
@@ -134,6 +134,10 @@ def fetch(port: int, path: str, *, authenticated: bool = False) -> dict[str, Any
 def trial(manifest_path: Path, output: Path, fault: str, seconds: int, repeat: int) -> None:
     if fault not in FAULTS or not 1 <= seconds <= 120 or not 1 <= repeat <= 10:
         raise ValueError("Unsupported fault, duration or repetition")
+    service, port, endpoint = {
+        "database-outage": ("order-service", 9003, "/ready"),
+        "dependency-failure": ("cart-service", 9002, "/cart/evaluation-probe"),
+    }.get(fault, ("catalog-service", 9001, "/products"))
     manifest = validate_manifest(manifest_path)
     api = driver()  # Fails before writes unless this run owns the disposable fixture.
     output.mkdir(parents=True, exist_ok=False)
@@ -152,9 +156,12 @@ def trial(manifest_path: Path, output: Path, fault: str, seconds: int, repeat: i
         try:
             while not stop.is_set():
                 journal.record("sample", observed_at=datetime.now(UTC).isoformat(),
-                    domain=fetch(9001, "/products"),
-                    metrics=fetch(9001, "/metrics"),
-                    incidents=fetch(8201, "/incidents?service=catalog-service&limit=100",
+                    endpoint=endpoint, service=service,
+                    domain=fetch(port, endpoint),
+                    metrics=fetch(port, "/metrics"),
+                    incidents=fetch(8201, f"/incidents?service={service}&limit=100",
+                                    authenticated=True),
+                    anomalies=fetch(8201, f"/events?service={service}&environment=dev&event_type=anomaly&limit=100",
                                     authenticated=True))
                 stop.wait(2)
         except BaseException as error:
@@ -162,11 +169,11 @@ def trial(manifest_path: Path, output: Path, fault: str, seconds: int, repeat: i
             stop.set()
 
     try:
-        forwards.start("catalog-service", 9001, 9001)
+        forwards.start(service, port, port)
         forwards.start("incidents-service", 8201, 8201)
         for _ in range(30):
-            domain = fetch(9001, "/products")
-            incidents = fetch(8201, "/incidents?service=catalog-service&limit=100", authenticated=True)
+            domain = fetch(port, endpoint)
+            incidents = fetch(8201, f"/incidents?service={service}&limit=100", authenticated=True)
             if domain["status"] == 200 and incidents["status"] == 200:
                 break
             time.sleep(1)
