@@ -284,6 +284,12 @@ def create_app(
             raise HTTPException(422, "Select an allowed service and metric")
         with repo.transaction() as tx:
             return windows(tx, service, config.environment, metric, datetime.now(UTC))
+    @application.get("/deployment-intelligence/canary", dependencies=[Depends(authorized)])
+    def canary_analysis(service: str) -> dict[str, Any]:
+        from incidents_service.canary import analyze
+        if service not in config.allowed_targets:
+            raise HTTPException(422, "Select an allowed service")
+        return analyze(config, service)
     @application.get("/deployment-intelligence/trends", dependencies=[Depends(authorized)])
     def deployment_trends(service: str) -> dict[str, Any]:
         from incidents_service.deployment_trends import trend

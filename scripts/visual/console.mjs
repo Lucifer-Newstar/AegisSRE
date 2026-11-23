@@ -18,6 +18,7 @@ try{
   if((await page.content()).includes(process.env.AEGIS_API_TOKEN))throw new Error('Fixture token appeared in page data');
   const failure=await page.locator('[role=alert]').allTextContents();
   if(failure.some(t=>t.includes('API unavailable')||t.includes('No data substituted')))throw new Error('Visible page API failure on '+route);
+  if(label==='deployments'&&process.env.AEGIS_REQUIRE_CANARY==='true')await page.getByText('regressed',{exact:true}).waitFor();
   await page.screenshot({path:output+'/console-'+label+'.png',fullPage:true});
  }
  console.log('Actual Next console pixels captured from the owned platform APIs; no decisions, actions or model calls. Separate pixel inspection required.');
