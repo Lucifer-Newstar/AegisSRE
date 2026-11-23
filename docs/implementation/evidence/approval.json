@@ -1,0 +1,12 @@
+{
+  "authenticated_start": "command-center",
+  "clicks_to_approval": 2,
+  "login_excluded": true,
+  "actual_form_submit": true,
+  "principal": "token:operator",
+  "incident_id": "inc_20261123025042_0f2a3c6361",
+  "status_and_plan_unchanged": true,
+  "no_execution": true,
+  "seeded_incident": true,
+  "not_fault_or_autonomy_acceptance": true
+}
