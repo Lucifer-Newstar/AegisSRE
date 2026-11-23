@@ -735,6 +735,9 @@ def verify() -> None:
         (release_dir / "independent-proof.json").write_text(json.dumps(release_proof, indent=2))
         print("Actual separately built faulty release503 and original-image restoration200 independently verified")
         run([sys.executable, str(ROOT / "scripts/check_console_stack.py")], timeout=240)
+        # HTTP interaction coverage and pixel capture are separate navigation
+        # sweeps. Respect the unchanged gateway per-minute operator allowance.
+        time.sleep(61)
         run(["env", "AEGIS_VISUAL_OUTPUT=" + str(directory() / "diagnostics" / "visual"),
              "node", str(ROOT / "scripts/visual/console.mjs")], timeout=180)
         with urllib.request.urlopen("http://127.0.0.1:3030/login", timeout=15) as response:
