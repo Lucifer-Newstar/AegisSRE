@@ -128,5 +128,8 @@ def test_small_frozen_design_is_explicit(tmp_path: Path, monkeypatch: pytest.Mon
     result = capture.validate_manifest(manifest)
     assert len(result["inputs"]["schedule"]) == 30
     assert result["inputs"]["repetitions_per_fault"] == 3
+    schedule = result["inputs"]["schedule"]
+    assert sum(row["workflows"][0] == "manual" for row in schedule) == 15
+    assert sum(row["workflows"][0] == "aegis" for row in schedule) == 15
     with pytest.raises(ValueError, match="outside the frozen design"):
         capture.trial(manifest, tmp_path / "unused", "http-5xx", 1, 4)

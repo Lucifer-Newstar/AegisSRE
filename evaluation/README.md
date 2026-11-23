@@ -142,3 +142,11 @@ retain separately. This is integrity checking, not tamper-proof or independently
 certified timing. It generates no accepted outcome records or artificial human
 response. Disclose one operator,30 pairs,small sample,non-blinded and learning/order
 effects. Manual MTTD is acknowledgement latency; no stopwatch is required.
+
+## Integrated matched sessions
+
+The [matched-session runbook](../docs/development/matched-trials.md) documents
+`python -m evaluation.session`, the balanced frozen workflow order, genuine human
+acknowledgements, actual executor requirement, cleanup censoring, retained raw
+evidence and fixed fault-specific review rules. It runs one bounded workflow,
+not a fabricated cohort. Actual local sessions and reviewed results remain open.

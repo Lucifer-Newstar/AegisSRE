@@ -71,8 +71,9 @@ def freeze(path: Path, corpus: Path, *, repeats: int = 10) -> None:
         "workload_files": tree_files(ROOT / "infra/k8s"),
         "reporting_semantics": "raw capture only; human review required before held_out reporting",
         "schedule": [{"pair_id": f"{fault}-{repeat:02d}", "fault": fault,
-                      "workflows": ["manual", "aegis"]}
-                     for fault in sorted(FAULTS) for repeat in range(1, repeats + 1)],
+                      "workflows": (["manual", "aegis"] if (index * repeats + repeat) % 2
+                                    else ["aegis", "manual"])}
+                     for index, fault in enumerate(sorted(FAULTS)) for repeat in range(1, repeats + 1)],
     }
     manifest = {"schema_version": "capture-1", "frozen_at": datetime.now(UTC).isoformat(),
                 "inputs": inputs, "inputs_sha256": canonical(inputs)}
