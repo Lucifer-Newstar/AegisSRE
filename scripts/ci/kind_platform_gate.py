@@ -740,6 +740,10 @@ def verify() -> None:
         time.sleep(61)
         run(["env", "AEGIS_VISUAL_OUTPUT=" + str(directory() / "diagnostics" / "visual"),
              "node", str(ROOT / "scripts/visual/console.mjs")], timeout=180)
+        # Keep a separate form sweep within the unchanged gateway allowance.
+        time.sleep(61)
+        run(["env", "AEGIS_VISUAL_OUTPUT=" + str(directory() / "diagnostics" / "operator-form"),
+             "node", str(ROOT / "scripts/visual/operator-note.mjs")], timeout=90)
         with urllib.request.urlopen("http://127.0.0.1:3030/login", timeout=15) as response:
             assert response.status == 200
         print(

@@ -20,3 +20,11 @@ Checks actual Next login, protected pages/cookie, no fixture token in HTML,
 cross-origin mutation denial, report export, literal runbook HTML, navigation
 and chart rendering. Inspect the saved pixels separately before accepting a
 visual result. This is not the real gateway/kind proof or fault acceptance.
+
+`operator-note.mjs` runs only inside the existing owned cluster gate. It logs in
+through the real console, submits the operator-note HTML form, verifies one durable
+note with the gateway-bound principal, and asserts status/approval/plan/undo did
+not change. Cross-origin and invalid-CSRF posts must be rejected first. It stores
+a JSON proof and final screenshot for separate pixel inspection. The integration
+incident is seeded test evidence, not a naturally detected fault. This test does
+not approve a plan, invoke an action or call a model.
