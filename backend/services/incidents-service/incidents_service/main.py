@@ -276,6 +276,12 @@ def create_app(
             generate_latest(metrics), media_type="text/plain; version=0.0.4; charset=utf-8"
         )
 
+    @application.get("/deployment-intelligence/canary", dependencies=[Depends(authorized)])
+    def canary_analysis(service: str) -> dict[str, Any]:
+        from incidents_service.canary import analyze
+        if service not in config.allowed_targets:
+            raise HTTPException(422, "Select an allowed service")
+        return analyze(config, service)
     @application.get("/deployment-intelligence/trends", dependencies=[Depends(authorized)])
     def deployment_trends(service: str) -> dict[str, Any]:
         from incidents_service.deployment_trends import trend

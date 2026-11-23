@@ -6,6 +6,8 @@ metadata:
     app.kubernetes.io/name: prometheus
     app.kubernetes.io/part-of: aegissre
 spec:
+  strategy:
+    type: Recreate
   replicas: 1
   selector:
     matchLabels:
