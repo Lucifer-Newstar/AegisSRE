@@ -130,6 +130,7 @@ class KnowledgeIndexer:
             ]
         for incident in closed:
             content = {
+                "operator_notes_unverified": [{"actor": entry.actor, "at": entry.at.isoformat(), "note": entry.detail} for entry in incident.audit if entry.action == "operator.note"][-20:],
                 "summary": incident.analysis.summary,
                 "hypotheses": incident.analysis.hypotheses,
                 "cause_caveat": incident.analysis.caveat,

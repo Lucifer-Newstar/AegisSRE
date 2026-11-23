@@ -72,6 +72,13 @@ def main() -> None:
         assert error.code == 403
     else:
         raise AssertionError("Console accepted a cross-origin decision")
+    from check_gateway_stack import request as gateway_request
+    original = gateway_request("/api/v1/incidents/" + identity)
+    noted = gateway_request("/api/v1/incidents/" + identity + "/notes", body={
+        "actor": "caller-cannot-select-actor", "note": "Synthetic owned UI proof context, not a diagnosed cause"})
+    assert noted["status"] == original["status"] and noted["plan"] == original["plan"]
+    assert noted["audit"][-1]["action"] == "operator.note"
+    assert noted["audit"][-1]["actor"] == "token:operator"
     print("Actual Next encrypted login and authenticated live read pages passed; cross-origin decision denied; no UI mutation or model call")
 
 

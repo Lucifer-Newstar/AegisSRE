@@ -278,6 +278,15 @@ class ReliabilityLoop:
         self._emit(tx, active, "incident")
         return active
 
+    def annotate(self, incident_id: str, body: Decision) -> Incident:
+        if not body.note.strip():
+            raise DomainError("An operator note must contain text", 422)
+        with self.repo.transaction() as tx:
+            incident = self._get(tx, incident_id)
+            self._audit(tx, incident, "operator.note", body.actor, body.note)
+            tx.save_incident(incident)
+            return incident
+
     def decide(
         self,
         incident_id: str,
