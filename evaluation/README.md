@@ -89,3 +89,24 @@ endpoint and its platform records. Other faults observe catalog products. Each
 sample also retains the affected service's committed anomaly events and raw
 metrics. Empty results and connection errors remain explicit. Successful snapshot
 capture alone never certifies that an injection produced its intended symptom.
+
+## Verify bytes before human outcome review
+
+```sh
+python -m evaluation.review /tmp/aegis-trial-01 /tmp/aegis-review-01.json
+```
+
+This command verifies every captured file against its index, refuses unsafe paths,
+symlinks, extra or missing files, changed bytes and size-limit violations, and
+writes an exclusive review packet outside the immutable capture directory. It
+counts raw response statuses for orientation only. All eighteen reviewer/outcome
+fields remain null: onset/detection/recovery times and evidence references,
+restoration attribution, censoring, cause correctness, eligibility, action and
+safety judgments, pairing equivalence and held-out partition confirmation.
+
+The packet is deliberately not accepted as a `report.py` dataset. A reviewer must
+inspect the raw service observations and platform records, distinguish runner
+cleanup from Aegis remediation, and supply real manual observations separately.
+Hashes prove consistency with the index, not who created the evidence or whether
+its truth labels are correct. No correctness or timing result follows merely
+from successfully preparing this packet.
