@@ -8,8 +8,8 @@
 
 ## Final release clarification, November23
 
-The owner approved a genuine smaller comparison:30 manual trials with Navin and
-one friend, paired with30 Aegis trials, three repetitions per fault. This replaces
+The owner approved a genuine smaller comparison:30 manual trials with Navin as
+the solo human operator, paired with30 Aegis trials, three repetitions per fault. This replaces
 the ten-per-fault release cohort requirement below, without pretending it meets
 that original larger research design. Results must say small sample and retain
 all failed/censored observations. Use the explicit small profile in
