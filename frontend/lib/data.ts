@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { session } from "./session";
 import { ApiError, gateway } from "./gateway";
@@ -16,7 +17,7 @@ export type Incident = {
 export type Envelope = { id: string; timestamp: string; type: string; source: string; service: string; payload: Record<string, unknown>; trace_id?: string };
 export type Result<T> = { items: T; error: string | null };
 
-export async function load<T>(path: string): Promise<Result<T | null>> {
+export const load = cache(async function load<T>(path: string): Promise<Result<T | null>> {
   const current = session();
   if (!current) redirect("/login");
   try { return { items: await gateway<T>(path, current.token), error: null }; }
@@ -24,7 +25,7 @@ export async function load<T>(path: string): Promise<Result<T | null>> {
     if (error instanceof ApiError && error.status === 401) redirect("/login?error=1");
     return { items: null, error: error instanceof ApiError ? `API unavailable (${error.status}). No data substituted.` : "API connection failed. No data substituted." };
   }
-}
+});
 export async function loadServices() {
   const result = await load<Record<string, unknown>[]>("/api/v1/services");
   const items: ServiceInfo[] = (result.items || []).map(row => ({
