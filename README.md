@@ -1,114 +1,75 @@
 # AegisSRE
 
-**AI-Powered Autonomous Site Reliability & Deployment Intelligence Platform**
+Telemetry-driven reliability and deployment intelligence, with policy-controlled
+remediation and evidence-backed recovery checks.
 
-**SRE + DevSecOps + a small planned MLOps layer**
+A personal project by **Navin Jairam**
+([@Lucifer-Newstar](https://github.com/Lucifer-Newstar)).
 
-The DevSecOps work includes distinct read/write service credentials, bounded
-API boundaries, hardened non-root containers, RBAC checks, audit and CI tests.
-The small MLOps scope is the planned deployment risk/canary scoring, not a full
-training platform. Model training pipelines, registries and drift pipelines are
-v2 roadmap work. [Resume and portfolio wording](docs/implementation/positioning.md)
-separates implemented features from planned scoring and unmeasured acceptance.
+**Status: implementation and integration proofs are available; local comparative
+evaluation and release publication are unfinished.**
 
-*Intelligent monitoring · Deployment risk intelligence · Incident detection · Root-cause analysis · Controlled autonomous remediation*
+[Scope](docs/planning/features.md) · [Current status](docs/implementation/status.md) ·
+[Integration evidence](docs/implementation/product-acceptance-proofs.md) ·
+[Documentation](docs/README.md)
 
-A personal project by **Navin Jairam** ([@Lucifer-Newstar](https://github.com/Lucifer-Newstar)).
+## 1. What is implemented
 
-![Status](https://img.shields.io/badge/status-foundation--phase-0f766e) ![CI](https://img.shields.io/badge/CI-github--actions-blue)
+- **Observability:** OpenTelemetry, Prometheus, Grafana, Loki and Tempo, with
+  scoped metrics/log/trace evidence and Kubernetes/deployment events.
+- **Reliability runtime:** statistical and Isolation Forest detection, durable
+  PostgreSQL business state, Redis Streams delivery, incident lifecycle, cited
+  deterministic cause ranking and postmortems. Missing evidence stays unknown.
+- **Knowledge and Ask:** pgvector retrieval and read-only evidence tools. The
+  final release uses evidence-only reasoning, not language-model inference.
+- **Controlled remediation:** approval/reject/defer, versioned policy, cooldowns,
+  rate limits, cancellation and observe-mode kill switch. Base configuration
+  uses simulation. An opt-in scoped Kubernetes executor has real scale/rollback
+  integration proofs, not measured recovery-accuracy claims.
+- **Deployment intelligence:** frozen empirical/change-attribute risk estimates,
+  rollout windows, revision context, observed stable/canary comparison and
+  change-failure analytics. Predictive thresholds remain unmeasured.
+- **Authenticated console:** command center, service and incident detail,
+  approvals, postmortems, runbooks, Ask and deployments, with sessions,
+  origin/CSRF checks, metric charts and explicit error/unknown states.
+- **Chaos and evaluation:** ten bounded owned-fixture fault types, independent
+  probes, real manual acknowledgements, archived baseline resets and reviewed
+  cohort reporting. Timed cleanup is never credited as remediation.
+- **DevSecOps:** separate read/write credentials, non-root containers, bounded
+  API routes, RBAC, audit, and eleven CI jobs covering code, builds, storage,
+  live collection and the complete disposable kind stack.
 
-AegisSRE observes a deployed cloud-native application, analyzes its telemetry, detects
-abnormal behavior, identifies and correlates incidents, determines probable root causes,
-recommends evidence-backed remediation actions, and verifies system recovery — while
-keeping humans in control of higher-risk operations.
+The [acceptance ledger](docs/implementation/status.md) distinguishes historical
+milestones from current work. Integration fixtures and passing tests are not a
+held-out study or a completed product acceptance result.
 
-> **Observe everything. Trust evidence. Reason over context. Act within boundaries. Verify the result.**
->
-> The objective is not to replace the SRE. It is to allow the SRE to move from reactive
-> firefighting toward intelligent, evidence-driven, and increasingly autonomous reliability
-> engineering.
+### Still required for completion
 
----
+1. Validate Docker Desktop/WSL2 resources, one real laptop smoke and an isolated
+   reset. The [Windows runbook](docs/development/windows-local-trials.md) is
+   prepared but not yet validated on the target laptop.
+2. Collect30 genuine manual/Aegis pairs, one human operator, three repetitions
+   per fault. Preserve failed, censored and unknown outcomes. Disclose the small
+   sample, non-blinding, learning/order effects and acknowledgement timing.
+3. Review detector/RCA/retrieval/DI/recovery and autonomy results against the
+   [acceptance targets](docs/planning/features.md). No benchmark numbers are
+   supplied by the smoke tests.
+4. Publish and pull-verify final GHCR images when the work is ready. Publication
+   has not happened yet.
 
-## 1. Project Status (honest: built vs designed)
+No live language model, model registry, training/drift pipeline or v2 build is
+part of this final release. Those remain unbuilt roadmap ideas only.
 
-This repo is under active implementation. The design documents cover the full
-vision; the acceptance ledger separates implemented code from measured results.
+## 2. Start here
 
-Implementation is continuing against the complete approved scope. See the
-[feature-by-feature acceptance ledger](docs/implementation/status.md) for code,
-measured checks and remaining work. Code presence is not an acceptance result.
-
-**Implemented:**
-
-- Local observability configurations: OpenTelemetry Collector, Prometheus,
-  Grafana, Loki, Tempo, Postgres and Redis. CI checks selected running stacks;
-  full-platform acceptance remains in the ledger.
-- Shared backend libraries: telemetry envelope contract (`backend/libs/telemetry`) and a
-  Redis Streams event bus (`backend/libs/eventbus`), both tested.
-- FastAPI service template (`backend/services/_template`) used as the copy-paste pattern
-  for every service.
-- **registry-service**: protected service catalogue and health API (:8101).
-- **deployments-service**: protected DI-1 deployment history API (:8701).
-  Distinct internal read/write keys protect direct metadata access; collectors
-  receive only the read key. See [metadata auth](docs/operations/metadata-auth.md).
-- **Reliability API and background runtime** (`backend/services/incidents-service`, :8201):
-  live scoped metric/health/deployment collection, durable Redis processing and
-  incident/audit outbox delivery, statistical + Isolation Forest detection, cited
-  deterministic RCA, approvals, policy and recovery gates. The default executor
-  is explicitly simulation; no real-cluster success is claimed.
-- Observed 180-second deployment windows, lifecycle identity, durable
-  `rollout.bad`, conservative healthy/unknown outcomes and SQL-backed CFR with
-  explicit missing-evidence handling. See [deployment windows](docs/operations/deployment-windows.md).
-- **API gateway** (`backend/services/api-gateway`, host :8080): fixed routes,
-  bearer auth, Redis-backed rate limits and principal-bound audit writes. Console
-  session/login and migration to this entrypoint remain in progress.
-- **AegisShop** demo app: catalog (:9001), cart (:9002), order (:9003), payment (:9004)
-  services with tests.
-- **Console** (Next.js 14 on :3030): overview, services, deployments, and incidents
-  pages — live data where APIs exist, clearly-marked mock fallback elsewhere.
-- Full local-demo Kustomize assembly in `infra/kustomization.yaml`: all sixteen
-  current services, shared observability configs, PVC-backed stores, authenticated
-  runtime/gateway probes and a read-only Kubernetes evidence account. The hosted
-  gate requires actual collection and restart/PVC proof. See [kind platform](docs/operations/kind-platform.md).
-  The Terraform skeleton remains cut scope, not a cloud-deployment claim.
-- CI: YAML/Compose validation, kubeconform + kustomize checks, docs link check, ruff,
-  mypy (strict), pytest, contract-drift guard, image builds, actual PostgreSQL/Redis
-  tests and Compose collection/restart gates.
-- OpenAPI contract set with a CI drift guard, 14-diagram UML set, ADRs.
-
-**Remaining scope** (see [docs/planning/](docs/planning/) and
-[docs/architecture/](docs/architecture/)):
-
-- Measured anomaly/incident and real-model acceptance. Scoped log/trace joins,
-  pgvector retrieval and cited evidence-only Ask already have hosted integration
-  proof; the configurable model adapter has not yet had a real-model run.
-- Console approvals, scheduled safe autonomy, live executor verification and
-  complete evaluation of the implemented policy/recovery core.
-- Chaos lab (`chaoslab/` planned), DI-2 risk scoring, DI-6 canary analysis and the
-  remaining DI-3/DI-5/evaluation work. DI-4 observed windows and the DI-7 counting
-  foundation exist, but real-fault detection and predictive acceptance are open.
-- Full eight-page console scope, real fault injection/restoration, executor and
-  evaluation acceptance. Running the platform on kind alone does not prove those.
-
-Nothing in this repo claims otherwise: design docs describe the target; the phase plan
-tracks what is proven.
-
-## 2. What the Platform Does (target design)
-
-| Capability | Description |
+| Goal | Guide |
 |---|---|
-| **Continuous Observability** | Collects metrics, logs, distributed traces, Kubernetes events, deployment history, and service health via OpenTelemetry, Prometheus, Loki, and Tempo. |
-| **Anomaly Detection** | ML/statistical models (Isolation Forest + statistical baselines) detect latency spikes, error-rate increases, resource anomalies, and traffic shifts. |
-| **Incident Management** | Correlates anomalies into incidents with severity, affected services, timestamps, telemetry evidence, deployment context, and status. |
-| **Root-Cause Analysis** | An AI reasoning layer combines logs, metrics, traces, deployments, and runbooks to produce evidence-backed root-cause explanations. |
-| **AI-Assisted Remediation** | Recommends actions: restart unhealthy workload, rollback deployment, scale service, replace instance, adjust configuration, or escalate. |
-| **Deployment Intelligence** | Tracks every deployment; ML risk scoring, bad-rollout detection, change-incident correlation, policy-gated safe rollback, canary analysis, and change-failure analytics (DI-1…DI-7). |
-| **Controlled Autonomy** | Low-risk, predefined, reversible actions execute automatically; high-risk operations require human approval. |
-| **Recovery Verification** | Confirms health, error rates, latency, and SLOs recovered before closing the incident. |
-| **Postmortems** | AI-generated incident postmortems with timeline, evidence, and measured MTTD/MTTR. |
-
-Autonomy pipeline: **Detect → Investigate → Explain → Recommend → Approve/Execute → Verify**
+| Run the development stack | [Quickstart below](#5-quickstart-local-development) |
+| Understand what is proven | [Scoped integration proofs](docs/implementation/product-acceptance-proofs.md) |
+| Run isolated local trials | [Windows/WSL2 setup](docs/development/windows-local-trials.md) |
+| Compare real workflows | [Matched-session protocol](docs/development/matched-trials.md) |
+| Produce a report from reviewed evidence | [Evaluation guide](evaluation/README.md) |
+| Review the full agreed scope | [Feature acceptance](docs/planning/features.md) |
 
 ## 3. High-Level Architecture
 
@@ -184,7 +145,7 @@ AegisSRE/
 ├── .github/workflows/    CI pipeline (GitHub Actions)
 ├── backend/              Platform services + shared libs (Python / FastAPI)
 │   ├── libs/             telemetry envelope, Redis Streams eventbus
-│   └── services/         _template, registry-service, deployments-service, incidents-service
+│   └── services/         registry, deployments, incidents, gateway and template
 ├── demoapp/aegisshop/    AegisShop demo app (catalog, cart, order, payment)
 ├── docs/                 Documentation hub (index: docs/README.md)
 │   ├── project/          Proposal & roadmap
@@ -199,13 +160,15 @@ AegisSRE/
 │   ├── grafana/          Dashboards + provisioning
 │   ├── k8s/              Kustomize base (1:1 with Compose, ADR-0005)
 │   ├── loki/  otel/  prometheus/  tempo/
-├── scripts/              Dev/CI utility scripts (YAML validation, contract drift)
+├── chaoslab/             Owned-fixture fault controller and control journals
+├── evaluation/           Capture, solo timing, reviewed cohort and quality reports
+├── scripts/              CI proofs, local trial setup and validators
 ├── docker-compose.yml    Local development stack (Compose now, K8s-ready)
 └── Makefile              Common developer tasks
 ```
 
-Planned top-level dirs in the design docs (`ml/`, `ai/`, `chaoslab/`) do not exist yet;
-they land in phases P3–P7.
+Detection, evidence reasoning and deployment intelligence live in the reliability
+service. Separate `ml/` and `ai/` directories are not required to use them.
 
 ## 5. Quickstart (Local Development)
 
@@ -215,8 +178,8 @@ Python **3.12+** and Node.js 22.
 ```bash
 # 1. Configure local credentials (preserve an existing .env)
 test -f .env || cp .env.example .env
-# Set AEGIS_API_TOKEN plus distinct AEGIS_METADATA_API_TOKEN and
-# AEGIS_METADATA_READ_TOKEN in .env through your secret workflow.
+# Set AEGIS_API_TOKEN, distinct AEGIS_METADATA_API_TOKEN and
+# AEGIS_METADATA_READ_TOKEN, and AEGIS_CONSOLE_SESSION_SECRET in .env.
 # No default API token is supplied. Without one the reliability service fails closed.
 
 # 2. Bring up the local stack
@@ -241,19 +204,19 @@ docker compose ps
 make infra-down
 ```
 
-Run the test suite (mirrors CI):
+Run the local Python checks (external-service gates also run in CI):
 
 ```bash
 python3.12 -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
-pytest            # unit suite; PostgreSQL integration runs in hosted CI
-ruff check backend demoapp
+pytest evaluation/tests backend demoapp
+ruff check backend demoapp scripts/ci chaoslab evaluation
 ```
 
 Frontend console:
 
 ```bash
-cd frontend && npm install && npm run dev   # http://localhost:3030
+cd frontend && npm ci && npm run dev   # http://localhost:3030
 ```
 
 ## 6. Documentation
