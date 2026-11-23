@@ -93,8 +93,8 @@ capture alone never certifies that an injection produced its intended symptom.
 ## Approved final small-sample comparison (November23)
 
 The owner approved a smaller genuine comparison rather than inventing100 manual
-runs: target30 manual trials with Navin and one friend, paired with30 Aegis trials,
-three repetitions of each of the ten faults. Friend identity and actual trial
+runs: target30 manual trials with Navin as the solo human operator, paired with30 Aegis trials,
+three repetitions of each of the ten faults. A second reviewer is optional. Actual trial
 observations remain to be supplied. Run locally and small, never a hosted matrix.
 No trial is performed merely by selecting this profile.
 
@@ -130,3 +130,15 @@ cleanup from Aegis remediation, and supply real manual observations separately.
 Hashes prove consistency with the index, not who created the evidence or whether
 its truth labels are correct. No correctness or timing result follows merely
 from successfully preparing this packet.
+
+## Solo manual timing
+
+The final approved manual side uses one real human operator, Navin, with an
+optional second reviewer. See the [solo protocol](../docs/development/solo-manual-protocol.md).
+`python -m evaluation.manual OUTPUT --operator Navin --pair-id http-5xx-01`
+records fixed independent probes plus human detection/action acknowledgements.
+Logs use wall/monotonic times, hash links, flushed writes and a final digest to
+retain separately. This is integrity checking, not tamper-proof or independently
+certified timing. It generates no accepted outcome records or artificial human
+response. Disclose one operator,30 pairs,small sample,non-blinded and learning/order
+effects. Manual MTTD is acknowledgement latency; no stopwatch is required.
