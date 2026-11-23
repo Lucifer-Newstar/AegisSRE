@@ -16,6 +16,7 @@ health_routes(app)
 
 
 class DeploymentPayloadIn(BaseModel):
+    workload_uid: str | None = Field(default=None, min_length=1, max_length=100)
     deployment_id: str | None = Field(
         default=None, min_length=1, max_length=160, pattern=r"^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
     )
@@ -67,7 +68,7 @@ def ready() -> Any:
 def record_deployment(body: DeploymentEnvelopeIn) -> Any:
     document = body.model_dump(mode="json")
     # Preserve canonical old envelopes when optional lifecycle fields are absent.
-    for field in ("deployment_id", "started_at", "change_attributes"):
+    for field in ("deployment_id", "started_at", "workload_uid", "change_attributes"):
         if document["payload"].get(field) is None:
             document["payload"].pop(field, None)
     rec = DeploymentRecord(

@@ -287,6 +287,9 @@ class ReliabilityLoop:
             except Exception:
                 context_error = True
         target_uid = context.pop("target_uid", None)
+        template_digest = context.pop("target_template_digest", None)
+        current_template_digest = context.pop("current_template_digest", None)
+        live_revision = context.pop("live_revision", None)
         with self.repo.transaction() as tx:
             incident = self._get(tx, incident_id)
             mode = str(tx.get_state("autonomy", {"mode": "recommend"})["mode"])
@@ -297,6 +300,13 @@ class ReliabilityLoop:
                 or not 0 <= (now() - incident.updated_at).total_seconds() <= 60
             ):
                 return incident
+            if incident.plan.action == "rollback" and live_revision is not None:
+                from incidents_service.rollback_context import context as rollback_context
+
+                observed_context = rollback_context(tx, incident, live_revision, str(target_uid))
+                if not observed_context:
+                    context_error = True
+                context.update(observed_context)
             plan_filled = False
             if (
                 not context_error
@@ -308,6 +318,25 @@ class ReliabilityLoop:
             ):
                 incident.plan.replicas = int(context["current_replicas"]) + 1
                 plan_filled = True
+            if (
+                not context_error
+                and incident.plan.action == "rollback"
+                and context.get("rollout_bad") is True
+                and template_digest
+                and self.policy.rules.get("rollback") is not None
+                and self.policy.rules["rollback"].risk == "low"
+                and mode == "auto-safe"
+                and incident.approval == "pending"
+            ):
+                incident.plan.risk = "low"
+                incident.plan.reversible = True
+                self._audit(
+                    tx,
+                    incident,
+                    "plan.live_preconditions",
+                    "policy",
+                    "Explicit low-risk rollback policy and complete observed image-only prerequisites",
+                )
             history: list[dict[str, str]] = tx.get_state("executions", [])
             recent = [
                 x
@@ -402,6 +431,9 @@ class ReliabilityLoop:
                     incident.plan,
                     automatic=True,
                     expected_uid=target_uid,
+                    expected_template_digest=template_digest,
+                    expected_revision=live_revision,
+                    expected_current_template_digest=current_template_digest,
                     dispatch_allowed=dispatch_allowed,
                 )
                 if verdict.automatic

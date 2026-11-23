@@ -25,6 +25,7 @@ class DeploymentConflict(ValueError):
 
 
 class Rollout(StrictModel):
+    workload_uid: str | None = None
     id: str
     service: str
     environment: str
@@ -134,6 +135,8 @@ def register(tx: Transaction, event: Event) -> None:
     if start > event.timestamp:
         raise DeploymentConflict("Deployment start cannot follow its producer event timestamp")
     if row is not None:
+        if row.workload_uid != payload.workload_uid:
+            raise DeploymentConflict("Deployment identity reused across workload UIDs")
         if row.revision != payload.revision or (
             row.previous_revision is not None
             and payload.previous_revision is not None
@@ -163,6 +166,7 @@ def register(tx: Transaction, event: Event) -> None:
     else:
         row = Rollout(
             id=key,
+            workload_uid=payload.workload_uid,
             service=event.service,
             environment=event.environment,
             deployment_id=payload.deployment_id,
