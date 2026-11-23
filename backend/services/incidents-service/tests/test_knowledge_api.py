@@ -56,6 +56,15 @@ def test_authenticated_read_only_knowledge_api_and_disabled_state() -> None:
         assert context.json()["knowledge"]
         assert context.json()["read_only"] is True
         assert context.json()["authorizes_actions"] is False
+        outside = fixture_incident.model_copy(update={"id": "outside-scope", "service": "ci-runtime"})
+        with application.state.loop.repo.transaction() as tx:
+            tx.save_incident(outside)
+        outside_context = client.get("/incidents/outside-scope/context")
+        assert outside_context.status_code == 200
+        assert outside_context.json()["status"] == "outside_configured_scope"
+        assert outside_context.json()["knowledge"] == []
+        assert outside_context.json()["authorizes_actions"] is False
+        assert "No cross-scope search" in outside_context.json()["note"]
     with TestClient(
         create_app(Settings(dev_mode=True, database_url="sqlite:///:memory:"))
     ) as client:

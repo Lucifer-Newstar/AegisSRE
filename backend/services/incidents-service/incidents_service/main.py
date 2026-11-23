@@ -461,7 +461,15 @@ def create_app(
             incident.service not in config.allowed_targets
             or incident.environment != config.environment
         ):
-            raise HTTPException(422, "Incident is outside the configured evidence scope")
+            return {
+                "incident_id": incident.id,
+                "evidence_ids": incident.evidence_ids,
+                "knowledge": [],
+                "status": "outside_configured_scope",
+                "note": "Related runbook retrieval is outside the configured service/environment scope. No cross-scope search was made.",
+                "read_only": True,
+                "authorizes_actions": False,
+            }
         # Retrieval happens after the snapshot transaction closes. In particular,
         # never take a second PostgreSQL advisory lock while the first is held.
         query = (

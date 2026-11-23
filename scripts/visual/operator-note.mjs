@@ -23,6 +23,8 @@ try{
  await page.waitForURL('http://localhost:3030/');
  await page.goto('http://localhost:3030/incidents/'+encodeURIComponent(before.id));
  await page.getByRole('heading',{name:'Operator context',exact:true}).waitFor();
+ await page.getByText('Related runbook retrieval is outside the configured service/environment scope. No cross-scope search was made.',{exact:true}).waitFor();
+ if((await page.content()).includes('API unavailable'))throw new Error('Unexpected visible API failure');
  const forbidden=await page.request.post('http://localhost:3030/api/incident-note',{
   headers:{Origin:'https://not-this-console.invalid'},form:{id:before.id,note}});
  if(forbidden.status()!==403)throw new Error('Cross-origin note accepted');
