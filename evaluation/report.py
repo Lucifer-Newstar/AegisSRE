@@ -69,6 +69,7 @@ class Dataset(BaseModel):
     model_config = ConfigDict(extra="forbid")
     schema_version: Literal["1"] = "1"
     partition: Literal["held_out"]
+    comparison_profile: Literal["original_10_per_fault", "approved_small_3_per_fault"] = "original_10_per_fault"
     records: list[Run] = Field(max_length=100000)
     review_reference: str = Field(min_length=1, max_length=1000)
 
@@ -101,12 +102,13 @@ def seconds(end: datetime | None, start: datetime) -> float | None:
 def summarize(dataset: Dataset) -> dict[str, Any]:
     groups: list[dict[str, object]] = []
     adequate = True
+    required_runs = 3 if dataset.comparison_profile == "approved_small_3_per_fault" else 10
     for fault in sorted(FAULTS):
         for workflow in ("manual", "aegis"):
             rows = [r for r in dataset.records if r.fault == fault and r.workflow == workflow]
             counts = {state: sum(r.status == state for r in rows)
                       for state in ("complete", "timeout", "failed")}
-            adequate = adequate and len(rows) >= 10 and counts["complete"] >= 10
+            adequate = adequate and len(rows) >= required_runs and counts["complete"] >= required_runs
             detection = [v for r in rows if (v := seconds(r.detected_at, r.onset_at)) is not None]
             recovery = [v for r in rows if (v := seconds(r.recovered_at, r.onset_at)) is not None]
             judged = [r for r in rows if r.predicted_recovered is not None]
@@ -139,13 +141,17 @@ def summarize(dataset: Dataset) -> dict[str, Any]:
                            "manual_minus_aegis_seconds": m-a if m is not None and a is not None else None})
     return {"schema_version": "1", "cohort_complete": adequate and not unpaired_ids,
             "unpaired_experiment_ids": unpaired_ids,
+            "comparison_profile": dataset.comparison_profile,
+            "required_completed_per_fault_workflow": required_runs,
+            "small_sample": required_runs == 3,
             "record_count": len(dataset.records), "groups": groups, "paired_differences": paired,
             "review_reference": dataset.review_reference,
             "limitations": ["Input references/digests are declarations, not verified by this offline reporter.",
                 "Means/std use observed intervals only; missing/censored outcomes remain in counts and coverage.",
                 "Repetition counts alone do not prove detector precision/recall, causal correctness, RAG recall, DI accuracy or model quality.",
                 "Manual inputs must be observed by the named human, never inferred from an assumed response delay.",
-                "cohort_complete checks pairing and ten completed runs per fault/workflow only, not all project acceptance thresholds."]}
+                "cohort_complete checks pairing and the explicitly selected repetition profile only, not all project acceptance thresholds.",
+                "The approved small profile is30 pairs,3 repetitions per fault; it does not meet the original10-per-fault design or establish statistical significance."]}
 
 
 def main() -> None:
