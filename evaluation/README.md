@@ -26,3 +26,18 @@ of independent observations, at least ten runs per fault/workflow, a genuine
 human manual baseline, detector confusion-matrix windows, retrieval/DI metrics,
 reviewed model answers and committed measured results. Do not fill those gaps
 with synthetic events or assumed human delays.
+
+## Detector, retrieval and deployment-quality metrics
+
+`python -m evaluation.quality input.json output.json` checks reviewed independent
+window/retrieval/deployment observations and computes detector confusion matrix,
+precision/recall/F1, observed latency, recall@5, pre-deploy risk recall, rollout
+flag timing, revision attribution and eligible rollback recovery. Unknown scores
+remain in the faulty-deployment denominator. Empty cohorts are null. Duplicate
+IDs, overlapping detector windows, post-deploy predictions and duplicate retrieved
+IDs are rejected. Thresholds are fixed, not selected for a passing result.
+
+This is reporting infrastructure only. No measured dataset is supplied. The
+manifest/corpus digests and review/source references are declarations, not
+independently certified by the reporter. Human truth review, a frozen held-out
+corpus, repeated faults and genuine manual response observations remain needed.
