@@ -84,3 +84,17 @@ def test_explicit_small_profile_does_not_silently_lower_original_gate() -> None:
     assert small["small_sample"] is True
     assert small["required_completed_per_fault_workflow"] == 3
     assert small["record_count"] == 60
+
+
+def test_complete_cohort_does_not_require_success_or_hide_failures() -> None:
+    from evaluation.report import FAULTS
+    records = [row(id=f"{fault}-{index}-{workflow}", pair_id=f"{fault}-{index}",
+        fault=fault, workflow=workflow, status="timeout", recovered_at=None,
+        ground_truth_recovered=False, predicted_recovered=False,
+        manual_observer="authored-human-fixture" if workflow == "manual" else None)
+        for fault in FAULTS for index in range(3) for workflow in ("aegis", "manual")]
+    result = summarize(Dataset(partition="held_out", comparison_profile="approved_small_3_per_fault",
+                               records=records, review_reference="authored-unit-only"))
+    assert result["cohort_complete"] is True
+    assert result["all_workflows_recovered"] is False
+    assert all(group["counts"]["timeout"] == 3 for group in result["groups"])

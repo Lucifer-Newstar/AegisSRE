@@ -10,8 +10,9 @@ The input schema is defined by `Dataset` and `Run` in `report.py`. It requires
 independent truth and observation references, frozen manifest/corpus/environment
 SHA256 identifiers, workflow/pair IDs and an attributed manual observer. Paired
 runs must agree on those identities. Dates must carry offsets; observations
-outside the declared interval are rejected. Ten completed runs per fault and
-workflow are counted separately from project quality thresholds.
+outside the declared interval are rejected. Reviewed attempts per fault and workflow are counted separately from recovery
+success and project quality thresholds. Failed and timeout outcomes count toward
+the selected cohort size, never toward successful recovery.
 
 The report preserves attempted, timeout, failed and censored counts. Missing
 MTTD/MTTR and sample standard deviation with fewer than two observations are
@@ -150,3 +151,41 @@ The [matched-session runbook](../docs/development/matched-trials.md) documents
 acknowledgements, actual executor requirement, cleanup censoring, retained raw
 evidence and fixed fault-specific review rules. It runs one bounded workflow,
 not a fabricated cohort. Actual local sessions and reviewed results remain open.
+
+## One command from reviewed sessions to a report
+
+After genuine sessions and human review, run:
+
+```sh
+python -m evaluation.cohort /tmp/reviewed-cohort.json /tmp/cohort-report
+```
+
+The review-bundle schema is `Bundle`/`ReviewedSession` in `cohort.py`. Supply the
+separately retained final digest for each session, review and environment-pairing
+references, independent onset/detection/recovery evidence and a validated `Run`
+record. Use `null` for missing detection/recovery. Record all failed attempts,
+including no-observed-onset/partial sessions, in `excluded_attempt_references`.
+Do not drop them just because the `Run` schema needs an observed onset.
+
+The command verifies actual file hashes, the retained timing anchor, frozen
+manifest/corpus identity and session/operator/pair identity. Manual detection must
+match the first retained acknowledgement after onset. Credited manual recovery
+also needs the retained action-start acknowledgement plus reviewed command and
+recovery evidence. Every interval ends by the first controller clear boundary;
+recovery at or after cleanup cannot receive workflow credit. Earlier hook expiry
+or natural recovery must be censored by review too. Reusing one session to fill
+several slots is rejected. Outputs cannot alter the immutable source sessions.
+
+It writes `validated-dataset.json` and `report.json` into a fresh directory.
+`cohort_complete` now counts reviewed paired attempts, including failed/timeouts,
+not only successes. `all_workflows_recovered` is a separate result. This prevents
+rerunning failures until the dataset looks perfect. The legacy
+`required_completed_per_fault_workflow` field is retained for compatibility but
+means required reviewed attempts; use the explicit
+`required_reviewed_attempts_per_fault_workflow` field in new consumers.
+
+This checks provenance consistency, not whether a reviewer made the right
+judgment. Environment equivalence, actual action causality, held-out partition,
+fault-specific sustained health and symptom criteria still need honest review.
+The report retains small-sample/non-blinding/learning-order limitations. No
+measured dataset, local trial result or numeric project acceptance is supplied.
