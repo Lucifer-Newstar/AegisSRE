@@ -83,3 +83,35 @@ local cluster. It never runs `docker system prune` or deletes other clusters.
 Local logs and identity state are retained for inspection. A subsequent fresh
 session must use a deliberate reviewed reset; automatic takeover is not supported.
 If setup is interrupted, stop and inspect ownership/node state before retrying.
+
+## Fresh baseline between comparative workflows
+
+Do not reuse the preceding workflow's database/detector history or cooldowns.
+After preserving its output outside the state directory and checking cleanup,
+explicitly reset only this newly owned local fixture:
+
+```sh
+python scripts/local_evaluation.py reset --confirm-owned-reset
+```
+
+This is destructive to this disposable cluster, not to other clusters or Docker
+images. It rechecks the owner and exact Docker node ID, refuses active/stale trial
+locks, checks clean source and binary checksums, collects diagnostics and deletes
+only the matching node. It archives the entire old state directory next to the
+fresh one, with a unique archive name, rather than overwriting prior evidence.
+It then creates a new owner/node, new databases/PVCs, fresh telemetry/history,
+the same fault hooks and restricted executor in observe mode. It does not seed
+an incident or change policy. Images are reused, not rebuilt. Keep all archives.
+
+Run the same fresh-baseline procedure before BOTH workflows, including the first
+workflow of a study, then recheck health/resources and use the same warm-up. New
+UIDs are expected. Configuration/hardware/image and load equivalence must still
+be reviewed. Do not copy whole-environment digests across pairs just because the
+command finished; record the actual evidence and the equivalence review.
+
+A fresh cluster costs several minutes per workflow in addition to session time.
+Sixty workflows with isolated resets can take much of a day or longer on the
+actual laptop. Run a single smoke/reset first and use its observed duration to
+plan the cohort. No fixed completion estimate is certified here. If interrupted,
+inspect retained identity/node/logs; do not remove locks or ownership records to
+force it onward. The reset is unit-tested but still needs actual local validation.

@@ -25,7 +25,8 @@ order. New manifests alternate manual-first and Aegis-first,15 of each across
 30 pairs. This is deterministic counterbalancing, not randomization or blinding.
 Do not reorder after seeing results. Existing manifests remain unchanged.
 
-After resetting and verifying the same baseline, run the other workflow into a
+Use the explicit owned reset in the [local runbook](windows-local-trials.md#fresh-baseline-between-comparative-workflows)
+before each workflow. After verifying the same baseline, run the other workflow into a
 new output directory, selecting `--workflow aegis`. Repeat the frozen schedule,
 not both workflows simultaneously. Save the actual reset steps and baseline
 review with the session records. The controller does not erase DB history or
