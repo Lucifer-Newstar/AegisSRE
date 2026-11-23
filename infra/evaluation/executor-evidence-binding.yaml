@@ -1,0 +1,13 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: aegissre-executor-evidence
+  namespace: aegissre-demo
+subjects:
+- kind: ServiceAccount
+  name: aegissre-executor
+  namespace: aegissre-demo
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: aegissre-evidence
