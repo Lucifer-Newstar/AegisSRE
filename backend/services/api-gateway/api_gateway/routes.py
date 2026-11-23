@@ -34,6 +34,8 @@ ROUTES = (
     Route("/incidents/{incident_id}/investigation", "incidents"),
     Route("/incidents/{incident_id}/notes", "incidents", ("POST",), asserted_actor=True),
     Route("/incidents/{incident_id}/{decision}", "incidents", ("POST",), asserted_actor=True),
+    Route("/actions/{incident_id}/cancel", "incidents", ("POST",), asserted_actor=True),
+    Route("/actions/{incident_id}/undo-scale", "incidents", ("POST",), asserted_actor=True),
     Route("/actions/{incident_id}/execute", "incidents", ("POST",), asserted_actor=True),
     Route("/postmortems", "incidents"),
     Route("/postmortems/{incident_id}", "incidents"),

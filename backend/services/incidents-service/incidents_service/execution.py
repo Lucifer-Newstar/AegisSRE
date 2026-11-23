@@ -181,6 +181,8 @@ class Executor:
             "target": plan.target,
             "revision": revision,
             "replicas": replicas,
+            "applied_replicas": plan.replicas if plan.action == "scale" else None,
+            "template_digest": self._template_digest(obj.get("spec", {}).get("template", {})),
             "uid": str(meta.get("uid", "")),
             "action": plan.action,
         }
@@ -249,12 +251,19 @@ class Executor:
         obj = json.loads(self._kubectl(["get", "deployment", target, "-o", "json"]))
         if obj.get("metadata", {}).get("uid") != record.get("uid"):
             raise ExecutionError("Deployment identity changed; automatic undo is unsafe")
-        if record.get("action") == "scale":
-            replicas = int(record["replicas"])
-            return self._kubectl(["scale", f"deployment/{target}", f"--replicas={replicas}"])
-        revision = str(record.get("revision", ""))
-        if not revision.isdigit():
-            raise ExecutionError("Prior revision is not known")
-        return self._kubectl(
-            ["rollout", "undo", f"deployment/{target}", f"--to-revision={revision}"]
-        )
+        if record.get("action") != "scale":
+            raise ExecutionError("Only bounded scale undo is supported; review other actions manually")
+        meta, spec = obj.get("metadata", {}), obj.get("spec", {})
+        before, applied = record.get("replicas"), record.get("applied_replicas")
+        if (type(before) is not int or type(applied) is not int
+            or not 1 <= before <= 10 or abs(before - applied) != 1
+            or spec.get("replicas") != applied
+            or meta.get("namespace") != self.settings.kube_namespace
+            or meta.get("labels", {}).get("aegissre.managed") != "true"
+            or not meta.get("resourceVersion")
+            or self._template_digest(spec.get("template", {})) != record.get("template_digest")):
+            raise ExecutionError("Scale undo preconditions changed; operator review required")
+        patch = [{"op": "test", "path": "/metadata/uid", "value": record["uid"]},
+                 {"op": "test", "path": "/metadata/resourceVersion", "value": meta["resourceVersion"]},
+                 {"op": "replace", "path": "/spec/replicas", "value": before}]
+        return self._kubectl(["patch", "deployment/" + target, "--type=json", "-p", json.dumps(patch)])
