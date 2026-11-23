@@ -12,6 +12,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -168,6 +169,9 @@ def main() -> None:
         )
         forwards.start("api-gateway", 8080, 8000)
         forwards.start("console", 3030, 3030)
+        # Prior API/console sweeps share the operator's fixed minute allowance.
+        # Do not let fast cluster setup turn this independent sweep into429s.
+        time.sleep(61)
         subprocess.run(
             ["node", str(ROOT / "scripts/visual/console.mjs")],
             env={
