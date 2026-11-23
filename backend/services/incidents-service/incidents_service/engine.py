@@ -278,6 +278,46 @@ class ReliabilityLoop:
         self._emit(tx, active, "incident")
         return active
 
+    def cancel(self, incident_id: str, body: Decision) -> Incident:
+        with self.repo.transaction() as tx:
+            incident = self._get(tx, incident_id)
+            if incident.status in {"closed", "escalated"}:
+                raise DomainError("Incident has no active action to cancel")
+            tx.put_state("cancel:" + incident_id, {"requested": True})
+            detail = "Cancellation requested. Already submitted commands cannot be recalled."
+            if incident.status != "remediating":
+                incident.status = "escalated"
+                detail += " Further action and automatic closure blocked; operator reconciliation required."
+            self._audit(tx, incident, "remediation.cancel_requested", body.actor, detail + " " + body.note)
+            tx.save_incident(incident)
+            return incident
+
+    def undo_scale(self, incident_id: str, body: Decision) -> Incident:
+        with self.repo.transaction() as tx:
+            incident = self._get(tx, incident_id)
+            if incident.status not in {"verifying", "escalated"} or not incident.undo:
+                raise DomainError("No completed action available for bounded undo")
+            if incident.plan.action != "scale" or not incident.plan.reversible:
+                raise DomainError("Only completed reversible scale has a safe scoped undo")
+            if tx.get_state("undo:" + incident_id, None):
+                raise DomainError("Undo already reserved; reconcile before retrying")
+            tx.put_state("cancel:" + incident_id, {"requested": True})
+            tx.put_state("undo:" + incident_id, {"status": "reserved"})
+            incident.status = "escalated"
+            self._audit(tx, incident, "remediation.undo_started", body.actor, body.note)
+            tx.save_incident(incident)
+            record = incident.undo
+        try:
+            output = self.executor.undo(record)
+        except Exception as exc:
+            output = f"Undo failed or uncertain ({type(exc).__name__}); do not retry blindly"
+        with self.repo.transaction() as tx:
+            incident = self._get(tx, incident_id)
+            self._audit(tx, incident, "remediation.undo_result", "executor", output)
+            tx.put_state("undo:" + incident_id, {"status": "attempted"})
+            tx.save_incident(incident)
+            return incident
+
     def annotate(self, incident_id: str, body: Decision) -> Incident:
         if not body.note.strip():
             raise DomainError("An operator note must contain text", 422)
@@ -311,6 +351,8 @@ class ReliabilityLoop:
         # Live preflight must not hold the decision lock or delay the kill switch.
         with self.repo.transaction() as tx:
             observed = self._get(tx, incident_id)
+            if tx.get_state("cancel:" + incident_id, None):
+                raise DomainError("Action cancellation requires operator reconciliation")
             preflight_mode = tx.get_state("autonomy", {"mode": "recommend"})["mode"]
         context: dict[str, Any] = {}
         context_error = False
@@ -325,6 +367,8 @@ class ReliabilityLoop:
         live_revision = context.pop("live_revision", None)
         with self.repo.transaction() as tx:
             incident = self._get(tx, incident_id)
+            if tx.get_state("cancel:" + incident_id, None):
+                return incident
             mode = str(tx.get_state("autonomy", {"mode": "recommend"})["mode"])
             if observed.plan != incident.plan or observed.updated_at != incident.updated_at:
                 context, context_error = {}, True
@@ -444,6 +488,8 @@ class ReliabilityLoop:
         # duplicate execution and is escalated, never retried, after an interrupted run.
         try:
             with self.repo.transaction() as tx:
+                if tx.get_state("cancel:" + incident_id, None):
+                    raise DomainError("Action cancelled before execution")
                 if self.current_policy(tx) != policy:
                     raise DomainError("Policy changed before execution")
                 dispatch_mode = tx.get_state("autonomy", {"mode": "recommend"})["mode"]
@@ -457,6 +503,7 @@ class ReliabilityLoop:
                     current = tx.incident(incident_id)
                     return bool(
                         tx.get_state("autonomy", {"mode": "recommend"})["mode"] == "auto-safe"
+                        and not tx.get_state("cancel:" + incident_id, None)
                         and self.current_policy(tx) == policy
                         and current is not None
                         and current.status == "remediating"
@@ -495,6 +542,10 @@ class ReliabilityLoop:
                 result.output,
                 result.undo,
             )
+            if tx.get_state("cancel:" + incident_id, None):
+                incident.status = "escalated"
+                self._audit(tx, incident, "remediation.cancel_reconcile", "executor",
+                    "Cancellation overlapped dispatch; result retained, no recovery closure implied")
             for signal in incident.signals:
                 signal.recovered_samples = 0
             self._audit(tx, incident, "remediation.completed", "executor", result.output)

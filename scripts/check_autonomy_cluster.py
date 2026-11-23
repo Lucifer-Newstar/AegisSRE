@@ -17,7 +17,7 @@ sys.path.insert(0, str(ROOT / "scripts/ci"))
 import kind_platform_gate as fixture  # type: ignore[import-not-found] # noqa: E402
 from incidents_service.config import Settings  # noqa: E402
 from incidents_service.engine import ReliabilityLoop  # noqa: E402
-from incidents_service.models import Analysis, Incident, Plan  # noqa: E402
+from incidents_service.models import Analysis, Decision, Incident, Plan  # noqa: E402
 from incidents_service.policy import Policy, Rule  # noqa: E402
 from incidents_service.repository import Repository  # noqa: E402
 
@@ -100,6 +100,11 @@ def main() -> None:
             assert any(
                 a.action == "remediation.started" and a.actor == "policy:auto" for a in actual.audit
             )
+        cancelled = loop.cancel(item.id, Decision(actor="fixture", note="Bounded actual scale undo"))
+        assert cancelled.status == "escalated"
+        undone = loop.undo_scale(item.id, Decision(actor="fixture", note="Restore exact prior replicas"))
+        assert undone.status == "escalated" and undone.resolved_at is None
+        assert deployment()["spec"]["replicas"] == count
         proof = {
             "fixture_seeded_plan": True,
             "real_kubernetes_executor": True,
@@ -108,6 +113,7 @@ def main() -> None:
             "after": count + 1,
             "incident": actual.model_dump(mode="json"),
             "not_evaluation_accuracy": True,
+            "operator_cancel_and_guarded_scale_undo": True,
         }
     finally:
         loop.set_mode("observe", "fixture-cleanup")
