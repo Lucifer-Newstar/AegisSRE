@@ -36,8 +36,13 @@ def main() -> None:
         wait_for(lambda: request("/api/v1/ready")["status"] == "ready", "restarted runtime", 120)
         assert request("/api/v1/policy") == updated
         assert request("/api/v1/autonomy")["mode"] == "observe"
-        entries = request("/api/v1/audit?limit=200")
-        change = next(e for e in entries if e["action"] == "policy.updated")
+        def policy_audit() -> dict[str, object] | None:
+            # The gateway may have an old keepalive to the replaced API Pod.
+            # Retry this read only; never replay the policy write.
+            entries = request("/api/v1/audit?limit=200")
+            return next((e for e in entries if e["action"] == "policy.updated"), None)
+
+        change = wait_for(policy_audit, "policy audit after runtime replacement", 120)
         assert change["actor"] == "token:operator"
         request("/api/v1/autonomy", body={"mode": mode, "actor": "not-trusted"})
         (fixture.directory() / "diagnostics" / "policy-update-proof.json").write_text(json.dumps({
