@@ -197,3 +197,21 @@ def test_live_rollback_preflight_rejects_config_changes_and_changed_current_revi
     prior["spec"]["containers"][0]["env"] = [{"name": "MIGRATION", "value": "unsafe"}]
     with pytest.raises(ExecutionError, match="image-only"):
         executor.policy_context(rollback)
+
+
+def test_structured_kubectl_reads_are_complete_or_explicitly_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    executor = Executor(Settings(api_token="test", executor="kubernetes", kube_context="kind-test"))
+    payload = json.dumps({"items": [], "padding": "x" * 40000})
+
+    def run(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(args, 0, payload)
+
+    monkeypatch.setattr(subprocess, "run", run)
+    assert json.loads(executor._kubectl(["get", "replicasets", "-o", "json"])) == json.loads(
+        payload
+    )
+    payload = "x" * 4_000_001
+    with pytest.raises(ExecutionError, match="structured-read limit"):
+        executor._kubectl(["get", "replicasets", "-o", "json"])
