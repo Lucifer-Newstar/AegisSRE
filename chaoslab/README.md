@@ -131,3 +131,15 @@ while the request runs. These are bounded-effect checks, not sustained CPU
 saturation, exact capacity or detector evaluation. Their separate evidence
 files include baseline, measurements and restored response. Hosted proof is
 required and pending.
+
+## Sustained CPU quota proof
+
+The owned gate now additionally applies the CPU fault under four bounded request
+workers, with the catalog container's fixed200m CPU limit unchanged. It samples
+actual application process CPU over four consecutive five-second intervals,
+requiring at least70% of the configured quota in every interval. Baseline CPU,
+consumed CPU seconds, actual elapsed time and quota fractions are saved separately
+from the injection journal. A final200 domain response is required after the CLI
+restores control state. This is application cgroup-quota saturation, not host
+saturation or production capacity. Hosted success is required before claiming
+this stronger proof. It is not detector accuracy or a repeated evaluation cohort.

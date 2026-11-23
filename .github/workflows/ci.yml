@@ -395,6 +395,8 @@ jobs:
         run: pip install pyyaml
       - name: Prove separate real stable and faulty canary track comparison
         run: python3 scripts/check_canary_cluster.py
+      - name: Measure sustained application CPU against its fixed cgroup quota
+        run: python3 scripts/check_cpu_saturation.py
       - name: Prove actual HTTP fault produces scraped error burn and a firing alert
         run: python3 scripts/check_live_slo_burn.py
       - name: Install native policy worker for explicit real-executor proof
