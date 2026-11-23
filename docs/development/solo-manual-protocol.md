@@ -67,9 +67,10 @@ Do not claim independent timestamp certification.
 - No one types synthetic manual delays or copies Aegis detection timestamps into
   the manual record. A solo human really performs each manual trial.
 
-The current recorder and capture commands are components, not a one-command
-comparative trial orchestrator. The control/cleanup protocol, full fault-specific
-criteria and actual laptop sessions still need validation before results count.
+Use the [matched-session controller and fixed review criteria](matched-trials.md)
+for integrated bounded fault sessions. The standalone recorder remains useful
+for separate observation. Actual laptop sessions and reviewed outcomes are still
+required before results count.
 The report must disclose30 pairs, one operator, small sample, non-blinding,
 learning/order effects, timing-acknowledgement semantics and any external review.
 Automatic probes remove stopwatch arithmetic, not these limitations.

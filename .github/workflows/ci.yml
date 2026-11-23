@@ -418,6 +418,10 @@ jobs:
           python3 -m evaluation.review "$RUNNER_TEMP/aegis-kind-platform/diagnostics/capture-smoke" "$RUNNER_TEMP/aegis-kind-platform/diagnostics/capture-review.json"
       - name: Prove deployed scoped API executor with explicit approved fixture
         run: python3 scripts/check_deployed_executor.py
+      - name: Smoke the real matched-session controller (not a human baseline or acceptance)
+        run: |
+          python3 -m evaluation.capture freeze "$RUNNER_TEMP/aegis-session-manifest.json" --corpus docs/operations --repeats 3
+          python3 -m evaluation.session "$RUNNER_TEMP/aegis-session-manifest.json" "$RUNNER_TEMP/aegis-kind-platform/diagnostics/session-smoke" --pair-id http-5xx-01 --workflow manual --operator ci-smoke-not-human --fault-seconds 15 --warmup-seconds 10
       - name: Collect scoped cluster diagnostics without secrets
         if: always()
         run: python3 scripts/ci/kind_platform_gate.py diagnostics
