@@ -41,8 +41,13 @@ def enable() -> None:
         fixture.kubectl("rollout", "status", "deployment/incidents-service", "-n", fixture.NS,
                         "--timeout=180s", timeout=200)
         wait_for(lambda: request("/api/v1/ready")["status"] == "ready", "scoped runtime ready", 120)
-        assert request("/api/v1/autonomy")["mode"] == "observe"
-        assert request("/api/v1/autonomy")["executor"] == "kubernetes"
+        def configured() -> bool:
+            # Restart can leave one stale gateway upstream connection after
+            # ready has succeeded. Retry reads only, never replay a write.
+            state = request("/api/v1/autonomy")
+            return bool(state["mode"] == "observe" and state["executor"] == "kubernetes")
+
+        wait_for(configured, "deployed executor and durable observe mode", 120)
     finally:
         forwards.close()
 
