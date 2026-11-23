@@ -1,0 +1,20 @@
+{
+  "spec": {"template": {"spec": {
+    "containers": [{"name": "incidents-service", "env": [
+      {"name":"AEGIS_EXECUTOR","value":"kubernetes"},
+      {"name":"AEGIS_KUBE_CONTEXT","value":"aegis-scoped-executor"},
+      {"name":"KUBECONFIG","value":"/etc/aegis-executor/kubeconfig"}
+    ], "volumeMounts": [
+      {"name":"executor-kubeconfig","mountPath":"/etc/aegis-executor","readOnly":true},
+      {"name":"executor-identity","mountPath":"/var/run/aegis-executor","readOnly":true}
+    ]}],
+    "volumes": [
+      {"name":"executor-kubeconfig","configMap":{"name":"aegis-executor-kubeconfig"}},
+      {"name":"executor-identity","projected":{"defaultMode":292,"sources":[
+        {"serviceAccountToken":{"path":"token","expirationSeconds":3600}},
+        {"configMap":{"name":"kube-root-ca.crt","items":[{"key":"ca.crt","path":"ca.crt"}]}}
+      ]}}
+    ],
+    "serviceAccountName":"aegissre-executor"
+  }}}
+}
