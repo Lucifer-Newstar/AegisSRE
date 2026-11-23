@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import signal
 import subprocess
 import time
 import urllib.error
@@ -123,10 +124,10 @@ def fetch(port: int, path: str, *, authenticated: bool = False) -> dict[str, Any
                 body: Any = json.loads(raw)
             except (ValueError, UnicodeDecodeError):
                 body = raw.decode("utf-8", errors="replace")
-            return {"status": response.code, "elapsed_seconds": time.monotonic() - started,
+            return {"observed_at": datetime.now(UTC).isoformat(), "status": response.code, "elapsed_seconds": time.monotonic() - started,
                     "body": body}
     except (OSError, ValueError) as error:
-        return {"status": None, "error_type": type(error).__name__,
+        return {"observed_at": datetime.now(UTC).isoformat(), "status": None, "error_type": type(error).__name__,
                 "elapsed_seconds": time.monotonic() - started}
 
 
@@ -205,6 +206,10 @@ def trial(manifest_path: Path, output: Path, fault: str, seconds: int, repeat: i
 
 
 def main() -> None:
+    def interrupted(signum: int, frame: Any) -> None:
+        raise SystemExit(128 + signum)
+
+    signal.signal(signal.SIGTERM, interrupted)
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     frozen = commands.add_parser("freeze")
