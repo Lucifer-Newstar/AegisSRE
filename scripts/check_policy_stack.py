@@ -22,7 +22,21 @@ def main() -> None:
     forwards = fixture.Forwards()
     try:
         forwards.start("api-gateway", 8080, 8000)
-        wait_for(lambda: request("/api/v1/ready")["status"] == "ready", "gateway")
+        try:
+            wait_for(lambda: request("/api/v1/ready")["status"] == "ready", "gateway")
+        except AssertionError:
+            # Retain read-only worker/source status instead of losing the reason
+            # behind a generic ready503. No action or policy write has run yet.
+            forwards.start("incidents-service", 8201, 8201)
+            from check_runtime_stack import api
+            try:
+                status = api("/runtime")
+            except Exception as error:
+                status = {"read_error": type(error).__name__}
+            (fixture.directory() / "diagnostics" / "policy-readiness-failure.json").write_text(
+                json.dumps(status, indent=2)
+            )
+            raise
         original = request("/api/v1/policy")
         mode = request("/api/v1/autonomy")["mode"]
         request("/api/v1/autonomy", body={"mode": "observe", "actor": "not-trusted"})
