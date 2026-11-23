@@ -21,7 +21,7 @@ class Rule(StrictModel):
 
 
 class Policy(StrictModel):
-    version: str = "1"
+    version: str = Field(default="1", min_length=1, max_length=80, pattern=r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
     max_actions_per_hour: int = Field(default=4, ge=1, le=20)
     max_actions_per_incident: int = Field(default=1, ge=1, le=3)
     verification_seconds: int = Field(default=180, ge=30, le=1800)

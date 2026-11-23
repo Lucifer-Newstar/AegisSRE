@@ -29,6 +29,29 @@ class ReliabilityLoop:
         self.executor = Executor(settings)
         self.policy = Policy.load(settings.policy_path)
 
+    def current_policy(self, tx: Transaction) -> Policy:
+        document = tx.get_state("remediation-policy", None)
+        return Policy.model_validate(document) if document else self.policy
+
+    def update_policy(self, policy: Policy, expected_version: str, actor: str) -> Policy:
+        with self.repo.transaction() as tx:
+            current = self.current_policy(tx)
+            if current.version != expected_version:
+                raise DomainError("Policy changed; read the current version before retrying")
+            if policy.version == current.version or tx.get_state("policy-version:" + policy.version, None):
+                raise DomainError("Policy versions are immutable; choose a new version")
+            if tx.get_state("autonomy", {"mode": "recommend"})["mode"] != "observe":
+                raise DomainError("Set observe mode before changing execution policy")
+            if any(i.status == "remediating" for i in tx.list_incidents(limit=10000)):
+                raise DomainError("An execution is reserved; reconcile it before policy changes")
+            tx.put_state("policy-version:" + current.version, current.model_dump(mode="json"))
+            tx.put_state("policy-version:" + policy.version, policy.model_dump(mode="json"))
+            tx.put_state("remediation-policy", policy.model_dump(mode="json"))
+            tx.append_audit(None, Audit(action="policy.updated", actor=actor,
+                detail=f"Policy {current.version} -> {policy.version}; observe mode retained"
+            ).model_dump(mode="json"), environment=self.settings.environment)
+            return policy
+
     def _get(self, tx: Transaction, incident_id: str) -> Incident:
         incident = tx.incident(incident_id)
         if incident is None:
@@ -182,12 +205,13 @@ class ReliabilityLoop:
         analysis, plan, correlation = analyze(event, signals, evidence)
         # Capacity plans without replicas remain recommendations until an explicit
         # live plan-preparation pass outside this ingest transaction supplies them.
-        rule = self.policy.rules.get(plan.action)
+        policy = self.current_policy(tx)
+        rule = policy.rules.get(plan.action)
         if rule:
             plan.risk, plan.requires_approval, plan.policy_version = (
                 rule.risk,
                 rule.requires_approval,
-                self.policy.version,
+                policy.version,
             )
         plan.executor = self.settings.executor
         if active is None:
@@ -300,6 +324,7 @@ class ReliabilityLoop:
                 or not 0 <= (now() - incident.updated_at).total_seconds() <= 60
             ):
                 return incident
+            policy = self.current_policy(tx)
             if incident.plan.action == "rollback" and live_revision is not None:
                 from incidents_service.rollback_context import context as rollback_context
 
@@ -323,8 +348,8 @@ class ReliabilityLoop:
                 and incident.plan.action == "rollback"
                 and context.get("rollout_bad") is True
                 and template_digest
-                and self.policy.rules.get("rollback") is not None
-                and self.policy.rules["rollback"].risk == "low"
+                and policy.rules.get("rollback") is not None
+                and policy.rules["rollback"].risk == "low"
                 and mode == "auto-safe"
                 and incident.approval == "pending"
             ):
@@ -350,7 +375,7 @@ class ReliabilityLoop:
                 else math.inf
             )
             verdict = evaluate(
-                self.policy,
+                policy,
                 incident,
                 mode,
                 actions_in_hour=len(recent),
@@ -392,14 +417,14 @@ class ReliabilityLoop:
             incident.status = "remediating"
             incident.executed_at = now()
             incident.verification_deadline = now() + timedelta(
-                seconds=self.policy.verification_seconds
+                seconds=policy.verification_seconds
             )
             self._audit(
                 tx,
                 incident,
                 "remediation.started",
                 "policy:auto" if verdict.automatic else actor,
-                f"{incident.plan.action}; policy {self.policy.version}; {self.settings.executor}",
+                f"{incident.plan.action}; policy {policy.version}; {self.settings.executor}",
             )
             recent.append(
                 {"at": now().isoformat(), "target": incident.service, "incident_id": incident.id}
@@ -410,6 +435,8 @@ class ReliabilityLoop:
         # duplicate execution and is escalated, never retried, after an interrupted run.
         try:
             with self.repo.transaction() as tx:
+                if self.current_policy(tx) != policy:
+                    raise DomainError("Policy changed before execution")
                 dispatch_mode = tx.get_state("autonomy", {"mode": "recommend"})["mode"]
                 if dispatch_mode == "observe" or (
                     verdict.automatic and dispatch_mode != "auto-safe"
@@ -421,6 +448,7 @@ class ReliabilityLoop:
                     current = tx.incident(incident_id)
                     return bool(
                         tx.get_state("autonomy", {"mode": "recommend"})["mode"] == "auto-safe"
+                        and self.current_policy(tx) == policy
                         and current is not None
                         and current.status == "remediating"
                         and current.plan == incident.plan
@@ -505,7 +533,7 @@ class ReliabilityLoop:
                 healthy = abs(delta) < 2 if not upper_bound_metric(matching.metric) else delta < 2
                 matching.recovered_samples = matching.recovered_samples + 1 if healthy else 0
         samples_good = all(
-            s.recovered_samples >= self.policy.recovery_samples for s in incident.signals
+            s.recovered_samples >= self.current_policy(tx).recovery_samples for s in incident.signals
         )
         health_events = tx.recent_events(incident.service, incident.environment, "health", 1)
         health_good = False

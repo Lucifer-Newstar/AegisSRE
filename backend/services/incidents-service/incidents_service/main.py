@@ -26,6 +26,7 @@ from incidents_service.knowledge import KnowledgeStore
 from incidents_service.knowledge_indexer import KnowledgeIndexer
 from incidents_service.kubernetes_evidence import KubernetesEvidence
 from incidents_service.models import Decision, Event, StrictModel, now
+from incidents_service.policy import Policy
 from incidents_service.repository import Repository
 from incidents_service.runtime import Runtime
 
@@ -36,6 +37,11 @@ bearer = HTTPBearer(auto_error=False)
 
 class ModeIn(Decision):
     mode: Literal["observe", "recommend", "auto-safe"]
+
+
+class PolicyUpdate(Decision):
+    expected_version: str = Field(min_length=1, max_length=80)
+    policy: Policy
 
 
 class KnowledgeSearch(StrictModel):
@@ -559,13 +565,22 @@ def create_app(
         with repo.transaction() as tx:
             return tx.audits(incident_id, limit)
 
+    @application.get("/policy", dependencies=[Depends(authorized)])
+    def get_policy() -> dict[str, Any]:
+        with repo.transaction() as tx:
+            return loop.current_policy(tx).model_dump(mode="json")
+
+    @application.post("/policy", dependencies=[Depends(authorized)])
+    def update_policy(body: PolicyUpdate) -> dict[str, Any]:
+        return loop.update_policy(body.policy, body.expected_version, body.actor).model_dump(mode="json")
+
     @application.get("/autonomy", dependencies=[Depends(authorized)])
     def get_mode() -> dict[str, Any]:
         with repo.transaction() as tx:
             return {
                 **tx.get_state("autonomy", {"mode": "recommend"}),
                 "executor": config.executor,
-                "policy": loop.policy.model_dump(mode="json"),
+                "policy": loop.current_policy(tx).model_dump(mode="json"),
             }
 
     @application.post("/autonomy", dependencies=[Depends(authorized)])

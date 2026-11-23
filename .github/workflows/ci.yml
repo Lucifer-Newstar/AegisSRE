@@ -405,6 +405,8 @@ jobs:
         run: python3 scripts/check_autonomy_cluster.py
       - name: Prove retained-template rollback and stale-write guards against owned cluster
         run: python3 scripts/check_rollback_cluster.py
+      - name: Prove live policy update survives application restart
+        run: python3 scripts/check_policy_stack.py
       - name: Collect scoped cluster diagnostics without secrets
         if: always()
         run: python3 scripts/ci/kind_platform_gate.py diagnostics
