@@ -548,6 +548,14 @@ def create_app(
 
     # Static route must precede /{decision} to avoid ambiguity. FastAPI matches
     # path order, so execute uses a distinct, explicit /actions prefix.
+    @application.post("/actions/{incident_id}/cancel", dependencies=[Depends(authorized)])
+    def cancel_action(incident_id: str, body: Decision) -> dict[str, Any]:
+        return loop.cancel(incident_id, body).model_dump(mode="json")
+
+    @application.post("/actions/{incident_id}/undo-scale", dependencies=[Depends(authorized)])
+    def undo_scale(incident_id: str, body: Decision) -> dict[str, Any]:
+        return loop.undo_scale(incident_id, body).model_dump(mode="json")
+
     @application.post("/actions/{incident_id}/execute", dependencies=[Depends(authorized)])
     def execute(incident_id: str, body: Decision) -> dict[str, Any]:
         return loop.execute(incident_id, body.actor).model_dump(mode="json")
