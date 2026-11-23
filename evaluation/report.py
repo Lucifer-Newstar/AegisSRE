@@ -108,7 +108,7 @@ def summarize(dataset: Dataset) -> dict[str, Any]:
             rows = [r for r in dataset.records if r.fault == fault and r.workflow == workflow]
             counts = {state: sum(r.status == state for r in rows)
                       for state in ("complete", "timeout", "failed")}
-            adequate = adequate and len(rows) >= required_runs and counts["complete"] >= required_runs
+            adequate = adequate and len(rows) >= required_runs
             detection = [v for r in rows if (v := seconds(r.detected_at, r.onset_at)) is not None]
             recovery = [v for r in rows if (v := seconds(r.recovered_at, r.onset_at)) is not None]
             judged = [r for r in rows if r.predicted_recovered is not None]
@@ -142,15 +142,17 @@ def summarize(dataset: Dataset) -> dict[str, Any]:
     return {"schema_version": "1", "cohort_complete": adequate and not unpaired_ids,
             "unpaired_experiment_ids": unpaired_ids,
             "comparison_profile": dataset.comparison_profile,
-            "required_completed_per_fault_workflow": required_runs,
+            "required_completed_per_fault_workflow": required_runs,  # Legacy field name, reviewed attempts, not successes.
+            "required_reviewed_attempts_per_fault_workflow": required_runs,
             "small_sample": required_runs == 3,
+            "all_workflows_recovered": bool(dataset.records) and all(r.status == "complete" for r in dataset.records),
             "record_count": len(dataset.records), "groups": groups, "paired_differences": paired,
             "review_reference": dataset.review_reference,
             "limitations": ["Input references/digests are declarations, not verified by this offline reporter.",
                 "Means/std use observed intervals only; missing/censored outcomes remain in counts and coverage.",
                 "Repetition counts alone do not prove detector precision/recall, causal correctness, RAG recall, DI accuracy or model quality.",
                 "Manual inputs must be observed by the named human, never inferred from an assumed response delay.",
-                "cohort_complete checks pairing and the explicitly selected repetition profile only, not all project acceptance thresholds.",
+                "cohort_complete counts reviewed attempts and pairing, including timeout/failed outcomes. It does not require every workflow to recover or prove project acceptance.",
                 "The approved small profile is30 pairs,3 repetitions per fault; it does not meet the original10-per-fault design or establish statistical significance."]}
 
 
