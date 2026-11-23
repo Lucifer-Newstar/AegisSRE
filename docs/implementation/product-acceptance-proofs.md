@@ -23,6 +23,20 @@ The approval screenshot shows remaining unrelated pending incidents after the
 seeded incident's successful approval. It does not imply those were approved.
 
 Still open: repeated fault cohort, independently reviewed detection/recovery and
-RCA truth, a genuine human comparator, chosen live-model trials, retrieval/DI
+RCA truth, a genuine human comparator, retrieval/DI
 thresholds and full product acceptance. The scoped observations above do not
 satisfy those distinct gates.
+
+## Matched-session proof, not a measured comparison
+
+[The controller CI job](https://github.com/Lucifer-Newstar/AegisSRE/actions/runs/45119252520/job/137509139711)
+retained73 hash-verified timing records,14 actual503 probes and37 healthy probes.
+The first restoration boundary and observe safety stop were recorded. The
+operator was explicitly `ci-smoke-not-human`, there were no human acknowledgements,
+and all reviewed outcome timestamps remained null. This is plumbing proof only.
+
+The integrated workflow, reviewed report path and local reset are documented in
+[matched trials](../development/matched-trials.md),
+[reporting](../../evaluation/README.md) and
+[Windows local trials](../development/windows-local-trials.md). The local reset
+has unit safety checks; its actual target-laptop validation remains open.

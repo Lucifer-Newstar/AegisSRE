@@ -5,6 +5,31 @@ The scope reference is [features.md](../planning/features.md). Cut and stretch
 items retain their existing status. A passing unit test is not a measured
 end-to-end reliability result.
 
+## Current release snapshot
+
+The entries below are a chronological implementation journal. Statements such as
+"not yet wired" describe that milestone, not necessarily today's implementation.
+Use this snapshot and the [scoped proof ledger](product-acceptance-proofs.md) first.
+
+- Implemented: live telemetry delivery, incident/recovery policy, evidence-only
+  Ask and pgvector retrieval, authenticated console, deployment risk/windows/
+  canary analytics, all ten owned-fixture faults and scoped Kubernetes execution.
+- Real integration proofs include approval interaction, gateway actor/audit,
+  scale/rollback and safety checks, telemetry/storage persistence, fault effects
+  and matched-session capture. They are not the comparative dataset.
+- Evaluation tooling includes solo acknowledgements, frozen balanced workflow
+  order, cleanup censoring, archived fresh local baselines and evidence-verified
+  reviewed cohort reports. See [matched trials](../development/matched-trials.md).
+- Open: target-laptop Docker/WSL smoke/reset,30 genuine paired trials, independent
+  outcome/quality review and numeric acceptance, final GHCR publication/pull check.
+- Final scope excludes live language-model inference and any v2/MLOps platform
+  build. Old milestone mentions of these are historical, not outstanding work.
+
+No claim of "all coding done" replaces actual local validation. Findings from
+those checks may require fixes before completion.
+
+## Historical milestones
+
 ## Milestone 1: reliability core
 
 Implemented in `backend/services/incidents-service`:

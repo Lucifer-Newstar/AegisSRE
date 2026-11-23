@@ -7,6 +7,21 @@
 
 ---
 
+## Current release and evaluation
+
+- [Current implementation and acceptance](implementation/status.md)
+- [Scoped integration proofs and their limits](implementation/product-acceptance-proofs.md)
+- [Supported portfolio wording](implementation/positioning.md)
+- [Windows/WSL2 setup and isolated resets](development/windows-local-trials.md)
+- [Matched fault/workflow protocol](development/matched-trials.md)
+- [Solo human timing](development/solo-manual-protocol.md)
+- [Evidence-verified reports](../evaluation/README.md)
+- [Actual chaos operations and limits](../chaoslab/README.md)
+
+Start with current status before the historical proposal or milestone plans.
+The final scope is evidence-only, no live model or v2 build. Actual local trials,
+reviewed acceptance metrics and final image publication remain unfinished.
+
 ## 1. Document Tree
 
 ```text
@@ -51,6 +66,8 @@ docs/
 │
 └── operations/                  ← HOW TO RUN & MEASURE
     └── evaluation.md            ← SRE/ML/automation metrics & protocol
+
+implementation/                  ← current snapshot, historical milestones and scoped proofs
 ```
 
 ## 2. Index by Topic
@@ -93,7 +110,7 @@ docs/
   (planning/README.md §2), never silently.
 - **ADRs for architecture** — interface/stack changes require an ADR
   (see [development/contributing.md](development/contributing.md)).
-- **Honest status** — docs that describe unbuilt design say so; only the phase plan
-  and roadmap claim what is proven.
+- **Honest status** — docs that describe unbuilt design say so; the current acceptance snapshot and scoped proof ledger
+  separate code, integration fixtures and measured outcomes.
 - **Path discipline** — links inside docs use relative paths; repo-root paths are
   written as `docs/<folder>/...` in code comments/README.
