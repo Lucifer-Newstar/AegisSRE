@@ -37,6 +37,7 @@ ROUTES = (
     Route("/postmortems", "incidents"),
     Route("/postmortems/{incident_id}", "incidents"),
     Route("/audit", "incidents", queries=("incident_id", "limit")),
+    Route("/policy", "incidents", ("GET", "POST"), asserted_actor=True),
     Route("/autonomy", "incidents", ("GET", "POST"), asserted_actor=True),
     Route("/runtime", "incidents"),
     Route("/ask", "incidents", ("POST",), timeout_seconds=135),
