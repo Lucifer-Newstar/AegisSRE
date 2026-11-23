@@ -1,0 +1,10 @@
+{
+  "actual_browser_submit": true,
+  "principal": "token:operator",
+  "incident_id": "inc_20261123025100_9d628be3d6",
+  "cross_origin_status": 403,
+  "invalid_csrf_status": 422,
+  "note_count": 1,
+  "state_approval_plan_undo_unchanged": true,
+  "not_fault_acceptance": true
+}

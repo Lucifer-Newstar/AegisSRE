@@ -96,6 +96,21 @@ def main() -> None:
         current_revision = deployment()["metadata"]["annotations"][
             "deployment.kubernetes.io/revision"
         ]
+        # Rollout readiness can precede the controller's final status/RS updates.
+        # Wait for a quiet resourceVersion before this one-shot CAS proof. The
+        # executor still fails closed if any update races the actual dispatch.
+        last_version = ""
+        quiet = 0
+        for _ in range(30):
+            value = deployment()
+            version = value["metadata"]["resourceVersion"]
+            quiet = quiet + 1 if version == last_version else 0
+            last_version = version
+            if quiet >= 3:
+                break
+            time.sleep(1)
+        else:
+            raise AssertionError("Deployment did not settle before one-shot rollback")
         clock = now()
         loop = ReliabilityLoop(
             Repository("sqlite:///" + str(base / "rollback-policy-proof.db")),
@@ -189,7 +204,11 @@ def main() -> None:
         assert loop.run_automatic() == 1
         with loop.repo.transaction() as tx:
             actual = tx.incident(incident.id)
-            assert actual and actual.status == "verifying" and actual.undo
+            if actual is None or actual.status != "verifying" or not actual.undo:
+                (base / "diagnostics" / "rollback-failed-incident.json").write_text(
+                    json.dumps(actual.model_dump(mode="json") if actual else None, indent=2)
+                )
+                raise AssertionError("One-shot rollback did not reach verifying; inspect retained failure incident. No execution retry.")
         loop.set_mode("observe", "fixture")
         fixture.kubectl(
             "rollout", "status", "deployment/catalog-service", "-n", fixture.NS, "--timeout=120s"

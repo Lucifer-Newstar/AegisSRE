@@ -294,18 +294,18 @@ passed before its ordinary merge. Open PRs are not completed work.
 
 | ID | Merged implementation/proof | Acceptance still required |
 |---|---|---|
-| A1 | Complete18-workload kind assembly, actual metrics/log-trace join, projected-SA Kubernetes capture, durable delivery, restart/PVC proof ([14](https://github.com/Lucifer-Newstar/AegisSRE/pull/14)) | Measured startup-to-Grafana timing and evaluation coverage |
+| A1 | Complete18-workload kind assembly, actual metrics/log-trace join, projected-SA Kubernetes capture, durable delivery, restart/PVC proof ([14](https://github.com/Lucifer-Newstar/AegisSRE/pull/14)) | Application-start telemetry reached Grafana datasource in22.55s ([53](https://github.com/Lucifer-Newstar/AegisSRE/pull/53)), collectors already running. Cold full-stack startup and evaluation coverage remain |
 | A2 | Authenticated persistent CRUD/probes and actual console reads ([18](https://github.com/Lucifer-Newstar/AegisSRE/pull/18)) | Full interaction/refresh acceptance review |
 | A3 | Statistical/Isolation Forest detection, committed anomaly events and isolated baselines | Held-out precision/recall/F1>=.85 and latency<60s |
 | A4 | Transactional lifecycle/timeline/audit, live console | Measured creation bound on real qualifying faults |
 | A5 | Read-only evidence/citations, deterministic hypotheses, optional guarded model adapters, closure reports | No live-model requirement in final release; top1>=70% on real faults and reviewed reports remain |
 | A6 | Durable versioned policy updates, observe-only CAS and actual restart persistence ([45](https://github.com/Lucifer-Newstar/AegisSRE/pull/45)); guarded cancellation and one-attempt scale undo ([48](https://github.com/Lucifer-Newstar/AegisSRE/pull/48)) | Full supported-action/risk interaction review and repeated safety acceptance |
-| A7 | Authorized console approve/reject/defer with audit | Formal three-click check and full impact review |
+| A7 | Authorized console approve/reject/defer with audit | Actual seeded approval took two clicks from authenticated command center ([52](https://github.com/Lucifer-Newstar/AegisSRE/pull/52)); login excluded, no action executed. Broader impact/decision review remains |
 | A8 | Automatic-only scheduler with fresh candidates, real one-replica scale and final kill-switch callback ([31](https://github.com/Lucifer-Newstar/AegisSRE/pull/31), [37](https://github.com/Lucifer-Newstar/AegisSRE/pull/37)) | >=80% eligible-action success and repeated safety trials. Seeded scale proof is not this benchmark |
 | A9 | Fresh metric/health/error/latency/SLO recovery gate and timeout escalation | Ground-truth>=90% verdict accuracy, repeated unrecovered-close safety |
 | A10/C1 | Authenticated API-backed pages, charts, evidence, reports and15s refresh ([18](https://github.com/Lucifer-Newstar/AegisSRE/pull/18), [20](https://github.com/Lucifer-Newstar/AegisSRE/pull/20)) | Full product-vision interaction/visual acceptance and any remaining overview sparklines. Exact detector samples, producer deployment markers and live SLO panels are merged in PRs35/36/44 |
 | A11 | Actual owned CLI HTTP fault, latency, boundedCPUwork/RSS, OOM/crash/config/faulty-image/traffic and dependency outage proofs ([17](https://github.com/Lucifer-Newstar/AegisSRE/pull/17), [22](https://github.com/Lucifer-Newstar/AegisSRE/pull/22), [23](https://github.com/Lucifer-Newstar/AegisSRE/pull/23), [24](https://github.com/Lucifer-Newstar/AegisSRE/pull/24), [25](https://github.com/Lucifer-Newstar/AegisSRE/pull/25), [26](https://github.com/Lucifer-Newstar/AegisSRE/pull/26), [27](https://github.com/Lucifer-Newstar/AegisSRE/pull/27)) | Sustained application CPU against its fixed quota is demonstrated in [46](https://github.com/Lucifer-Newstar/AegisSRE/pull/46), not host/capacity acceptance. Application delay is not packet shaping. Repeat full manifest-controlled trials |
-| A12/E2 | Paired held-out schema/report command with censoring, mean/std and provenance ([29](https://github.com/Lucifer-Newstar/AegisSRE/pull/29)) | Approved small dataset:3 completed runs/fault/workflow,30 pairs, genuine Navin/friend manual observations and committed results. Must be labelled small sample, not original10-per-fault acceptance |
+| A12/E2 | Paired held-out schema/report command with censoring, mean/std and provenance ([29](https://github.com/Lucifer-Newstar/AegisSRE/pull/29)); frozen-input raw capture with actual HTTP-fault smoke ([49](https://github.com/Lucifer-Newstar/AegisSRE/pull/49)) | Approved small dataset:3 completed runs/fault/workflow,30 pairs, genuine Navin/friend manual observations and committed results. Must be labelled small sample, not original10-per-fault acceptance |
 | B1 | Actual pgvector retrieval/persistence and runbook/context wiring ([7](https://github.com/Lucifer-Newstar/AegisSRE/pull/7)) | Real evaluation-fault recall@5>=.8, frozen corpus |
 | B2 | Read-only tools, visible cited Ask, guarded optional inference and evidence-only fallback | Evidence-only final release, no model call planned; reviewed actual question/citation trials remain |
 | C3/C4 | Incident-linked text-only runbooks, postmortem/action/evidence viewer, authenticated Markdown export ([20](https://github.com/Lucifer-Newstar/AegisSRE/pull/20)) | Reviewed actual fault closure reports; PDF optional format not yet provided |
@@ -328,12 +328,19 @@ Operator notes are also available to closed-case retrieval as unverified context
 ([47](https://github.com/Lucifer-Newstar/AegisSRE/pull/47)). These are implementation
 and scoped integration proofs, not substitutes for numeric acceptance targets.
 
-The next evaluation change is the raw capture work in
-[49](https://github.com/Lucifer-Newstar/AegisSRE/pull/49), still open when this ledger
-was reconciled. The existing reporters validate external reviewed records only.
-No full measured dataset or genuine manual comparator is committed. The chosen
-live model, manual observer, image registry/audience and permission for a large
-hosted trial run remain decisions, not completed work.
+Frozen-input raw capture is merged in
+[49](https://github.com/Lucifer-Newstar/AegisSRE/pull/49). Its actual smoke recorded
+normal200, fault503 and restored200 requests separately from the control journal;
+all four file hashes were checked. This is not the repeated acceptance cohort.
+The actual note form and approval checks are merged in
+[50](https://github.com/Lucifer-Newstar/AegisSRE/pull/50),
+[51](https://github.com/Lucifer-Newstar/AegisSRE/pull/51) and
+[52](https://github.com/Lucifer-Newstar/AegisSRE/pull/52). See
+[the scoped proof record](product-acceptance-proofs.md) for exact source runs and
+inspected pixels. No full measured dataset or genuine manual comparator is
+committed. No live model or v2 build is planned. The observer friend and actual trial sessions
+remain pending. GHCR anyone-can-read is approved only when ready; no hosted matrix
+or spending is approved. The comparative evidence is still not complete.
 
 ## Next milestones
 

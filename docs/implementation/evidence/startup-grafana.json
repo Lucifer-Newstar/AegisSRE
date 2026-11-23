@@ -1,0 +1,26 @@
+{
+  "container_started_at": "2026-11-23T02:59:35Z",
+  "pod_uid": "988d8a24-fe05-424a-baf6-219e47ec3c6b",
+  "instance": "catalog-service:9001",
+  "observed_via": "authenticated Grafana provisioned Prometheus datasource",
+  "query": "process_start_time_seconds{job=\"aegisshop-catalog\",instance=\"catalog-service:9001\"}",
+  "result": [
+    {
+      "metric": {
+        "__name__": "process_start_time_seconds",
+        "environment": "dev",
+        "instance": "catalog-service:9001",
+        "job": "aegisshop-catalog",
+        "service": "catalog-service"
+      },
+      "value": [
+        1795402797.552,
+        "1795402775.38"
+      ]
+    }
+  ],
+  "seconds_from_container_start_to_observation": 22.55337166786194,
+  "under60_seconds": true,
+  "collectors_already_running": true,
+  "not_cold_full_stack_bootstrap": true
+}
