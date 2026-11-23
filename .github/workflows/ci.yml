@@ -393,6 +393,8 @@ jobs:
         run: python3 scripts/ci/kind_platform_gate.py verify
       - name: Install YAML parser for temporary canary scrape config
         run: pip install pyyaml
+      - name: Measure restarted application telemetry through Grafana
+        run: python3 scripts/check_startup_grafana.py
       - name: Prove separate real stable and faulty canary track comparison
         run: python3 scripts/check_canary_cluster.py
       - name: Measure sustained application CPU against its fixed cgroup quota
